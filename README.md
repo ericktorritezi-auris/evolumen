@@ -7,9 +7,12 @@ Mais um produto Belle Planner.
 
 | Versão | Fase | Data | O que mudou |
 |---|---|---|---|
+| 0.1.1 | 1 · Base e contas | 2026-10-17 | Correção: o administrador agora edita o próprio CPF no perfil (validado e único). O aluno continua sem poder alterar. |
 | 0.1.0 | 1 · Base e contas | 2026-10-17 | Login único, primeiro acesso com troca de senha, recuperação de senha, perfil, troca de e-mail em duas etapas, e-mails pelo Resend, PWA, aceites LGPD, auditoria, ambientes staging e produção. |
 
 A versão 1.0 será a primeira entrada em produção. Antes disso, 0.x.
+
+Endereço de produção: https://evolumen.ericktorritezi.com.br
 
 ## Variáveis no Railway (cada ambiente)
 

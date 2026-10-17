@@ -60,7 +60,9 @@ function perfil({ cfg, user, csrf, flash, errors = {}, values = null, acceptance
         ${csrfInput(csrf)}
         <div class="span2">${field({ id: 'name', label: 'Nome completo', value: v.name, error: errors.name, autocomplete: 'name', required: true })}</div>
         ${field({ id: 'phone', label: 'Telefone / WhatsApp', value: v.phone || '', error: errors.phone, autocomplete: 'tel', inputmode: 'tel' })}
-        ${field({ id: 'cpf', label: 'CPF', value: user.cpf || '', readonly: true, note: 'O CPF só pode ser alterado pelo administrador.' })}
+        ${isStudent
+          ? field({ id: 'cpf', label: 'CPF', value: user.cpf || '', readonly: true, note: 'O CPF só pode ser alterado pelo administrador.' })
+          : field({ id: 'cpf', name: 'cpf', label: 'CPF', value: v.cpf || '', error: errors.cpf, inputmode: 'numeric', maxlength: 14, note: 'Aparece nos recibos e certificados.' })}
         ${field({ id: 'cep', label: 'CEP', value: v.cep || '', error: errors.cep, autocomplete: 'postal-code', inputmode: 'numeric' })}
         ${field({ id: 'street', label: 'Endereço', value: v.street || '', autocomplete: 'address-line1' })}
         ${field({ id: 'street_number', label: 'Número', value: v.street_number || '' })}

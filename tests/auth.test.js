@@ -282,3 +282,19 @@ test('troca de e-mail invalida links de recuperação antigos', async () => {
   await b.post('/perfil/email/confirmar', { code_current: code(s.email), code_new: code('novo-antigo@example.com') }, '/perfil/email');
   assert.equal((await anon.get('/redefinir-senha/' + link)).status, 410);
 });
+
+test('administrador edita o próprio CPF (validado e único); aluno não consegue', async () => {
+  const b = new Browser(t.base); await b.login(ADMIN.email, 'NovaSenha2026');
+  await accept({ id: (await t.pool.query("SELECT id FROM users WHERE role='admin'")).rows[0].id });
+  const bad = await b.post('/perfil', { name: 'Erick Torritezi', cpf: '111.111.111-11' }, '/perfil');
+  assert.equal(bad.status, 422); assert.match(bad.text, /CPF inválido/);
+  const ok = await b.post('/perfil', { name: 'Erick Torritezi', cpf: '529.982.247-25' }, '/perfil');
+  assert.equal(ok.location, '/perfil');
+  assert.equal((await t.pool.query("SELECT cpf FROM users WHERE role='admin'")).rows[0].cpf, '52998224725');
+  const page = await b.get('/perfil'); assert.match(page.text, /value="52998224725"/); assert.doesNotMatch(page.text, /só pode ser alterado pelo administrador/);
+  const s = await makeStudent(t, { email: 'semcpf@example.com', name: 'Sem Cpf' }); await accept(s);
+  const sb = new Browser(t.base); await sb.login(s.email, s.password);
+  const before = (await t.pool.query('SELECT cpf FROM users WHERE id=$1', [s.id])).rows[0].cpf;
+  await sb.post('/perfil', { name: 'Sem Cpf', cpf: '52998224725' }, '/perfil');
+  assert.equal((await t.pool.query('SELECT cpf FROM users WHERE id=$1', [s.id])).rows[0].cpf, before);
+});

@@ -223,11 +223,17 @@ function build(cfg, app) {
   r.get('/perfil', needUser, gate, async (req, res) => res.send(await loadProfile(req, res)));
 
   r.post('/perfil', needUser, gate, async (req, res) => {
-    const { errors, values } = V.profileFields(req.body);
+    const isAdmin = req.user.role === 'admin';
+    const { errors, values } = V.profileFields(req.body, { allowCpf: isAdmin });
+    if (isAdmin && values.cpf && !errors.cpf) {
+      const dup = await db.q('SELECT 1 FROM users WHERE cpf = $1 AND id <> $2', [values.cpf, req.user.id]);
+      if (dup.rowCount) errors.cpf = 'Este CPF já está cadastrado.';
+    }
     if (Object.keys(errors).length) return res.status(422).send(await loadProfile(req, res, { errors, values: { ...req.user, ...values } }));
+    if (!isAdmin) values.cpf = req.user.cpf; // aluno nunca altera o CPF por aqui
     const changed = Object.keys(values).filter((k) => String(values[k] ?? '') !== String(req.user[k] ?? ''));
-    await db.q(`UPDATE users SET name=$2, phone=$3, cep=$4, state=$5, street=$6, street_number=$7, complement=$8, district=$9, city=$10, updated_at=now() WHERE id=$1`,
-      [req.user.id, values.name, values.phone, values.cep, values.state, values.street, values.street_number, values.complement, values.district, values.city]);
+    await db.q(`UPDATE users SET name=$2, phone=$3, cep=$4, state=$5, street=$6, street_number=$7, complement=$8, district=$9, city=$10, cpf=$11, updated_at=now() WHERE id=$1`,
+      [req.user.id, values.name, values.phone, values.cep, values.state, values.street, values.street_number, values.complement, values.district, values.city, values.cpf ?? null]);
     await audit(req, 'profile_updated', { entity: 'user', entityId: req.user.id, meta: { fields: changed } });
     setFlash(res, 'success', 'Dados atualizados.');
     res.redirect(303, '/perfil');

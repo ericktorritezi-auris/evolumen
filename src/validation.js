@@ -18,7 +18,18 @@ function checkPassword(p) {
 
 const digits = (v) => String(v || '').replace(/\D/g, '');
 
-function profileFields(body) {
+function validCpf(v) {
+  const c = digits(v);
+  if (c.length !== 11 || /^(\d)\1{10}$/.test(c)) return false;
+  for (const n of [9, 10]) {
+    let sum = 0;
+    for (let i = 0; i < n; i++) sum += Number(c[i]) * (n + 1 - i);
+    if (((sum * 10) % 11) % 10 !== Number(c[n])) return false;
+  }
+  return true;
+}
+
+function profileFields(body, { allowCpf = false } = {}) {
   const errors = {};
   const name = String(body.name || '').trim().replace(/\s+/g, ' ');
   if (name.length < 3 || name.length > 120) errors.name = 'Informe seu nome completo.';
@@ -28,15 +39,20 @@ function profileFields(body) {
   if (cep && cep.length !== 8) errors.cep = 'CEP com 8 números.';
   const state = String(body.state || '').trim().toUpperCase();
   if (state && !UFS.includes(state)) errors.state = 'UF inválida.';
+  let cpf;
+  if (allowCpf) {
+    cpf = digits(body.cpf) || null;
+    if (cpf && !validCpf(cpf)) errors.cpf = 'CPF inválido. Confira os 11 números.';
+  }
   const clip = (v, n) => String(v || '').trim().slice(0, n);
   return {
     errors,
     values: {
-      name, phone: phone || null, cep: cep || null, state: state || null,
+      ...(allowCpf ? { cpf } : {}), name, phone: phone || null, cep: cep || null, state: state || null,
       street: clip(body.street, 160) || null, street_number: clip(body.street_number, 20) || null,
       complement: clip(body.complement, 80) || null, district: clip(body.district, 80) || null, city: clip(body.city, 80) || null,
     },
   };
 }
 
-module.exports = { normalizeEmail, checkPassword, profileFields, digits, UFS };
+module.exports = { validCpf, normalizeEmail, checkPassword, profileFields, digits, UFS };
