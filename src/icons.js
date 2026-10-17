@@ -1,0 +1,27 @@
+// Ícones do menu (traços SVG). Um só lugar.
+module.exports = {
+ "help": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M9.6 9.4a2.5 2.5 0 114 2c-.9.6-1.6 1.1-1.6 2.1\"/><circle cx=\"12\" cy=\"16.8\" r=\".6\" fill=\"currentColor\"/>",
+ "book": "<path d=\"M5 4.5h9a3 3 0 013 3V20H8a3 3 0 01-3-3V4.5z\"/><path d=\"M8 17h9\"/>",
+ "cert": "<rect x=\"3.5\" y=\"5\" width=\"17\" height=\"11.5\" rx=\"2\"/><path d=\"M8 20l4-2.5 4 2.5v-3.5\"/><path d=\"M7.5 9h9M7.5 12h5\"/>",
+ "card": "<rect x=\"3.5\" y=\"6\" width=\"17\" height=\"13\" rx=\"2.5\"/><path d=\"M3.5 10.5h17\"/>",
+ "user": "<circle cx=\"12\" cy=\"8.5\" r=\"3.5\"/><path d=\"M5 20c1-4 4-6 7-6s6 2 7 6\"/>",
+ "users": "<circle cx=\"9\" cy=\"8.5\" r=\"3.2\"/><path d=\"M3.5 19c.8-3.4 3-5 5.5-5s4.7 1.6 5.5 5\"/><circle cx=\"17\" cy=\"9.5\" r=\"2.4\"/><path d=\"M16 14.2c2.2.2 3.8 1.6 4.5 4.3\"/>",
+ "grid": "<rect x=\"4\" y=\"4\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"13\" y=\"4\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"4\" y=\"13\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"13\" y=\"13\" width=\"7\" height=\"7\" rx=\"1.5\"/>",
+ "chat": "<path d=\"M4 5h16v11H9l-5 4z\"/>",
+ "gear": "<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 3.5v2.5M12 18v2.5M3.5 12H6M18 12h2.5M6 6l1.8 1.8M16.2 16.2L18 18M18 6l-1.8 1.8M7.8 16.2L6 18\"/>",
+ "shield": "<path d=\"M12 3.5l7 2.5v5.5c0 4.2-2.8 7.4-7 9-4.2-1.6-7-4.8-7-9V6z\"/><path d=\"M9 12l2.2 2.2L15.5 10\"/>",
+ "cash": "<rect x=\"3.5\" y=\"7\" width=\"17\" height=\"10\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2.5\"/>",
+ "menu": "<path d=\"M4 7h16M4 12h16M4 17h16\"/>",
+ "close": "<path d=\"M6 6l12 12M18 6L6 18\"/>",
+ "out": "<path d=\"M14 5H6v14h8\"/><path d=\"M10 12h10M17 9l3 3-3 3\"/>",
+ "compass": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M15.5 8.5l-2 5-5 2 2-5z\"/>",
+ "check": "<path d=\"M5 12.5l4.5 4.5L19 7.5\"/>",
+ "clock": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/>",
+ "video": "<rect x=\"3.5\" y=\"6\" width=\"17\" height=\"12\" rx=\"2.5\"/><path d=\"M10.5 9.5l4 2.5-4 2.5z\"/>",
+ "file": "<path d=\"M7 3.5h7l4 4V20.5H7z\"/><path d=\"M14 3.5v4h4\"/>",
+ "star": "<path d=\"M12 4l2.4 5 5.4.7-4 3.8 1 5.4L12 16.2 7.2 18.9l1-5.4-4-3.8 5.4-.7z\"/>",
+ "lock": "<rect x=\"5\" y=\"10.5\" width=\"14\" height=\"9.5\" rx=\"2\"/><path d=\"M8.5 10.5V8a3.5 3.5 0 017 0v2.5\"/>",
+ "chart": "<path d=\"M4 20V4M4 20h16\"/><path d=\"M8 16v-4M12 16V8M16 16v-6\"/>",
+ "bell": "<path d=\"M6 17V11a6 6 0 0112 0v6l1.5 2h-15z\"/><path d=\"M10 21h4\"/>",
+ "download": "<path d=\"M12 4v11M7.5 11l4.5 4.5 4.5-4.5M5 20h14\"/>"
+};
