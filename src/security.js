@@ -81,23 +81,38 @@ function csrfFor(cfg, req) {
   return crypto.createHmac('sha256', cfg.sessionSecret).update('csrf:' + (req.sessionId || req.anonId)).digest('hex');
 }
 
+// Envios de arquivo (multipart) só são aceitos nestas rotas; lá o token é conferido depois que o corpo é lido.
+const MULTIPART_OK = /^\/admin\/(cursos\/\d+\/capa|aulas\/\d+\/arquivos)$/;
+
+function tokenOk(req, got) {
+  got = String(got || '');
+  return got.length === req.csrf.length && crypto.timingSafeEqual(Buffer.from(got), Buffer.from(req.csrf));
+}
+const csrfError = () => { const e = new Error('Sua sessão expirou ou o formulário é inválido. Volte e tente de novo.'); e.status = 403; e.expose = true; return e; };
+
 function csrfMiddleware(cfg) {
   const origin = new URL(cfg.baseUrl).origin;
   return (req, res, next) => {
     req.csrf = csrfFor(cfg, req);
     res.locals.csrf = req.csrf;
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
-    const got = String((req.body && req.body._csrf) || '');
-    const ok = got.length === req.csrf.length && crypto.timingSafeEqual(Buffer.from(got), Buffer.from(req.csrf));
     const o = req.get('origin');
     let originOk = true;
     if (o && o !== 'null') { try { const u = new URL(o); originOk = u.origin === origin || u.host === req.get('host'); } catch { originOk = false; } }
-    if (!ok || !originOk) {
-      const e = new Error('Sua sessão expirou ou o formulário é inválido. Volte e tente de novo.');
-      e.status = 403; e.expose = true; return next(e);
+    if (!originOk) return next(csrfError());
+    if (/^multipart\/form-data/i.test(req.get('content-type') || '')) {
+      if (!MULTIPART_OK.test(req.path)) return next(csrfError());
+      req.csrfDeferred = true;
+      return next();
     }
+    if (!tokenOk(req, req.body && req.body._csrf)) return next(csrfError());
     next();
   };
+}
+// Para rotas de upload: roda depois do multer.
+function requireCsrf(req, res, next) {
+  if (req.csrfDeferred && !tokenOk(req, req.body && req.body._csrf)) return next(csrfError());
+  next();
 }
 
 function newToken() { const raw = rand(32); return { raw, hash: sha256(raw) }; }
@@ -108,4 +123,4 @@ function safeEqual(a, b) {
   return x.length === y.length && crypto.timingSafeEqual(x, y);
 }
 
-module.exports = { sha256, rand, sessionMiddleware, createSession, destroySession, destroyOtherSessions, csrfMiddleware, csrfFor, newToken, newCode, hashCode, safeEqual };
+module.exports = { sha256, rand, sessionMiddleware, createSession, destroySession, destroyOtherSessions, csrfMiddleware, requireCsrf, csrfFor, newToken, newCode, hashCode, safeEqual };

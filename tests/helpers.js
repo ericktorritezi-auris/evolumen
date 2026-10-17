@@ -63,6 +63,16 @@ class Browser {
     const _csrf = await this.csrf(from || path);
     return this.req('POST', path, { _csrf, ...form });
   }
+  async upload(path, fields, file, { csrfFrom, csrf = true } = {}) {
+    const token = csrf ? await this.csrf(csrfFrom) : '';
+    const fd = new FormData();
+    if (csrf) fd.append('_csrf', token);
+    for (const [k, v] of Object.entries(fields || {})) fd.append(k, v);
+    if (file) fd.append('arquivo', new Blob([file.buffer], { type: file.type || 'application/octet-stream' }), file.name);
+    const res = await fetch(this.base + path, { method: 'POST', redirect: 'manual', body: fd, headers: { cookie: this.cookieHeader(), 'user-agent': this.ua } });
+    this.store(res);
+    return { status: res.status, location: res.headers.get('location'), text: await res.text() };
+  }
   async login(email, password) { return this.post('/entrar', { email, password }, '/entrar'); }
 }
 

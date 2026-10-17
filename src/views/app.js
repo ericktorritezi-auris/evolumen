@@ -12,17 +12,6 @@ function titleRow(title, sub) {
   return html`<div class="title-row"><h1 class="t-display">${title}</h1>${sub ? html`<p class="muted">${sub}</p>` : ''}</div>`;
 }
 
-function meusCursos({ cfg, user, csrf, flash }) {
-  return shellApp({
-    cfg, user, csrf, flash, path: '/meus-cursos', title: 'Meus cursos',
-    content: html`${titleRow(html`Olá, ${user.name.split(' ')[0]}.`, 'Seus cursos e o seu avanço.')}
-      <section class="card card--hero">
-        <div class="empty">${lumen('pensa', 120)}<div><h2 class="t-card">Seus cursos aparecem aqui</h2>
-        <p class="muted">Sua conta está pronta. Os cursos, as aulas e o seu progresso chegam nas próximas fases.</p></div></div>
-      </section>`,
-  });
-}
-
 function adminHome({ cfg, user, csrf, flash, status }) {
   const row = (k, v, ok) => html`<div class="kv"><span>${k}</span><span class="${ok === false ? 'bad' : ok ? 'good' : ''}">${v}</span></div>`;
   return shellApp({
@@ -148,4 +137,4 @@ function aceite({ cfg, user, csrf, flash, docs }) {
   return shellApp({ cfg, user, csrf, flash, path: '/aceite', title: 'Termos e privacidade', content });
 }
 
-module.exports = { meusCursos, adminHome, perfil, perfilEmail, aceite };
+module.exports = { adminHome, perfil, perfilEmail, aceite };

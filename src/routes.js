@@ -67,7 +67,6 @@ function build(cfg, app) {
     const e = new Error('Você não tem acesso a esta área.'); e.status = 403; e.expose = true; next(e);
   };
 
-  r.get('/', (req, res) => res.redirect(303, req.user ? home(req.user) : '/entrar'));
 
   // ---- login e logout ----
   r.get('/entrar', (req, res) => {
@@ -201,7 +200,6 @@ function build(cfg, app) {
   });
 
   // ---- telas iniciais (conteúdo real chega nas próximas fases) ----
-  r.get('/meus-cursos', needUser, gate, (req, res) => res.send(appViews.meusCursos(appCtx(req, res))));
   r.get('/admin', needUser, gate, needAdmin, async (req, res) => {
     const m = await db.q('SELECT count(*)::int AS n FROM schema_migrations');
     const l = await db.q("SELECT count(*)::int AS n FROM legal_documents WHERE status = 'published'");
@@ -367,6 +365,7 @@ function build(cfg, app) {
     res.redirect(303, '/perfil');
   });
 
+  r.helpers = { setFlash, popFlash, background, home, view, appCtx, needUser, gate, needAdmin, loginLimit };
   return r;
 }
 

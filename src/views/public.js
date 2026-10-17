@@ -59,7 +59,7 @@ function landing({ cfg, user, courses }) {
 
 <section class="sec sec--alt" id="idealizador">
   <div class="sec__in prof">
-    <img class="prof__photo" src="/static/img/erick.jpg" width="320" height="320" alt="Erick Torritezi" loading="lazy">
+    <div class="prof__photo" aria-hidden="true"><span>ET</span></div>
     <div>
       <span class="eyebrow">Quem criou a EvoLumen</span>
       <h2 class="t-sec">Erick Torritezi</h2>

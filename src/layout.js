@@ -12,7 +12,7 @@ function lumen(pose, size, alt = '') {
   return html`<img class="lumen lumen--${pose}" src="/static/img/lumen-${pose}.svg" width="${size}" alt="${alt}">`;
 }
 
-function documentShell({ cfg, title, body, robots = 'noindex, nofollow', bodyClass = '' }) {
+function documentShell({ cfg, title, body, robots = 'noindex, nofollow', bodyClass = '', description = '' }) {
   const v = cfg.version.version;
   return '<!doctype html>' + html`<html lang="pt-BR">
 <head>
@@ -20,6 +20,7 @@ function documentShell({ cfg, title, body, robots = 'noindex, nofollow', bodyCla
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${title} · EvoLumen Academy</title>
 <meta name="robots" content="${cfg.isProd ? robots : 'noindex, nofollow'}">
+${description ? html`<meta name="description" content="${description}">` : ''}
 <meta name="theme-color" content="#0B0F26">
 <meta name="color-scheme" content="dark">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -101,4 +102,31 @@ function shellAuth({ cfg, title, heading, lead, pose = 'guia', bubble = '', cont
   return documentShell({ cfg, title, body, bodyClass: 'is-auth' });
 }
 
-module.exports = { documentShell, shellApp, shellAuth, flash, lumen };
+// Página pública (landing e curso): cabeçalho com menu de seções, menu por cima da tela no celular.
+function shellPublic({ cfg, user, title, content, flash: f, description = '', ogImage = '' }) {
+  const items = menuFor('publico', '/', cfg.version.phase);
+  const cta = user ? { href: user.role === 'admin' ? '/admin' : '/meus-cursos', label: user.role === 'admin' ? 'Painel' : 'Meus cursos' } : { href: '/entrar', label: 'Área de membros' };
+  const links = items.map((i) => html`<a href="${i.href}" class="nav__item">${icon(i.icon, 20)}<span>${i.label}</span></a>`);
+  const body = html`
+<header class="p-header">
+  <div class="p-header__in">
+    ${brand({ size: 34 })}
+    <nav class="p-nav" aria-label="Seções">${items.map((i) => html`<a href="${i.href}">${i.label}</a>`)}</nav>
+    <div class="p-header__act"><a class="btn btn--outline btn--sm" href="${cta.href}">${cta.label}</a>
+      <button type="button" class="icon-btn p-menu" id="menu-open" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu-overlay">${icon('menu', 22)}</button></div>
+  </div>
+</header>
+<div class="menu-overlay" id="menu-overlay" hidden>
+  <div class="menu-overlay__scrim" data-menu-close></div>
+  <aside class="menu-overlay__panel" role="dialog" aria-modal="true" aria-label="Menu">
+    <div class="menu-overlay__top">${brand({ size: 30 })}<button type="button" class="icon-btn" data-menu-close aria-label="Fechar menu">${icon('close', 22)}</button></div>
+    <nav class="nav" aria-label="Menu principal">${links}<a href="${cta.href}" class="nav__item nav__item--cta">${icon('user', 20)}<span>${cta.label}</span></a></nav>
+    <p class="menu-overlay__note">O menu abre por cima da tela e não empurra o conteúdo.</p>
+  </aside>
+</div>
+<main id="conteudo" class="p-main">${flash(f)}${content}</main>
+${renderFooter(cfg)}`;
+  return documentShell({ cfg, title, body, robots: 'index, follow', bodyClass: 'is-public', description });
+}
+
+module.exports = { documentShell, shellApp, shellAuth, shellPublic, flash, lumen };

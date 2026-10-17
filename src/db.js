@@ -1,5 +1,7 @@
 'use strict';
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
+// DATE vira texto AAAA-MM-DD, sem conversão de fuso (evita datas recuando um dia).
+types.setTypeParser(1082, (v) => v);
 
 let pool = null;
 function connect(cfg) {

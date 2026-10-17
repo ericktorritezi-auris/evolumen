@@ -25,7 +25,7 @@ try {
   const user = { id: 1, name: 'Teste Silva', email: 't@x.com', role: 'student', mascot_enabled: true, cpf: '1' };
   const pages = { login: au.login({ cfg, csrf: 'c' }), primeiro: au.firstAccess({ cfg, csrf: 'c' }), esqueci: au.forgot({ cfg, csrf: 'c' }),
     reset: au.reset({ cfg, csrf: 'c', token: 't' }), perfil: ap.perfil({ cfg, user, csrf: 'c' }), email: ap.perfilEmail({ cfg, user, csrf: 'c' }),
-    cursos: ap.meusCursos({ cfg, user, csrf: 'c' }) };
+    adminHome: ap.adminHome({ cfg, user: { ...user, role: 'admin' }, csrf: 'c', status: { db: true, migrations: 1, legalPublished: 0, mail: true, mailFrom: 'x' } }) };
   const dup = [];
   for (const [n, h] of Object.entries(pages)) { const ids = [...h.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]); const d = ids.filter((x, i) => ids.indexOf(x) !== i); if (d.length) dup.push(`${n}: ${[...new Set(d)].join(',')}`); }
   add('IDs HTML únicos por tela', !dup.length, `${Object.keys(pages).length} telas${dup.length ? '; repetidos: ' + dup.join(' | ') : ''}`);
