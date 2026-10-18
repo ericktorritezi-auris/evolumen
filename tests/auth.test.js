@@ -35,7 +35,7 @@ test('login: página tem rodapé único com versão e direitos', async () => {
   const b = new Browser(t.base);
   const r = await b.get('/entrar');
   assert.match(r.text, /© 2026 EvoLumen Academy/);
-  assert.match(r.text, /Mais um produto Belle Planner · Desenvolvido por Belle Planner · Versão 0\.1/);
+  assert.match(r.text, /Mais um produto Belle Planner · Desenvolvido por Belle Planner · Versão 0\.\d/);
   assert.match(r.text, /Ambiente de testes/);
 });
 

@@ -26,6 +26,7 @@ function createApp(cfg) {
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         imgSrc: ["'self'", 'data:'],
+        frameSrc: ['https://www.youtube-nocookie.com'],
         connectSrc: ["'self'"],
         manifestSrc: ["'self'"],
         workerSrc: ["'self'"],
@@ -75,7 +76,11 @@ function createApp(cfg) {
   app.use(sec.csrfMiddleware(cfg));
   app.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 
-  app.use(build(cfg, app));
+  const main = build(cfg, app);
+  app.use(require('./routes_public').build(cfg, main.helpers));
+  app.use(main);
+  app.use(require('./routes_student').build(cfg, main.helpers));
+  app.use(require('./routes_admin').build(cfg, main.helpers));
 
   app.use((req, res) => {
     res.status(404).send(authViews.errorPage({ cfg, status: 404, message: 'O endereço não existe ou foi movido.', loggedIn: !!req.user }));

@@ -56,6 +56,30 @@ function emailChangeCode(cfg, name, code, kind, newEmail) {
   };
 }
 
+function accessGranted(cfg, name, email, tempPassword, courseTitle) {
+  const first = esc(String(name).split(' ')[0]);
+  const url = `${cfg.baseUrl}/entrar`;
+  return {
+    subject: 'Seu acesso à EvoLumen Academy',
+    template: 'acesso_liberado',
+    html: layout({ cfg, title: 'Seu acesso está liberado', intro: `Olá, ${first}. Você agora tem acesso ao curso <b>${esc(courseTitle)}</b>.`,
+      bodyHtml: `<p style="margin:14px 0 4px;font-size:14px">Login: <b>${esc(email)}</b></p><p style="margin:0 0 14px;font-size:14px">Senha provisória: <b style="letter-spacing:1px">${esc(tempPassword)}</b></p>`,
+      cta: { url, label: 'Entrar na área de membros' }, outro: 'No primeiro acesso você escolhe sua própria senha. Guarde este e-mail só até lá.' }),
+    text: `Olá, ${name}. Seu acesso ao curso ${courseTitle} está liberado.\nLogin: ${email}\nSenha provisória: ${tempPassword}\nEntre em: ${url}\nNo primeiro acesso você escolhe sua própria senha.`,
+  };
+}
+
+function courseGranted(cfg, name, courseTitle, slug) {
+  const first = esc(String(name).split(' ')[0]);
+  const url = `${cfg.baseUrl}/curso/${slug}`;
+  return {
+    subject: `Acesso liberado: ${courseTitle}`,
+    template: 'curso_liberado',
+    html: layout({ cfg, title: 'Novo curso liberado', intro: `Olá, ${first}. Você agora tem acesso ao curso <b>${esc(courseTitle)}</b>.`, cta: { url, label: 'Abrir o curso' } }),
+    text: `Olá, ${name}. Você agora tem acesso ao curso ${courseTitle}: ${url}`,
+  };
+}
+
 function emailChanged(cfg, name, newEmail) {
   const first = esc(String(name).split(' ')[0]);
   return {
@@ -77,4 +101,4 @@ function adminEmailRequest(cfg, student, newEmail) {
   };
 }
 
-module.exports = { resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };
+module.exports = { accessGranted, courseGranted, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };
