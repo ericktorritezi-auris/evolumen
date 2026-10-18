@@ -26,7 +26,7 @@ function courseCard(c) {
       <div class="ccard__tags">${c.featured ? html`<span class="pill pill--star">Destaque</span>` : ''}${c.category ? html`<span class="pill">${c.category}</span>` : ''}</div>
       <h3 class="ccard__title"><a href="/cursos/${c.slug}">${c.title}</a></h3>
       ${c.summary ? html`<p class="muted">${c.summary}</p>` : ''}
-      <ul class="chips">${c.workload_hours ? html`<li>${c.workload_hours} h</li>` : ''}${c.videos ? html`<li>${plural(c.videos, 'vídeo', 'vídeos')}</li>` : ''}<li>${C.LEVELS[c.level]}</li></ul>
+      <ul class="chips">${c.workload_hours ? html`<li>${c.workload_hours} h</li>` : ''}${c.videos ? html`<li>${plural(c.videos, 'vídeo', 'vídeos')}</li>` : ''}${c.level !== 'nao_se_aplica' ? html`<li>${C.LEVELS[c.level]}</li>` : ''}</ul>
       <div class="ccard__foot">${priceBlock(c)}<a class="btn btn--outline btn--sm" href="/cursos/${c.slug}">Ver curso →</a></div>
     </div>
   </article>`;
@@ -131,7 +131,7 @@ ${preview ? html`<div class="alert alert--info">Pré-visualização: este curso 
 <article class="cpage">
   <div class="cpage__main">
     <a class="back" href="/#cursos">← Todos os cursos</a>
-    <div class="ccard__tags">${c.category ? html`<span class="pill">${c.category}</span>` : ''}<span class="pill">${C.LEVELS[c.level]}</span></div>
+    <div class="ccard__tags">${c.category ? html`<span class="pill">${c.category}</span>` : ''}${c.level !== 'nao_se_aplica' ? html`<span class="pill">${C.LEVELS[c.level]}</span>` : ''}</div>
     <h1 class="t-display">${c.title}</h1>
     ${c.summary ? html`<p class="lead">${c.summary}</p>` : ''}
     ${c.intro_youtube_id

@@ -2,7 +2,7 @@
 // Regras de cursos: validação do cadastro, formatação e consultas usadas pelas telas.
 const db = require('./db');
 
-const LEVELS = { iniciante: 'Iniciante', intermediario: 'Intermediário', avancado: 'Avançado' };
+const LEVELS = { iniciante: 'Iniciante', intermediario: 'Intermediário', avancado: 'Avançado', nao_se_aplica: 'Não se aplica' };
 
 // ---- formatação ----
 const brl = (cents) => (cents == null ? '' : (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));

@@ -214,3 +214,17 @@ test('rematricular não apaga a origem da matrícula', async () => {
   const e = (await t.pool.query('SELECT origin, starts_at < now() - interval \'9 days\' AS kept FROM enrollments WHERE user_id=$1', [s.id])).rows[0];
   assert.equal(e.origin, 'purchase'); assert.equal(e.kept, true);
 });
+
+test('nível "Não se aplica": salva, aparece como opção e não mostra selo de nível ao público', async () => {
+  const f = await admin.get('/admin/cursos/novo');
+  assert.match(f.text, /Não se aplica/);
+  const ok = await admin.post('/admin/cursos', form({ title: 'Meditação guiada', slug: 'meditacao-guiada', level: 'nao_se_aplica' }), '/admin/cursos/novo');
+  assert.equal(ok.status, 303);
+  const row = (await t.pool.query("SELECT id, level FROM courses WHERE slug='meditacao-guiada'")).rows[0];
+  assert.equal(row.level, 'nao_se_aplica');
+  await t.pool.query("UPDATE courses SET status='published', published_at=now() WHERE id=$1", [row.id]);
+  const pub = await new Browser(t.base).get('/cursos/meditacao-guiada');
+  assert.equal(pub.status, 200); assert.doesNotMatch(pub.text, /Não se aplica/);
+  const home = await new Browser(t.base).get('/');
+  assert.doesNotMatch(home.text, /Não se aplica/);
+});
