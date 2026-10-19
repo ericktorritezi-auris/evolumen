@@ -66,6 +66,10 @@ function build(cfg, h) {
     const l = await db.q(`SELECT l.id, l.module_id FROM lessons l WHERE l.id = $1 AND l.course_id = $2 AND ${C.LIVE}`, [req.params.lessonId, course.id]);
     if (!l.rowCount) return next();
     if (req.user.role !== 'admin' && A.lessonLocked(await A.overview(req.user.id, course), l.rows[0].module_id)) return res.redirect(303, `/curso/${course.slug}`);
+    if (req.body.done !== '1' && req.user.role === 'student' && (await A.overview(req.user.id, course)).cert.issued) {
+      h.setFlash(res, 'info', 'Você já recebeu o certificado deste curso. O progresso não pode mais diminuir.');
+      return res.redirect(303, `/curso/${course.slug}/aula/${l.rows[0].id}`);
+    }
     if (req.body.done === '1') await db.q('INSERT INTO lesson_progress (user_id, lesson_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [req.user.id, l.rows[0].id]);
     else await db.q('DELETE FROM lesson_progress WHERE user_id = $1 AND lesson_id = $2', [req.user.id, l.rows[0].id]);
     const flat = C.flatLessons(await C.curriculum(course.id));

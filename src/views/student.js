@@ -126,7 +126,9 @@ function aula({ cfg, user, csrf, flash, course, cur, lesson, flat, progress, acc
       <h1 class="t-display t-display--sm">${lesson.title}</h1>
       <div class="lesson__act">
         <form method="post" action="${link(lesson)}/concluir">${csrfInput(csrf)}<input type="hidden" name="done" value="${done ? '0' : '1'}">
-          <button class="btn ${done ? 'btn--ghost' : 'btn--primary'}" type="submit">${done ? html`${icon('check', 18)} Concluída (desmarcar)` : 'Marcar como concluída'}</button></form>
+          ${done && ov && ov.cert.issued && user.role !== 'admin'
+            ? html`<span class="btn btn--ghost" aria-disabled="true">${icon('check', 18)} Concluída</span>`
+            : html`<button class="btn ${done ? 'btn--ghost' : 'btn--primary'}" type="submit">${done ? html`${icon('check', 18)} Concluída (desmarcar)` : 'Marcar como concluída'}</button>`}</form>
         ${prev ? html`<a class="btn btn--ghost" href="${link(prev)}">← Anterior</a>` : ''}
         ${next ? html`<a class="btn btn--outline" href="${link(next)}">Próxima aula →</a>` : ''}
       </div>

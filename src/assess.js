@@ -96,7 +96,9 @@ async function overview(userId, course) {
   const pctOk = progress.total > 0 && progress.count * 100 >= CERT_PCT * progress.total;
   const examOk = !needExam || (!!final && final.passed);
   const missing = Math.max(0, Math.ceil((CERT_PCT * progress.total) / 100) - progress.count);
-  const cert = { needExam, examOk, pctOk, pct: progress.pct, missing, eligible: pctOk && examOk };
+  // Com certificado válido, o progresso só pode subir: desmarcar aulas fica bloqueado.
+  const issued = (await db.q("SELECT 1 FROM certificates WHERE user_id = $1 AND course_id = $2 AND status = 'valid'", [userId, course.id])).rowCount > 0;
+  const cert = { needExam, examOk, pctOk, pct: progress.pct, missing, eligible: pctOk && examOk, issued };
   return { cur, flat, progress, modules, final, cert };
 }
 

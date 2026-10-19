@@ -178,6 +178,11 @@ test('prova final: sem 95% fica aguardando, depois conclui as aulas e o certific
   assert.match(cert.code, certs.CODE_RE); assert.equal(cert.student_name, 'Paula Provas'); assert.equal(cert.course_title, 'Curso Prova'); assert.equal(cert.status, 'valid'); assert.equal(Number(cert.final_score), 10);
   assert.match(cert.body_text, /Paula Provas concluiu o curso Curso Prova/);
   const again = await sb.post(`${base()}/aula/${lc}/concluir`, { done: '1' }, base()); assert.equal(again.status, 303);
+  // com certificado, o progresso só sobe: desmarcar é recusado, marcar continua valendo
+  const nBefore = (await q('SELECT count(*)::int n FROM lesson_progress WHERE user_id=$1', [stu.id])).rows[0].n;
+  await sb.post(`${base()}/aula/${lc}/concluir`, { done: '0' }, `${base()}/aula/${lc}`);
+  assert.equal((await q('SELECT count(*)::int n FROM lesson_progress WHERE user_id=$1', [stu.id])).rows[0].n, nBefore, 'não dá para desmarcar depois do certificado');
+  const pgDone = (await sb.get(`${base()}/aula/${lc}`)).text; assert.doesNotMatch(pgDone, /desmarcar/); assert.match(pgDone, /Concluída/);
   assert.equal((await q('SELECT count(*)::int n FROM certificates')).rows[0].n, 1, 'um certificado por aluno e curso');
 });
 
