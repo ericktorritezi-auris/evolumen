@@ -94,14 +94,14 @@ function cursoForm(ctx, { course, values, errors = {} }) {
     ${course.cover_file_id ? html`<form method="post" action="/admin/cursos/${course.id}/capa/remover" class="inline">${csrfInput(ctx.csrf)}<button class="btn btn--ghost btn--sm" type="submit">Remover capa</button></form>` : ''}
   </section>
   <section class="card danger"><h2 class="t-card">Excluir curso</h2>
-    <p class="muted">Só é possível excluir um curso sem alunos matriculados. Com alunos, deixe-o como rascunho.</p>
+    <p class="muted">Só é possível excluir um curso sem alunos matriculados e sem cupons ligados a ele. Nesses casos, tire o curso da vitrine deixando-o como rascunho.</p>
     <form method="post" action="/admin/cursos/${course.id}/excluir" data-confirm="Excluir este curso, com módulos, aulas e arquivos? Não dá para desfazer.">${csrfInput(ctx.csrf)}<button class="btn btn--ghost btn--sm" type="submit">Excluir curso</button></form></section>`}`;
   return shell(ctx, isNew ? 'Novo curso' : 'Editar curso', content);
 }
 
 function conteudo(ctx, { course, cur, errors = {} }) {
   const move = (base, id) => html`<span class="mv"><form method="post" action="${base}/${id}/mover" class="inline">${csrfInput(ctx.csrf)}<input type="hidden" name="dir" value="up"><button class="icon-btn icon-btn--sm" aria-label="Subir" title="Subir">↑</button></form><form method="post" action="${base}/${id}/mover" class="inline">${csrfInput(ctx.csrf)}<input type="hidden" name="dir" value="down"><button class="icon-btn icon-btn--sm" aria-label="Descer" title="Descer">↓</button></form></span>`;
-  const lessonForm = (l) => html`<details class="lcard"><summary><span class="lcard__t">${l.title}</span><span class="muted small">${l.has_video || l.youtube_id ? 'vídeo' : 'sem vídeo'} · ${l.files.length} ${l.files.length === 1 ? 'arquivo' : 'arquivos'}</span></summary>
+  const lessonForm = (l) => html`<details class="lcard"><summary><span class="lcard__t">${l.title}${l.active ? '' : html` <span class="pill pill--draft">Inativa</span>`}</span><span class="muted small">${l.has_video || l.youtube_id ? 'vídeo' : 'sem vídeo'} · ${l.files.length} ${l.files.length === 1 ? 'arquivo' : 'arquivos'}</span></summary>
     <div class="lcard__body">
       <form method="post" action="/admin/aulas/${l.id}" class="form form--grid">${csrfInput(ctx.csrf)}
         <div class="span2">${field({ id: `lt${l.id}`, name: 'title', label: 'Título da aula', value: l.title, required: true })}</div>
@@ -117,23 +117,40 @@ function conteudo(ctx, { course, cur, errors = {} }) {
         ${field({ id: `fl${l.id}`, name: 'label', label: 'Nome para o aluno', placeholder: 'Ex.: Apostila do módulo 1' })}
         <div class="field"><label for="fa${l.id}">Arquivo (PDF, DOC, DOCX, XLS ou XLSX, até 20 MB)</label><input id="fa${l.id}" type="file" name="arquivo" accept=".pdf,.doc,.docx,.xls,.xlsx" required></div>
         <div class="span2 row"><button class="btn btn--outline btn--sm" type="submit">Enviar arquivo</button></div></form>
-      <form method="post" action="/admin/aulas/${l.id}/excluir" class="inline" data-confirm="Excluir esta aula e os arquivos dela?">${csrfInput(ctx.csrf)}<button class="btn btn--ghost btn--sm" type="submit">Excluir aula</button></form>
+      <div class="row">
+        <form method="post" action="/admin/aulas/${l.id}/${l.active ? 'inativar' : 'reativar'}" class="inline"${l.active ? raw(' data-confirm="Inativar esta aula? Os alunos deixam de vê-la, mas o histórico fica guardado."') : ''}>${csrfInput(ctx.csrf)}<button class="btn btn--ghost btn--sm" type="submit">${l.active ? 'Inativar aula' : 'Reativar aula'}</button></form>
+        ${l.progress_count === 0 ? html`<form method="post" action="/admin/aulas/${l.id}/excluir" class="inline" data-confirm="Excluir esta aula e os arquivos dela?">${csrfInput(ctx.csrf)}<button class="btn btn--ghost btn--sm" type="submit">Excluir aula</button></form>`
+          : html`<span class="muted small">Alunos já concluíram esta aula: ela só pode ser inativada.</span>`}
+      </div>
     </div></details>`;
   const content = html`<a class="back" href="/admin/cursos">← Cursos</a>${titleRow(course.title, 'Módulos e aulas')}${tabs(course, 'conteudo')}
   ${errors.general ? html`<div class="alert alert--error" role="alert">${errors.general}</div>` : ''}
-  ${cur.map((m, i) => html`<section class="card mod"><div class="mod__head"><h2 class="t-card">Módulo ${i + 1}</h2>${move('/admin/modulos', m.id)}</div>
+  ${cur.map((m, i) => html`<section class="card mod"><div class="mod__head"><h2 class="t-card">Módulo ${i + 1}${m.active ? '' : html` <span class="pill pill--draft">Inativo</span>`}</h2>${move('/admin/modulos', m.id)}</div>
     <form method="post" action="/admin/modulos/${m.id}" class="form inline-form">${csrfInput(ctx.csrf)}${field({ id: `mt${m.id}`, name: 'title', label: 'Nome do módulo', value: m.title, required: true })}<button class="btn btn--outline btn--sm" type="submit">Renomear</button></form>
     <div class="lessons">${m.lessons.map((l) => html`<div class="lrow-admin">${move('/admin/aulas', l.id)}${lessonForm(l)}</div>`)}</div>
     <form method="post" action="/admin/modulos/${m.id}/aulas" class="form inline-form">${csrfInput(ctx.csrf)}${field({ id: `na${m.id}`, name: 'title', label: 'Nova aula neste módulo', placeholder: 'Título da aula', required: true })}<button class="btn btn--primary btn--sm" type="submit">Adicionar aula</button></form>
-    <form method="post" action="/admin/modulos/${m.id}/excluir" class="inline" data-confirm="Excluir este módulo com todas as aulas e arquivos?">${csrfInput(ctx.csrf)}<button class="btn btn--ghost btn--sm" type="submit">Excluir módulo</button></form></section>`)}
+    <div class="row">
+      <form method="post" action="/admin/modulos/${m.id}/${m.active ? 'inativar' : 'reativar'}" class="inline"${m.active ? raw(' data-confirm="Inativar este módulo? Os alunos deixam de vê-lo, mas o histórico fica guardado."') : ''}>${csrfInput(ctx.csrf)}<button class="btn btn--ghost btn--sm" type="submit">${m.active ? 'Inativar módulo' : 'Reativar módulo'}</button></form>
+      ${m.lessons.every((l) => l.progress_count === 0) ? html`<form method="post" action="/admin/modulos/${m.id}/excluir" class="inline" data-confirm="Excluir este módulo com todas as aulas e arquivos?">${csrfInput(ctx.csrf)}<button class="btn btn--ghost btn--sm" type="submit">Excluir módulo</button></form>`
+        : html`<span class="muted small">Alunos já fizeram aulas deste módulo: ele só pode ser inativado.</span>`}
+    </div></section>`)}
   <section class="card"><h2 class="t-card">Novo módulo</h2><form method="post" action="/admin/cursos/${course.id}/modulos" class="form inline-form">${csrfInput(ctx.csrf)}${field({ id: 'nm', name: 'title', label: 'Nome do módulo', placeholder: 'Ex.: Primeiros passos', required: true, note: 'Não escreva "Módulo 1": o número é automático.' })}<button class="btn btn--primary" type="submit">Adicionar módulo</button></form></section>`;
   return shell(ctx, 'Módulos e aulas', content);
 }
 
+const ORIGIN = { manual: 'Manual', gift: 'Cortesia', purchase: 'Compra' };
+// Botões de uma matrícula: cancelar/reativar sempre; excluir só se o aluno não fez nenhuma aula.
+function enrollActions(ctx, r, to) {
+  return html`${r.status === 'cancelled'
+    ? html`<form method="post" action="/admin/matriculas/${r.id}/reativar" class="inline">${csrfInput(ctx.csrf)}<input type="hidden" name="to" value="${to}"><button class="btn btn--ghost btn--sm" type="submit">Reativar</button></form>`
+    : html`<form method="post" action="/admin/matriculas/${r.id}/cancelar" class="inline" data-confirm="Cancelar o acesso deste aluno ao curso? O histórico fica guardado.">${csrfInput(ctx.csrf)}<input type="hidden" name="to" value="${to}"><button class="btn btn--ghost btn--sm" type="submit">Cancelar acesso</button></form>`}
+    ${r.any_progress === 0 ? html`<form method="post" action="/admin/matriculas/${r.id}/excluir" class="inline" data-confirm="Excluir esta matrícula? Só é possível porque o aluno ainda não fez nenhuma aula.">${csrfInput(ctx.csrf)}<input type="hidden" name="to" value="${to}"><button class="btn btn--ghost btn--sm" type="submit">Excluir</button></form>` : ''}`;
+}
+
 function matriculas(ctx, { course, rows, created = null, errors = {}, email = '' }) {
   const content = html`<a class="back" href="/admin/cursos">← Cursos</a>${titleRow(course.title, 'Matrículas')}${tabs(course, 'matriculas')}
-  ${created ? html`<section class="card card--ok"><h2 class="t-card">${created.newUser ? 'Aluno criado e matriculado' : 'Matrícula criada'}</h2>
-    <p>${created.newUser ? html`Conta criada para <b>${created.email}</b>. A senha provisória também foi enviada por e-mail:` : html`<b>${created.email}</b> já tinha conta e agora tem acesso ao curso.`}</p>
+  ${created ? html`<section class="card card--ok"><h2 class="t-card">${created.newUser ? 'Aluno criado e matriculado' : (created.already ? 'Esta pessoa já tinha acesso' : 'Matrícula criada')}</h2>
+    <p>${created.newUser ? html`Conta criada para <b>${created.email}</b>. A senha provisória também foi enviada por e-mail:` : html`<b>${created.email}</b> ${created.already ? 'já tinha acesso vigente a este curso. O prazo nunca diminui, e nenhum e-mail foi enviado.' : 'já tinha conta e agora tem acesso ao curso.'}`}</p>
     ${created.password ? html`<p class="secret">${created.password}</p><p class="muted small">Anote agora: por segurança, ela não aparece de novo. No primeiro acesso o aluno escolhe a própria senha.</p>` : ''}</section>` : ''}
   <section class="card"><h2 class="t-card">Liberar acesso</h2>
     <p class="muted">Use para testes, cortesias e alunos que pagaram fora da plataforma. Se o e-mail ainda não tem conta, o aluno é criado e recebe a senha provisória por e-mail. A compra online abre na Fase 4.</p>
@@ -142,14 +159,16 @@ function matriculas(ctx, { course, rows, created = null, errors = {}, email = ''
       ${field({ id: 'name', label: 'Nome (só se a conta for nova)', error: errors.name, autocomplete: 'off' })}
       ${field({ id: 'until', label: 'Acesso até (opcional)', type: 'date', error: errors.until, note: `Vazio = regra do curso (${C.accessLabel(course).toLowerCase()}).` })}
       <div class="span2 row"><button class="btn btn--primary" type="submit">Liberar acesso</button></div></form></section>
-  <h2 class="t-card">Alunos com acesso · ${rows.length}</h2>
-  ${rows.length ? html`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Aluno</th><th>Acesso até</th><th>Progresso</th><th></th></tr></thead><tbody>${rows.map((r) => html`<tr>
+  <h2 class="t-card">Matrículas · ${rows.length}</h2>
+  ${rows.length ? html`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Aluno</th><th>Origem</th><th>Acesso até</th><th>Progresso</th><th>Situação</th><th></th></tr></thead><tbody>${rows.map((r) => html`<tr>
     <td data-l="Aluno"><b>${r.name}</b><br><span class="muted small">${r.email}</span></td>
+    <td data-l="Origem">${ORIGIN[r.origin] || r.origin}</td>
     <td data-l="Acesso até">${r.expires_at ? fmtDate(r.expires_at) + (r.expired ? ' (vencido)' : '') : 'Vitalício'}</td>
     <td data-l="Progresso">${r.done}/${r.total}</td>
-    <td class="tbl__act"><form method="post" action="/admin/matriculas/${r.id}/excluir" class="inline" data-confirm="Remover o acesso deste aluno ao curso?">${csrfInput(ctx.csrf)}<button class="btn btn--ghost btn--sm" type="submit">Remover acesso</button></form></td></tr>`)}</tbody></table></div>`
+    <td data-l="Situação">${r.status === 'cancelled' ? html`<span class="pill pill--draft">Cancelada</span>` : (r.expired ? html`<span class="pill">Vencida</span>` : html`<span class="pill pill--ok">Ativa</span>`)}</td>
+    <td class="tbl__act">${enrollActions(ctx, r, 'curso')}</td></tr>`)}</tbody></table></div>`
     : html`<p class="muted">Ninguém matriculado ainda.</p>`}`;
   return shell(ctx, 'Matrículas', content);
 }
 
-module.exports = { cursosList, cursoForm, conteudo, matriculas };
+module.exports = { cursosList, cursoForm, conteudo, matriculas, enrollActions, ORIGIN };

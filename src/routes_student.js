@@ -36,7 +36,7 @@ function build(cfg, h) {
   r.get('/curso/:slug', ...guard, async (req, res, next) => {
     const { course, access } = await load(req);
     if (!course) return next();
-    const cur = await C.curriculum(course.id);
+    const cur = await C.curriculum(course.id, { all: req.user.role === 'admin' });
     const progress = await C.progressFor(req.user.id, course.id);
     const next_ = C.flatLessons(cur).find((l) => !progress.done.has(String(l.id))) || C.flatLessons(cur)[0];
     res.send(views.cursoHome({ ...h.appCtx(req, res), course, cur, progress, next: next_, access }));
@@ -45,7 +45,7 @@ function build(cfg, h) {
   r.get('/curso/:slug/aula/:lessonId', ...guard, async (req, res, next) => {
     const { course, access } = await load(req);
     if (!course || !/^\d{1,12}$/.test(req.params.lessonId)) return next();
-    const cur = await C.curriculum(course.id, { withVideo: true, withFiles: true });
+    const cur = await C.curriculum(course.id, { withVideo: true, withFiles: true, all: req.user.role === 'admin' });
     const flat = C.flatLessons(cur);
     const lesson = flat.find((l) => String(l.id) === req.params.lessonId);
     if (!lesson) return next();
@@ -56,7 +56,7 @@ function build(cfg, h) {
   r.post('/curso/:slug/aula/:lessonId/concluir', ...guard, async (req, res, next) => {
     const { course } = await load(req);
     if (!course || !/^\d{1,12}$/.test(req.params.lessonId)) return next();
-    const l = await db.q('SELECT id FROM lessons WHERE id = $1 AND course_id = $2', [req.params.lessonId, course.id]);
+    const l = await db.q(`SELECT l.id FROM lessons l WHERE l.id = $1 AND l.course_id = $2 AND ${C.LIVE}`, [req.params.lessonId, course.id]);
     if (!l.rowCount) return next();
     if (req.body.done === '1') await db.q('INSERT INTO lesson_progress (user_id, lesson_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [req.user.id, l.rows[0].id]);
     else await db.q('DELETE FROM lesson_progress WHERE user_id = $1 AND lesson_id = $2', [req.user.id, l.rows[0].id]);
@@ -70,8 +70,8 @@ function build(cfg, h) {
   // Download: só quem tem acesso vigente ao curso da aula (ou o administrador).
   r.get('/arquivos/:id', ...guard, async (req, res, next) => {
     if (!/^\d{1,12}$/.test(req.params.id)) return next();
-    const link = await db.q('SELECT l.course_id FROM lesson_files lf JOIN lessons l ON l.id = lf.lesson_id WHERE lf.file_id = $1', [req.params.id]);
-    if (!link.rowCount) return next();
+    const link = await db.q(`SELECT l.course_id, (${C.LIVE}) AS live FROM lesson_files lf JOIN lessons l ON l.id = lf.lesson_id WHERE lf.file_id = $1`, [req.params.id]);
+    if (!link.rowCount || (!link.rows[0].live && req.user.role !== 'admin')) return next();
     const access = await C.accessFor(req.user, link.rows[0].course_id);
     if (!access.ok) throw deny();
     const f = await files.get(req.params.id);

@@ -119,12 +119,14 @@ function effectivePrice(c, now = new Date()) {
 const accessLabel = (c) => (c.access_type === 'lifetime' ? 'Vitalício' : c.access_months % 12 === 0 ? `${c.access_months / 12} ${c.access_months === 12 ? 'ano' : 'anos'}` : `${c.access_months} meses`);
 
 // ---- consultas ----
+// Aula "viva" = aula ativa dentro de módulo ativo (o que o aluno enxerga e o que conta no progresso).
+const LIVE = 'l.active AND EXISTS (SELECT 1 FROM modules mm WHERE mm.id = l.module_id AND mm.active)';
 const VISIBLE = "c.status = 'published' AND c.published_at IS NOT NULL AND c.published_at <= now()";
 
 async function listPublic() {
   const r = await db.q(`
-    SELECT c.*, (SELECT count(*)::int FROM lessons l WHERE l.course_id = c.id AND l.youtube_id IS NOT NULL) AS videos,
-           (SELECT count(*)::int FROM lesson_files lf JOIN lessons l ON l.id = lf.lesson_id WHERE l.course_id = c.id) AS materials
+    SELECT c.*, (SELECT count(*)::int FROM lessons l WHERE l.course_id = c.id AND l.youtube_id IS NOT NULL AND ${LIVE}) AS videos,
+           (SELECT count(*)::int FROM lesson_files lf JOIN lessons l ON l.id = lf.lesson_id WHERE l.course_id = c.id AND ${LIVE}) AS materials
     FROM courses c WHERE ${VISIBLE}
     ORDER BY c.featured DESC, c.sort_order, c.published_at DESC, c.id`);
   return r.rows;
@@ -140,10 +142,12 @@ async function byId(id) {
 }
 
 // Módulos com aulas (e arquivos). Sem ids de vídeo quando `withVideo` é falso (páginas públicas).
-async function curriculum(courseId, { withVideo = false, withFiles = false } = {}) {
-  const mods = (await db.q('SELECT id, title, position FROM modules WHERE course_id = $1 ORDER BY position, id', [courseId])).rows;
-  const les = (await db.q(`SELECT id, module_id, title, description, ${withVideo ? 'youtube_id' : '(youtube_id IS NOT NULL) AS has_video'}, duration_min, position
-                           FROM lessons WHERE course_id = $1 ORDER BY position, id`, [courseId])).rows;
+// `all` (só o painel do administrador) inclui módulos e aulas inativos.
+async function curriculum(courseId, { withVideo = false, withFiles = false, all = false } = {}) {
+  const mods = (await db.q('SELECT id, title, position, active FROM modules WHERE course_id = $1 AND ($2 OR active) ORDER BY position, id', [courseId, all])).rows;
+  const les = (await db.q(`SELECT l.id, l.module_id, l.title, l.description, ${withVideo ? 'l.youtube_id' : '(l.youtube_id IS NOT NULL) AS has_video'}, l.duration_min, l.position, l.active,
+                           (SELECT count(*)::int FROM lesson_progress p WHERE p.lesson_id = l.id) AS progress_count
+                           FROM lessons l WHERE l.course_id = $1 AND ($2 OR (${LIVE})) ORDER BY l.position, l.id`, [courseId, all])).rows;
   let files = [];
   if (withFiles) files = (await db.q(`SELECT lf.id AS link_id, lf.lesson_id, lf.label, f.id AS file_id, f.filename, f.size_bytes
                                       FROM lesson_files lf JOIN files f ON f.id = lf.file_id JOIN lessons l ON l.id = lf.lesson_id
@@ -157,29 +161,29 @@ const flatLessons = (cur) => cur.flatMap((m) => m.lessons.map((l) => ({ ...l, mo
 // Acesso do usuário ao conteúdo: administrador sempre; aluno só com matrícula vigente.
 async function accessFor(user, courseId) {
   if (user.role === 'admin') return { ok: true, admin: true, expires_at: null };
-  const r = await db.q('SELECT * FROM enrollments WHERE user_id = $1 AND course_id = $2 AND starts_at <= now() AND (expires_at IS NULL OR expires_at > now())', [user.id, courseId]);
+  const r = await db.q("SELECT * FROM enrollments WHERE user_id = $1 AND course_id = $2 AND status = 'active' AND starts_at <= now() AND (expires_at IS NULL OR expires_at > now())", [user.id, courseId]);
   return r.rowCount ? { ok: true, admin: false, expires_at: r.rows[0].expires_at } : { ok: false };
 }
 async function enrollmentState(userId, courseId) {
-  const r = await db.q('SELECT *, (expires_at IS NOT NULL AND expires_at <= now()) AS expired FROM enrollments WHERE user_id = $1 AND course_id = $2', [userId, courseId]);
+  const r = await db.q("SELECT *, (expires_at IS NOT NULL AND expires_at <= now()) AS expired FROM enrollments WHERE user_id = $1 AND course_id = $2 AND status = 'active'", [userId, courseId]);
   return r.rows[0] || null;
 }
 
 async function progressFor(userId, courseId) {
-  const total = (await db.q('SELECT count(*)::int n FROM lessons WHERE course_id = $1', [courseId])).rows[0].n;
-  const done = (await db.q('SELECT lesson_id FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = $1 AND l.course_id = $2', [userId, courseId])).rows.map((x) => x.lesson_id);
+  const total = (await db.q(`SELECT count(*)::int n FROM lessons l WHERE l.course_id = $1 AND ${LIVE}`, [courseId])).rows[0].n;
+  const done = (await db.q(`SELECT p.lesson_id FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = $1 AND l.course_id = $2 AND ${LIVE}`, [userId, courseId])).rows.map((x) => x.lesson_id);
   return { total, done: new Set(done.map(String)), count: done.length, pct: total ? Math.floor((done.length / total) * 100) : 0 };
 }
 
 async function myCourses(userId) {
   const r = await db.q(`
     SELECT c.id, c.slug, c.title, c.summary, c.cover_file_id, e.expires_at,
-           (SELECT count(*)::int FROM lessons l WHERE l.course_id = c.id) AS total,
-           (SELECT count(*)::int FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = e.user_id AND l.course_id = c.id) AS done
+           (SELECT count(*)::int FROM lessons l WHERE l.course_id = c.id AND ${LIVE}) AS total,
+           (SELECT count(*)::int FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = e.user_id AND l.course_id = c.id AND ${LIVE}) AS done
     FROM enrollments e JOIN courses c ON c.id = e.course_id
-    WHERE e.user_id = $1 AND e.starts_at <= now() AND (e.expires_at IS NULL OR e.expires_at > now())
+    WHERE e.user_id = $1 AND e.status = 'active' AND e.starts_at <= now() AND (e.expires_at IS NULL OR e.expires_at > now())
     ORDER BY e.created_at DESC`, [userId]);
   return r.rows.map((x) => ({ ...x, pct: x.total ? Math.floor((x.done / x.total) * 100) : 0 }));
 }
 
-module.exports = { dateOnly, LEVELS, brl, brlInput, parseMoney, slugify, SLUG_RE, youtubeId, parseCourse, effectivePrice, accessLabel, listPublic, bySlug, byId, curriculum, flatLessons, accessFor, enrollmentState, progressFor, myCourses, VISIBLE };
+module.exports = { LIVE, dateOnly, LEVELS, brl, brlInput, parseMoney, slugify, SLUG_RE, youtubeId, parseCourse, effectivePrice, accessLabel, listPublic, bySlug, byId, curriculum, flatLessons, accessFor, enrollmentState, progressFor, myCourses, VISIBLE };

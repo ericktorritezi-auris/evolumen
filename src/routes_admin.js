@@ -1,27 +1,16 @@
 'use strict';
 // Painel do administrador: cursos, módulos, aulas, arquivos e matrículas.
 const express = require('express');
-const crypto = require('crypto');
-const bcrypt = require('bcryptjs');
 const db = require('./db');
 const C = require('./courses');
 const files = require('./files');
 const sec = require('./security');
-const mailer = require('./mailer');
-const emails = require('./emails');
+const access = require('./access');
 const V = require('./validation');
 const { audit } = require('./audit');
 const views = require('./views/admin');
 
 const ID = /^\d{1,12}$/;
-
-function tempPassword() {
-  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
-  for (;;) {
-    let p = ''; for (let i = 0; i < 12; i++) p += A[crypto.randomInt(A.length)];
-    if (!V.checkPassword(p)) return p;
-  }
-}
 
 function build(cfg, h) {
   const r = express.Router();
@@ -110,13 +99,16 @@ function build(cfg, h) {
       await c.query('UPDATE courses SET cover_file_id = NULL, updated_at = now() WHERE id = $1', [course.id]);
       if (course.cover_file_id) await c.query('DELETE FROM files WHERE id = $1', [course.cover_file_id]);
     });
+    await audit(req, 'course_cover_removed', { entity: 'course', entityId: course.id });
     flashBack(req, res, 'info', 'Capa removida.', `/admin/cursos/${course.id}`);
   });
 
   r.post('/admin/cursos/:id/excluir', async (req, res, next) => {
     const course = await courseOr404(req, next); if (!course) return;
     const n = (await db.q('SELECT count(*)::int n FROM enrollments WHERE course_id = $1', [course.id])).rows[0].n;
-    if (n > 0) return flashBack(req, res, 'error', 'Este curso tem alunos matriculados e não pode ser excluído. Deixe-o como rascunho.', `/admin/cursos/${course.id}`);
+    if (n > 0) return flashBack(req, res, 'error', 'Este curso tem alunos matriculados e não pode ser excluído. Para tirá-lo da vitrine, deixe-o como rascunho.', `/admin/cursos/${course.id}`);
+    const k = (await db.q('SELECT count(*)::int n FROM coupon_courses WHERE course_id = $1', [course.id])).rows[0].n;
+    if (k > 0) return flashBack(req, res, 'error', 'Este curso está ligado a cupons, que ficam guardados no histórico, e não pode ser excluído. Para tirá-lo da vitrine, deixe-o como rascunho.', `/admin/cursos/${course.id}`);
     try {
       await db.tx(async (c) => {
         await c.query('DELETE FROM files WHERE id IN (SELECT lf.file_id FROM lesson_files lf JOIN lessons l ON l.id = lf.lesson_id WHERE l.course_id = $1)', [course.id]);
@@ -124,7 +116,7 @@ function build(cfg, h) {
         if (course.cover_file_id) await c.query('DELETE FROM files WHERE id = $1', [course.cover_file_id]);
       });
     } catch (e) {
-      if (e.code === '23503') return flashBack(req, res, 'error', 'Um aluno acabou de ser matriculado neste curso. Ele não pode ser excluído.', `/admin/cursos/${course.id}`);
+      if (e.code === '23503') return flashBack(req, res, 'error', 'Este curso acabou de ganhar um vínculo (aluno ou cupom) e não pode ser excluído.', `/admin/cursos/${course.id}`);
       throw e;
     }
     await audit(req, 'course_deleted', { entity: 'course', entityId: course.id, meta: { slug: course.slug } });
@@ -134,7 +126,7 @@ function build(cfg, h) {
   // ---- módulos e aulas ----
   r.get('/admin/cursos/:id/conteudo', async (req, res, next) => {
     const course = await courseOr404(req, next); if (!course) return;
-    const cur = await C.curriculum(course.id, { withVideo: true, withFiles: true });
+    const cur = await C.curriculum(course.id, { withVideo: true, withFiles: true, all: true });
     res.send(views.conteudo(ctx(req, res), { course, cur }));
   });
   const back = (courseId) => `/admin/cursos/${courseId}/conteudo`;
@@ -176,21 +168,40 @@ function build(cfg, h) {
     const t = title(req.body.title);
     if (t.length < 2) return flashBack(req, res, 'error', 'Informe o nome do módulo.', back(m.course_id));
     await db.q('UPDATE modules SET title = $2 WHERE id = $1', [m.id, t]);
+    await audit(req, 'module_renamed', { entity: 'course', entityId: m.course_id });
     flashBack(req, res, 'success', 'Módulo renomeado.', back(m.course_id));
   });
   r.post('/admin/modulos/:id/mover', async (req, res, next) => {
     const m = await moduleOr404(req, next); if (!m) return;
     await moveIn('modules', 'course_id', m.course_id, m.id, req.body.dir === 'up' ? 'up' : 'down');
+    await audit(req, 'module_moved', { entity: 'course', entityId: m.course_id });
     res.redirect(303, back(m.course_id));
   });
   r.post('/admin/modulos/:id/excluir', async (req, res, next) => {
     const m = await moduleOr404(req, next); if (!m) return;
-    await db.tx(async (c) => {
+    const ok = await db.tx(async (c) => {
+      await c.query('SELECT id FROM lessons WHERE module_id = $1 FOR UPDATE', [m.id]);
+      const used = (await c.query('SELECT count(*)::int n FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE l.module_id = $1', [m.id])).rows[0].n;
+      if (used > 0) return false;
       await c.query('DELETE FROM files WHERE id IN (SELECT lf.file_id FROM lesson_files lf JOIN lessons l ON l.id = lf.lesson_id WHERE l.module_id = $1)', [m.id]);
       await c.query('DELETE FROM modules WHERE id = $1', [m.id]);
-    });
+      return true;
+    }).catch((e) => { if (e.code === '23503') return false; throw e; });
+    if (!ok) return flashBack(req, res, 'error', 'Alunos já fizeram aulas deste módulo, então ele não pode ser excluído. Use Inativar: ele some para os alunos e o histórico fica guardado.', back(m.course_id));
     await audit(req, 'module_deleted', { entity: 'course', entityId: m.course_id });
     flashBack(req, res, 'info', 'Módulo excluído.', back(m.course_id));
+  });
+  r.post('/admin/modulos/:id/inativar', async (req, res, next) => {
+    const m = await moduleOr404(req, next); if (!m) return;
+    await db.q('UPDATE modules SET active = FALSE WHERE id = $1', [m.id]);
+    await audit(req, 'module_inactivated', { entity: 'course', entityId: m.course_id });
+    flashBack(req, res, 'info', 'Módulo inativado. Os alunos não o veem mais.', back(m.course_id));
+  });
+  r.post('/admin/modulos/:id/reativar', async (req, res, next) => {
+    const m = await moduleOr404(req, next); if (!m) return;
+    await db.q('UPDATE modules SET active = TRUE WHERE id = $1', [m.id]);
+    await audit(req, 'module_reactivated', { entity: 'course', entityId: m.course_id });
+    flashBack(req, res, 'success', 'Módulo reativado.', back(m.course_id));
   });
   r.post('/admin/modulos/:id/aulas', async (req, res, next) => {
     const m = await moduleOr404(req, next); if (!m) return;
@@ -218,18 +229,36 @@ function build(cfg, h) {
   r.post('/admin/aulas/:id/mover', async (req, res, next) => {
     const l = await lessonOr404(req, next); if (!l) return;
     await moveIn('lessons', 'module_id', l.module_id, l.id, req.body.dir === 'up' ? 'up' : 'down');
+    await audit(req, 'lesson_moved', { entity: 'lesson', entityId: l.id });
     res.redirect(303, back(l.course_id));
   });
   r.post('/admin/aulas/:id/excluir', async (req, res, next) => {
     const l = await lessonOr404(req, next); if (!l) return;
-    await db.tx(async (c) => {
+    const ok = await db.tx(async (c) => {
+      await c.query('SELECT id FROM lessons WHERE id = $1 FOR UPDATE', [l.id]);
+      const used = (await c.query('SELECT count(*)::int n FROM lesson_progress WHERE lesson_id = $1', [l.id])).rows[0].n;
+      if (used > 0) return false;
       await c.query('DELETE FROM files WHERE id IN (SELECT file_id FROM lesson_files WHERE lesson_id = $1)', [l.id]);
       await c.query('DELETE FROM lessons WHERE id = $1', [l.id]);
-    });
+      return true;
+    }).catch((e) => { if (e.code === '23503') return false; throw e; });
+    if (!ok) return flashBack(req, res, 'error', 'Alunos já concluíram esta aula, então ela não pode ser excluída. Use Inativar: ela some para os alunos e o histórico fica guardado.', back(l.course_id));
     await audit(req, 'lesson_deleted', { entity: 'course', entityId: l.course_id });
     flashBack(req, res, 'info', 'Aula excluída.', back(l.course_id));
   });
 
+  r.post('/admin/aulas/:id/inativar', async (req, res, next) => {
+    const l = await lessonOr404(req, next); if (!l) return;
+    await db.q('UPDATE lessons SET active = FALSE, updated_at = now() WHERE id = $1', [l.id]);
+    await audit(req, 'lesson_inactivated', { entity: 'lesson', entityId: l.id });
+    flashBack(req, res, 'info', 'Aula inativada. Os alunos não a veem mais.', back(l.course_id));
+  });
+  r.post('/admin/aulas/:id/reativar', async (req, res, next) => {
+    const l = await lessonOr404(req, next); if (!l) return;
+    await db.q('UPDATE lessons SET active = TRUE, updated_at = now() WHERE id = $1', [l.id]);
+    await audit(req, 'lesson_reactivated', { entity: 'lesson', entityId: l.id });
+    flashBack(req, res, 'success', 'Aula reativada.', back(l.course_id));
+  });
   r.post('/admin/aulas/:id/arquivos', async (req, res, next) => {
     // o corpo multipart só é lido depois de confirmar que a aula existe
     if (!ID.test(req.params.id)) return next();
@@ -266,9 +295,10 @@ function build(cfg, h) {
 
   // ---- matrículas (liberação manual) ----
   const enrollRows = async (courseId) => (await db.q(`
-    SELECT e.id, e.expires_at, (e.expires_at IS NOT NULL AND e.expires_at <= now()) AS expired, u.name, u.email,
-      (SELECT count(*)::int FROM lessons WHERE course_id = e.course_id) AS total,
-      (SELECT count(*)::int FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = e.user_id AND l.course_id = e.course_id) AS done
+    SELECT e.id, e.expires_at, e.status, e.origin, (e.expires_at IS NOT NULL AND e.expires_at <= now()) AS expired, u.name, u.email,
+      (SELECT count(*)::int FROM lessons l WHERE l.course_id = e.course_id AND ${C.LIVE}) AS total,
+      (SELECT count(*)::int FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = e.user_id AND l.course_id = e.course_id AND ${C.LIVE}) AS done,
+      (SELECT count(*)::int FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = e.user_id AND l.course_id = e.course_id) AS any_progress
     FROM enrollments e JOIN users u ON u.id = e.user_id WHERE e.course_id = $1 ORDER BY e.created_at DESC`, [courseId])).rows;
 
   r.get('/admin/cursos/:id/matriculas', async (req, res, next) => {
@@ -279,47 +309,47 @@ function build(cfg, h) {
   r.post('/admin/cursos/:id/matriculas', async (req, res, next) => {
     const course = await courseOr404(req, next); if (!course) return;
     const render = async (status, extra) => res.status(status).send(views.matriculas(ctx(req, res), { course, rows: await enrollRows(course.id), ...extra }));
-    const email = V.normalizeEmail(req.body.email);
-    const errors = {};
-    if (!email) errors.email = 'Informe um e-mail válido.';
-    const until = String(req.body.until || '').trim();
-    if (until && !C.dateOnly(until)) errors.until = 'Data inválida.';
-    let user = email ? (await db.q('SELECT * FROM users WHERE lower(email) = $1', [email])).rows[0] : null;
-    if (user && user.role !== 'student') errors.email = 'Este e-mail é de um administrador, que já vê todos os cursos.';
-    const name = String(req.body.name || '').trim().replace(/\s+/g, ' ').slice(0, 120);
-    if (email && !user && name.length < 3) errors.name = 'Informe o nome para criar a conta do aluno.';
-    if (Object.keys(errors).length) return render(422, { errors, email: String(req.body.email || '').slice(0, 254) });
-
-    let password = null;
-    if (!user) {
-      password = tempPassword();
-      const hash = await bcrypt.hash(password, cfg.bcryptCost);
-      try {
-        user = (await db.q("INSERT INTO users (email, password_hash, role, name, must_change_password) VALUES ($1,$2,'student',$3,TRUE) RETURNING *", [email, hash, name])).rows[0];
-        await audit(req, 'student_created', { entity: 'user', entityId: user.id });
-      } catch (e) {
-        if (e.code !== '23505') throw e;
-        return render(409, { errors: { email: 'Este e-mail acabou de ser cadastrado. Tente liberar o acesso de novo.' }, email });
-      }
-    }
-    const expiry = until ? `${until}T23:59:59-03:00` : null;
-    await db.q(`INSERT INTO enrollments (user_id, course_id, origin, expires_at, granted_by)
-      VALUES ($1,$2,'manual', COALESCE($3::timestamptz, CASE WHEN $4::int IS NULL THEN NULL ELSE now() + ($4::int || ' months')::interval END), $5)
-      ON CONFLICT (user_id, course_id) DO UPDATE SET starts_at = LEAST(enrollments.starts_at, now()), granted_by = $5,
-        expires_at = COALESCE($3::timestamptz, CASE WHEN $4::int IS NULL THEN NULL ELSE now() + ($4::int || ' months')::interval END)`,
-      [user.id, course.id, expiry, course.access_type === 'months' ? course.access_months : null, req.user.id]);
-    await audit(req, 'enrollment_granted', { entity: 'course', entityId: course.id, meta: { user: user.id } });
-    h.background(mailer.send(cfg, { to: user.email, ...(password ? emails.accessGranted(cfg, user.name, user.email, password, course.title) : emails.courseGranted(cfg, user.name, course.title, course.slug)) }));
-    if (password) return render(200, { created: { email: user.email, password, newUser: true } });
-    return render(200, { created: { email: user.email, newUser: false } });
+    const checked = await access.check(req.body);
+    if (Object.keys(checked.errors).length) return render(422, { errors: checked.errors, email: String(req.body.email || '').slice(0, 254) });
+    const out = await access.grant(cfg, h, req, { course, checked, origin: 'manual' });
+    if (out.conflict) return render(409, { errors: { email: 'Este e-mail acabou de ser cadastrado. Tente liberar o acesso de novo.' }, email: checked.email });
+    if (out.password) return render(200, { created: { email: out.user.email, password: out.password, newUser: true } });
+    return render(200, { created: { email: out.user.email, newUser: false, already: out.already } });
   });
 
+  // Onde voltar depois de agir sobre uma matrícula (a tela de cortesias ou a do curso).
+  const enrollBack = (req, courseId) => (req.body.to === 'cortesias' ? '/admin/cortesias' : `/admin/cursos/${courseId}/matriculas`);
+  const enrollment = async (req, next) => {
+    if (!ID.test(req.params.id)) { next(); return null; }
+    const e = (await db.q('SELECT * FROM enrollments WHERE id = $1', [req.params.id])).rows[0];
+    if (!e) { next(); return null; } return e;
+  };
+  r.post('/admin/matriculas/:id/cancelar', async (req, res, next) => {
+    const e = await enrollment(req, next); if (!e) return;
+    await db.q("UPDATE enrollments SET status = 'cancelled', cancelled_at = now() WHERE id = $1", [e.id]);
+    await audit(req, 'enrollment_cancelled', { entity: 'course', entityId: e.course_id, meta: { user: e.user_id } });
+    flashBack(req, res, 'info', 'Acesso cancelado. A matrícula continua no histórico.', enrollBack(req, e.course_id));
+  });
+  r.post('/admin/matriculas/:id/reativar', async (req, res, next) => {
+    const e = await enrollment(req, next); if (!e) return;
+    await db.q("UPDATE enrollments SET status = 'active', cancelled_at = NULL WHERE id = $1", [e.id]);
+    await audit(req, 'enrollment_reactivated', { entity: 'course', entityId: e.course_id, meta: { user: e.user_id } });
+    flashBack(req, res, 'success', 'Acesso reativado.', enrollBack(req, e.course_id));
+  });
+  // Excluir só vale para matrícula sem nenhuma aula feita (criada por engano). Com histórico, cancele.
   r.post('/admin/matriculas/:id/excluir', async (req, res, next) => {
-    if (!ID.test(req.params.id)) return next();
-    const e = (await db.q('DELETE FROM enrollments WHERE id = $1 RETURNING course_id, user_id', [req.params.id])).rows[0];
-    if (!e) return next();
+    const e = await enrollment(req, next); if (!e) return;
+    const ok = await db.tx(async (c) => {
+      await c.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [e.user_id]);
+      const used = (await c.query('SELECT count(*)::int n FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = $1 AND l.course_id = $2', [e.user_id, e.course_id])).rows[0].n;
+      const paid = (await c.query("SELECT (SELECT count(*) FROM coupon_redemptions WHERE user_id = $1 AND course_id = $2) + (SELECT count(*) FROM enrollments WHERE id = $3 AND origin = 'purchase') AS n", [e.user_id, e.course_id, e.id])).rows[0].n;
+      if (used > 0 || Number(paid) > 0) return false;
+      await c.query('DELETE FROM enrollments WHERE id = $1', [e.id]);
+      return true;
+    });
+    if (!ok) return flashBack(req, res, 'error', 'Esta matrícula tem histórico (aulas feitas ou compra) e não pode ser excluída. Use Cancelar acesso: o histórico fica guardado.', enrollBack(req, e.course_id));
     await audit(req, 'enrollment_removed', { entity: 'course', entityId: e.course_id, meta: { user: e.user_id } });
-    flashBack(req, res, 'info', 'Acesso removido.', `/admin/cursos/${e.course_id}/matriculas`);
+    flashBack(req, res, 'info', 'Matrícula excluída.', enrollBack(req, e.course_id));
   });
 
   return r;

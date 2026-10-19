@@ -18,10 +18,10 @@ async function logRow(to, subject, template, status, providerId, error) {
   } catch (e) { log.error('email_log_falhou', { error: e.message }); }
 }
 
-async function send(cfg, { to, subject, html, text, template }) {
+async function send(cfg, { to, subject, html, text, template, attachments }) {
   to = clean(to); subject = clean(subject);
   if (cfg.mailTransport === 'memory') {
-    memory.push({ to, subject, html, text, template });
+    memory.push({ to, subject, html, text, template, attachments: (attachments || []).map((a) => ({ filename: a.filename, bytes: a.content.length })) });
     await logRow(to, subject, template, 'sent', 'memory');
     return { ok: true };
   }
@@ -36,7 +36,7 @@ async function send(cfg, { to, subject, html, text, template }) {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${cfg.resendApiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: fromHeader(cfg), to: [to], subject, html, text }),
+      body: JSON.stringify({ from: fromHeader(cfg), to: [to], subject, html, text, ...(attachments && attachments.length ? { attachments: attachments.map((a) => ({ filename: a.filename, content: a.content.toString('base64') })) } : {}) }),
       signal: ctrl.signal,
     });
     const data = await res.json().catch(() => ({}));

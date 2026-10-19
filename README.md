@@ -7,6 +7,7 @@ Mais um produto Belle Planner.
 
 | Versão | Fase | Data | O que mudou |
 |---|---|---|---|
+| 0.3.0 | 2 · Etapa de base | 2026-10-19 | Fonte nova (Quicksand + Nunito, instaladas no próprio sistema). Cortesia. Regra "exclui só sem vínculo, senão inativa" em alunos, matrículas, módulos, aulas e cupons. Registro de atividades (30 por página, guardado 30 dias). Cupons com QR Code, imagem PNG (miniatura que abre em janela, baixar) e envio por e-mail. Migração 005. Novas dependências: qrcode e @resvg/resvg-js. |
 | 0.2.2 | 2 · Cursos e aulas | 2026-10-18 | Nível do curso ganha a opção "Não se aplica" (não aparece para o público). Nova migração 004. |
 | 0.2.1 | 2 · Cursos e aulas | 2026-10-17 | Foto do professor na página inicial. |
 | 0.2.0 | 2 · Cursos e aulas | 2026-10-17 | Página inicial pública com vitrine, página de cada curso, painel de cursos (módulos, aulas com vídeo do YouTube, apostilas até 20 MB, capa, preço, acesso e publicação), liberação manual de acesso para teste, Meus cursos, aula com player e progresso, textos legais públicos em /termos e /privacidade. |
@@ -36,6 +37,21 @@ Endereço de produção: https://evolumen.ericktorritezi.com.br
 1. Envie o conteúdo do ZIP para a branch `staging` do GitHub.
 2. O Railway faz o deploy; migrações e seeds rodam sozinhos ao iniciar.
 3. Confira `/health` e entre com ADMIN_EMAIL e ADMIN_INITIAL_PASSWORD.
+
+## Como testar a etapa de base (0.3.0)
+
+Suba a pasta por cima da 0.2.2 (o ZIP é completo nos arquivos alterados e traz o `package-lock.json`: o deploy instala as duas dependências novas sozinho). A migração 005 roda na subida.
+
+1. **Fonte**: abra qualquer tela. Os textos usam Quicksand (títulos) e Nunito (texto).
+2. **Cortesias** (menu): escolha um curso, informe um e-mail e um nome. A pessoa recebe o e-mail "Você ganhou um curso" com login e senha provisória. Repita com o mesmo e-mail em outro curso: o e-mail não leva senha.
+3. **Cancelar acesso**: na lista de cortesias, cancele uma. O aluno perde o acesso na hora. Reative e ele volta.
+4. **Alunos** (menu): inative um aluno (ele não entra mais), reative, e tente excluir um aluno com matrícula (o sistema recusa). Um aluno criado por engano, sem vínculo, tem o botão Excluir.
+5. **Módulos e aulas**: com um aluno que já concluiu uma aula, o botão Excluir some e fica só Inativar. A aula inativa some para o aluno e o progresso é recalculado.
+6. **Cupons** (menu): crie um cupom com período e/ou quantidade e escolha os cursos. A tela do cupom mostra a imagem pequena: clique para abrir em janela, baixe o PNG, copie o link, ou envie por e-mail a um lead.
+7. **QR Code**: leia a imagem com o celular. Abre o curso com o aviso "Cupom ... guardado". O desconto aparece como prévia e passa a valer no pagamento (Fase 4).
+8. **Registro de atividades** (menu): veja tudo que você fez, filtre por data, e-mail e ação.
+
+Lembrete da regra central: login e senha não liberam curso. O acesso nasce de uma matrícula (pagamento aprovado, cortesia ou liberação manual do administrador).
 
 ## Como testar a Fase 2
 
