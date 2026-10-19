@@ -48,13 +48,24 @@ function quizRow(course, m, ov) {
     <span class="lrow__st" aria-hidden="true">${q.passed ? icon('check', 16) : st.quizAvailable ? '▶' : icon('lock', 16)}</span><span class="lrow__t">Quiz do módulo</span><span class="muted small">${label}</span>${st.quizAvailable || q.passed ? raw('</a>') : raw('</span>')}</li>`;
 }
 
+// Linha "Prova final" no fim da lista de módulos: bloqueada, liberada ou aprovada.
+function finalRow(course, ctx) {
+  const f = ctx.ov && ctx.ov.final;
+  if (!f || ctx.admin) return '';
+  const href = `/curso/${course.slug}/avaliacao/${f.id}`;
+  const label = f.passed ? `Aprovado · nota ${f.best != null ? Number(f.best).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : ''}` : f.unlocked ? (f.used ? 'Liberada · continue' : 'Liberada') : 'Libera ao assistir 50% da última aula';
+  const open = f.passed || f.unlocked;
+  return html`<div class="syl__final"><ul class="lrows"><li class="lrow lrow--final ${f.passed ? 'is-done' : open ? 'is-current' : 'is-locked'}" data-final-row data-href="${href}">${open ? html`<a href="${href}">` : html`<span class="lrow__a">`}
+    <span class="lrow__st" aria-hidden="true">${f.passed ? icon('check', 16) : open ? '▶' : icon('lock', 16)}</span><span class="lrow__t">Prova final</span><span class="muted small" data-final-label>${label}</span>${open ? raw('</a>') : raw('</span>')}</li></ul></div>`;
+}
+
 function curriculumList(course, cur, ctx) {
   return html`<div class="syl syl--app">${cur.map((m, i) => {
     const doneN = m.lessons.filter((l) => ctx.progress.done.has(String(l.id))).length;
     const open = ctx.current ? m.lessons.some((l) => l.id === ctx.current.id) : i === 0;
     return html`<details ${open ? raw('open') : ''}><summary><span>Módulo ${i + 1} · ${m.title}</span><span class="muted small">${doneN}/${m.lessons.length}</span></summary>
       <ul class="lrows">${m.lessons.map((l) => lessonRow(course, l, ctx))}${quizRow(course, m, ctx.ov)}</ul></details>`;
-  })}</div>`;
+  })}${finalRow(course, ctx)}</div>`;
 }
 
 function examCard(course, ov) {
@@ -87,6 +98,18 @@ function cursoHome({ cfg, user, csrf, flash, course, cur, progress, next, access
   return shellApp({ cfg, user, csrf, flash, path: navPath(user), title: course.title, content });
 }
 
+// Contador do tempo assistido da última aula: mostra quanto falta para liberar a prova final.
+function meter(course, lesson, ov, user) {
+  const f = ov && ov.final;
+  if (!f || user.role === 'admin' || !lesson.youtube_id || !f.lastLesson || f.lastLesson.id !== lesson.id || f.passed) return '';
+  const pct = f.unlocked && f.watchPct < 50 ? 50 : f.watchPct;
+  const href = `/curso/${course.slug}/avaliacao/${f.id}`;
+  return html`<section class="wmeter${f.unlocked ? ' is-open' : ''}" data-wmeter data-href="${href}">
+    <div class="wmeter__top"><span>Tempo assistido desta aula</span><b data-wpct>${pct}%</b></div>
+    <div class="bar wmeter__bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span data-wfill style="width:${pct}%"></span><i class="wmeter__mark" aria-hidden="true"></i></div>
+    <p class="small" data-wmsg>${f.unlocked ? html`<b>Prova final liberada!</b> <a href="${href}">Fazer a prova final</a>` : 'A prova final libera quando você assistir mais da metade (50%) desta aula. Deixe o vídeo tocando.'}</p></section>`;
+}
+
 function aula({ cfg, user, csrf, flash, course, cur, lesson, flat, progress, access, ov }) {
   const idx = flat.findIndex((l) => l.id === lesson.id);
   const prev = flat[idx - 1]; const next = flat[idx + 1];
@@ -99,6 +122,7 @@ function aula({ cfg, user, csrf, flash, course, cur, lesson, flat, progress, acc
       ${lesson.youtube_id
         ? html`<div class="player" data-watch="/curso/${course.slug}/aula/${lesson.id}/assistido" data-csrf="${csrf}"${user.role === 'admin' ? raw(' data-admin="1"') : ''}><iframe id="yt-player" src="https://www.youtube-nocookie.com/embed/${lesson.youtube_id}?rel=0&enablejsapi=1&origin=${encodeURIComponent(cfg.baseUrl)}" title="${lesson.title}" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`
         : html`<div class="player player--empty">${lumen('pensa', 90)}<p class="muted">O vídeo desta aula ainda não foi publicado.</p></div>`}
+      ${meter(course, lesson, ov, user)}
       <h1 class="t-display t-display--sm">${lesson.title}</h1>
       <div class="lesson__act">
         <form method="post" action="${link(lesson)}/concluir">${csrfInput(csrf)}<input type="hidden" name="done" value="${done ? '0' : '1'}">

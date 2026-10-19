@@ -76,19 +76,20 @@ async function overview(userId, course) {
   if (fa) {
     final = withState(fa);
     const last = flat[flat.length - 1];
-    let unlocked = false; let why = '';
+    let unlocked = false; let why = ''; let watchPct = 0;
     if (final.manual_unlock) unlocked = true;
     else if (!last) why = 'O curso ainda não tem aulas.';
     else if (modules[last.module_id] && modules[last.module_id].locked) why = 'Passe no quiz do módulo anterior para chegar à última aula.';
     else if (last.has_video) {
       const w = (await db.q('SELECT watched_seconds, duration_seconds FROM lesson_watch WHERE user_id = $1 AND lesson_id = $2', [userId, last.id])).rows[0];
       unlocked = !!w && w.duration_seconds > 0 && w.watched_seconds >= w.duration_seconds * HALF;
+      watchPct = w && w.duration_seconds > 0 ? Math.min(100, Math.floor((w.watched_seconds / w.duration_seconds) * 100)) : 0;
       why = `Assista a mais da metade da última aula (“${last.title}”) para liberar a prova.`;
     } else {
       unlocked = progress.done.has(String(last.id));
       why = `Conclua a última aula (“${last.title}”) para liberar a prova.`;
     }
-    final.unlocked = unlocked; final.why = unlocked ? '' : why; final.lastLesson = last || null;
+    final.watchPct = watchPct; final.unlocked = unlocked; final.why = unlocked ? '' : why; final.lastLesson = last || null;
   }
   const finalPending = (await ofCourse(course.id)).some((a) => a.kind === 'final' && a.active && a.qcount === 0);
   const needExam = !!final || finalPending;

@@ -143,9 +143,15 @@ test('tempo assistido: soma limitada pelo tempo real e libera a prova final com 
   const r3 = await sb.post(`${base()}/aula/${lc}/assistido`, { delta: '2', duration: '3' }, `${base()}/aula/${lc}`);
   assert.ok(JSON.parse(r3.text).duration >= 96, 'duração do cliente não vale sozinha');
   assert.equal((await A.overview(stu.id, { id: course })).final.unlocked, false, 'ainda abaixo da metade');
+  const pgLast = (await sb.get(`${base()}/aula/${lc}`)).text;
+  assert.match(pgLast, /data-wmeter/); assert.match(pgLast, /Tempo assistido desta aula/); assert.match(pgLast, /Libera ao assistir 50% da última aula/, 'linha da prova final na lista, bloqueada');
+  assert.doesNotMatch((await sb.get(`${base()}/aula/${lb}`)).text, /data-wmeter/, 'contador só na última aula');
+  assert.match((await sb.get(base())).text, /Libera ao assistir 50% da última aula/);
   await watch(lc, 60, 100); // 40 s depois, no máximo ~52 s
   assert.ok(Number((await q('SELECT watched_seconds FROM lesson_watch WHERE user_id=$1 AND lesson_id=$2', [stu.id, lc])).rows[0].watched_seconds) > 50);
   assert.equal((await A.overview(stu.id, { id: course })).final.unlocked, true, 'mais da metade assistida');
+  const pgOpen = (await sb.get(`${base()}/aula/${lc}`)).text;
+  assert.match(pgOpen, /Prova final liberada!/); assert.match(pgOpen, /Fazer a prova final/);
   // não passa da duração
   await watch(lc, 60, 100, 100); await watch(lc, 60, 100, 100);
   assert.ok(Number((await q('SELECT watched_seconds FROM lesson_watch WHERE user_id=$1 AND lesson_id=$2', [stu.id, lc])).rows[0].watched_seconds) <= 100);

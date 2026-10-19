@@ -82,7 +82,34 @@
       acc -= s;
       var body = new URLSearchParams({ _csrf: csrf, delta: String(s), duration: String(Math.floor(duration)) }).toString();
       if (beacon && navigator.sendBeacon) { navigator.sendBeacon(url, new Blob([body], { type: 'application/x-www-form-urlencoded' })); return; }
-      fetch(url, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body }).catch(function () { acc += s; });
+      fetch(url, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+        .then(function (r) { return r.json(); }).then(function (j) { if (j && j.ok && typeof j.pct === 'number') showPct(j.pct); }).catch(function () { acc += s; });
+    }
+    // Contador na tela: barra, percentual e, ao passar de 50%, avisa que a prova final foi liberada.
+    var meter = document.querySelector('[data-wmeter]');
+    function showPct(p) {
+      p = Math.max(0, Math.min(100, p));
+      if (!meter) return;
+      var shown = parseInt(meter.querySelector('[data-wpct]').textContent, 10) || 0;
+      if (p < shown) p = shown;
+      meter.querySelector('[data-wpct]').textContent = p + '%';
+      meter.querySelector('[data-wfill]').style.width = p + '%';
+      meter.querySelector('.bar').setAttribute('aria-valuenow', String(p));
+      if (p >= 50 && !meter.classList.contains('is-open')) {
+        meter.classList.add('is-open');
+        var href = meter.getAttribute('data-href');
+        var msg = meter.querySelector('[data-wmsg]'); msg.textContent = '';
+        var b = document.createElement('b'); b.textContent = 'Prova final liberada! '; msg.appendChild(b);
+        var a = document.createElement('a'); a.href = href; a.textContent = 'Fazer a prova final'; msg.appendChild(a);
+        var row = document.querySelector('[data-final-row]');
+        if (row) {
+          row.className = 'lrow lrow--final is-current';
+          row.textContent = '';
+          var l = document.createElement('a'); l.href = href;
+          l.innerHTML = '<span class="lrow__st" aria-hidden="true">▶</span><span class="lrow__t">Prova final</span><span class="muted small">Liberada</span>';
+          row.appendChild(l);
+        }
+      }
     }
     setInterval(function () { send(false); }, 10000);
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') send(true); });
