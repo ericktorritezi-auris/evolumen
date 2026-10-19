@@ -23,8 +23,8 @@ function createApp(cfg) {
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        fontSrc: ["'self'"],
         imgSrc: ["'self'", 'data:'],
         frameSrc: ['https://www.youtube-nocookie.com'],
         connectSrc: ["'self'"],
@@ -81,6 +81,7 @@ function createApp(cfg) {
   app.use(main);
   app.use(require('./routes_student').build(cfg, main.helpers));
   app.use(require('./routes_admin').build(cfg, main.helpers));
+  app.use(require('./routes_manage').build(cfg, main.helpers));
 
   app.use((req, res) => {
     res.status(404).send(authViews.errorPage({ cfg, status: 404, message: 'O endereço não existe ou foi movido.', loggedIn: !!req.user }));
@@ -106,7 +107,8 @@ async function start() {
   log.info('seed_ok', seeded);
   const cleanup = () => db.q(`DELETE FROM sessions WHERE expires_at < now();
     DELETE FROM password_resets WHERE expires_at < now() - interval '7 days';
-    DELETE FROM email_changes WHERE expires_at < now() - interval '7 days'`).catch((e) => log.warn('limpeza_falhou', { error: e.message }));
+    DELETE FROM email_changes WHERE expires_at < now() - interval '7 days';
+    DELETE FROM audit_log WHERE at < now() - interval '30 days'`).catch((e) => log.warn('limpeza_falhou', { error: e.message }));
   cleanup(); setInterval(cleanup, 6 * 3600 * 1000).unref();
   const app = createApp(cfg);
   const server = app.listen(cfg.port, () => log.info('servidor_no_ar', { porta: cfg.port, ambiente: cfg.appEnv, versao: cfg.version.version }));

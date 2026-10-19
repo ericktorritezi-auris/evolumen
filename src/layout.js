@@ -6,8 +6,6 @@ const { menuFor } = require('./nav');
 const { renderFooter } = require('./footer');
 const { brand, icon, mobileHeader } = require('./header');
 
-const FONTS = 'https://fonts.googleapis.com/css2?family=Sora:wght@200;300;400;600&family=Manrope:wght@400;500;600;700&family=Mrs+Saint+Delafield&display=swap';
-
 function lumen(pose, size, alt = '') {
   return html`<img class="lumen lumen--${pose}" src="/static/img/lumen-${pose}.svg" width="${size}" alt="${alt}">`;
 }
@@ -29,9 +27,8 @@ ${description ? html`<meta name="description" content="${description}">` : ''}
 <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="EvoLumen">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="${FONTS}">
+<link rel="preload" href="/static/fonts/quicksand-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/nunito-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/css/app.css?v=${v}">
 <script src="/static/js/app.js?v=${v}" defer></script>
 </head>

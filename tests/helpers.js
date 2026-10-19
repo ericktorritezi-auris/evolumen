@@ -46,7 +46,7 @@ class Browser {
     const res = await fetch(this.base + path, {
       method, redirect: 'manual',
       headers: { cookie: this.cookieHeader(), 'user-agent': this.ua, accept: 'text/html,application/xhtml+xml,*/*;q=0.8', ...(form ? { 'content-type': 'application/x-www-form-urlencoded' } : {}), ...headers },
-      body: form ? new URLSearchParams(form).toString() : undefined,
+      body: form ? new URLSearchParams(Object.entries(form).flatMap(([k, v]) => (Array.isArray(v) ? v.map((x) => [k, x]) : [[k, v]]))).toString() : undefined,
     });
     this.store(res);
     const text = await res.text();

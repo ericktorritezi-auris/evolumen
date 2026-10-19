@@ -5,16 +5,33 @@ const db = require('./db');
 const C = require('./courses');
 const files = require('./files');
 const pub = require('./views/public');
+const K = require('./coupons');
+const rateLimit = require('express-rate-limit');
 
 function build(cfg, h) {
   const r = express.Router();
+  const limit = rateLimit({ windowMs: 60 * 1000, limit: 40, standardHeaders: true, legacyHeaders: false,
+    handler: (req, res, next) => { const e = new Error('Muitas consultas de cupom. Aguarde um minuto.'); e.status = 429; e.expose = true; next(e); } });
+  const whenCoupon = (req, res, next) => (req.query.cupom ? limit(req, res, next) : next());
 
-  r.get('/', async (req, res) => {
+  r.get('/', whenCoupon, async (req, res) => {
     const courses = await C.listPublic();
-    res.send(pub.landing({ cfg, user: req.user, courses }));
+    const code = String(req.query.cupom || '').slice(0, 30);
+    const coupon = code ? await K.publicView(code) : null;
+    res.send(pub.landing({ cfg, user: req.user, courses, coupon }));
   });
 
-  r.get('/cursos/:slug', async (req, res, next) => {
+  // Endereço do QR Code e do e-mail: leva ao curso (ou à vitrine) com o cupom guardado.
+  r.get('/cupom/:code', limit, async (req, res) => {
+    const c = await K.byCode(req.params.code);
+    if (!c || K.stateOf(c, c.uses) !== 'active') return res.redirect(302, '/?cupom=invalido#cursos');
+    const visible = (await db.q(`SELECT c.slug FROM courses c JOIN coupon_courses cc ON cc.course_id = c.id WHERE cc.coupon_id = $1 AND (${C.VISIBLE}) ORDER BY c.sort_order, c.id`, [c.id])).rows;
+    if (!visible.length) return res.redirect(302, '/?cupom=invalido#cursos');
+    if (visible.length === 1) return res.redirect(302, `/cursos/${visible[0].slug}?cupom=${encodeURIComponent(c.code)}`);
+    res.redirect(302, `/?cupom=${encodeURIComponent(c.code)}#cursos`);
+  });
+
+  r.get('/cursos/:slug', whenCoupon, async (req, res, next) => {
     const isAdmin = req.user && req.user.role === 'admin';
     const course = await C.bySlug(req.params.slug, { includeDrafts: isAdmin });
     if (!course) return next();
@@ -26,7 +43,9 @@ function build(cfg, h) {
       if (access.ok) state = 'enrolled';
       else if (req.user.role === 'student') { const e = await C.enrollmentState(req.user.id, course.id); if (e && e.expired) state = 'expired'; }
     }
-    res.send(pub.coursePage({ cfg, user: req.user, course, cur, state, preview: !visible }));
+    const code = String(req.query.cupom || '').slice(0, 30);
+    const coupon = code ? await K.publicView(code, course) : null;
+    res.send(pub.coursePage({ cfg, user: req.user, course, cur, state, preview: !visible, coupon }));
   });
 
   // Capa: pública para curso publicado; rascunho só para o administrador.

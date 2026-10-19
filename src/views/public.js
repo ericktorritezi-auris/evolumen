@@ -19,6 +19,16 @@ function coverBox(c, cls = '') {
     : html`<div class="cover cover--empty ${cls}" aria-hidden="true">${lumen('guia', 72)}</div>`;
 }
 
+// Aviso de cupom (?cupom=). Ainda não há pagamento online: o desconto é aplicado na hora de pagar.
+function couponBanner(coupon) {
+  if (!coupon) return '';
+  if (coupon.invalid) return html`<div class="alert alert--error" role="alert">Este cupom não está disponível. Ele pode ter vencido, esgotado ou não valer para este curso.</div>`;
+  return html`<div class="alert alert--success" role="status">Cupom <b>${coupon.code}</b> guardado: ${coupon.label} de desconto.
+    ${coupon.price ? html`Neste curso, de <s>${C.brl(coupon.price.original)}</s> por <b>${C.brl(coupon.price.cents)}</b>.` : ''}
+    Ele vale no pagamento e substitui o preço promocional, se houver.
+    ${coupon.promoCheaper ? html`<b>Atenção:</b> a promoção atual deste curso está igual ou mais barata que o cupom.` : ''}</div>`;
+}
+
 function courseCard(c) {
   return html`<article class="ccard">
     <a class="ccard__cover" href="/cursos/${c.slug}" tabindex="-1" aria-hidden="true">${coverBox(c)}</a>
@@ -32,8 +42,9 @@ function courseCard(c) {
   </article>`;
 }
 
-function landing({ cfg, user, courses }) {
+function landing({ cfg, user, courses, coupon }) {
   const content = html`
+${couponBanner(coupon)}
 <section class="hero">
   <div class="hero__text">
     <span class="eyebrow">Saúde emocional · cursos online</span>
@@ -113,7 +124,7 @@ function landing({ cfg, user, courses }) {
   return shellPublic({ cfg, user, title: 'Cursos de saúde emocional', description: 'EvoLumen Academy: cursos online de autoconhecimento e saúde emocional, com videoaulas e material de apoio.', content });
 }
 
-function coursePage({ cfg, user, course: c, cur, state, preview }) {
+function coursePage({ cfg, user, course: c, cur, state, preview, coupon }) {
   const lessons = cur.flatMap((m) => m.lessons);
   const videos = lessons.filter((l) => l.has_video).length;
   const materials = lessons.reduce((n, l) => n + (l.files ? l.files.length : 0), 0);
@@ -127,6 +138,7 @@ function coursePage({ cfg, user, course: c, cur, state, preview }) {
       ? html`<button class="btn btn--primary btn--lg btn--block" type="button" disabled>Renovação em breve</button><p class="muted small">Seu acesso a este curso terminou. A renovação estará disponível em breve.</p>`
       : html`<button class="btn btn--primary btn--lg btn--block" type="button" disabled>Matrículas em breve</button><p class="muted small">As matrículas e o pagamento serão abertos nos próximos dias.</p>`;
   const content = html`
+${couponBanner(coupon)}
 ${preview ? html`<div class="alert alert--info">Pré-visualização: este curso ainda não está publicado na vitrine.</div>` : ''}
 <article class="cpage">
   <div class="cpage__main">
