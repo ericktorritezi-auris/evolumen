@@ -6,6 +6,7 @@ const C = require('./courses');
 const files = require('./files');
 const sec = require('./security');
 const access = require('./access');
+const certs = require('./certificates');
 const V = require('./validation');
 const { audit } = require('./audit');
 const views = require('./views/admin');
@@ -187,7 +188,7 @@ function build(cfg, h) {
       await c.query('DELETE FROM modules WHERE id = $1', [m.id]);
       return true;
     }).catch((e) => { if (e.code === '23503') return false; throw e; });
-    if (!ok) return flashBack(req, res, 'error', 'Alunos já fizeram aulas deste módulo, então ele não pode ser excluído. Use Inativar: ele some para os alunos e o histórico fica guardado.', back(m.course_id));
+    if (!ok) return flashBack(req, res, 'error', 'Alunos já fizeram aulas ou o quiz deste módulo, então ele não pode ser excluído. Use Inativar: ele some para os alunos e o histórico fica guardado.', back(m.course_id));
     await audit(req, 'module_deleted', { entity: 'course', entityId: m.course_id });
     flashBack(req, res, 'info', 'Módulo excluído.', back(m.course_id));
   });
@@ -328,22 +329,31 @@ function build(cfg, h) {
     const e = await enrollment(req, next); if (!e) return;
     await db.q("UPDATE enrollments SET status = 'cancelled', cancelled_at = now() WHERE id = $1", [e.id]);
     await audit(req, 'enrollment_cancelled', { entity: 'course', entityId: e.course_id, meta: { user: e.user_id } });
-    flashBack(req, res, 'info', 'Acesso cancelado. A matrícula continua no histórico.', enrollBack(req, e.course_id));
+    // Reembolso/estorno/fraude: o certificado deixa de valer (a página pública passa a mostrar "cancelado").
+    const revoked = await certs.revokeFor(e.user_id, e.course_id, 'Matrícula cancelada');
+    if (revoked) await audit(req, 'certificate_revoked', { entity: 'course', entityId: e.course_id, meta: { user: e.user_id, reason: 'Matrícula cancelada' } });
+    flashBack(req, res, 'info', revoked ? 'Acesso cancelado. O certificado do aluno neste curso foi revogado. Para restabelecê-lo, use Certificados.' : 'Acesso cancelado. A matrícula continua no histórico.', enrollBack(req, e.course_id));
   });
   r.post('/admin/matriculas/:id/reativar', async (req, res, next) => {
     const e = await enrollment(req, next); if (!e) return;
     await db.q("UPDATE enrollments SET status = 'active', cancelled_at = NULL WHERE id = $1", [e.id]);
     await audit(req, 'enrollment_reactivated', { entity: 'course', entityId: e.course_id, meta: { user: e.user_id } });
-    flashBack(req, res, 'success', 'Acesso reativado.', enrollBack(req, e.course_id));
+    const rv = (await db.q("SELECT 1 FROM certificates WHERE user_id = $1 AND course_id = $2 AND status = 'revoked'", [e.user_id, e.course_id])).rowCount;
+    flashBack(req, res, 'success', rv ? 'Acesso reativado. O certificado continua revogado: para restabelecê-lo, use Certificados.' : 'Acesso reativado.', enrollBack(req, e.course_id));
   });
   // Excluir só vale para matrícula sem nenhuma aula feita (criada por engano). Com histórico, cancele.
   r.post('/admin/matriculas/:id/excluir', async (req, res, next) => {
     const e = await enrollment(req, next); if (!e) return;
     const ok = await db.tx(async (c) => {
       await c.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [e.user_id]);
-      const used = (await c.query('SELECT count(*)::int n FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = $1 AND l.course_id = $2', [e.user_id, e.course_id])).rows[0].n;
+      const used = (await c.query(`SELECT (SELECT count(*) FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = $1 AND l.course_id = $2)
+        + (SELECT count(*) FROM assessment_attempts t JOIN assessments a ON a.id = t.assessment_id WHERE t.user_id = $1 AND a.course_id = $2)
+        + (SELECT count(*) FROM certificates WHERE user_id = $1 AND course_id = $2) AS n`, [e.user_id, e.course_id])).rows[0].n;
       const paid = (await c.query("SELECT (SELECT count(*) FROM coupon_redemptions WHERE user_id = $1 AND course_id = $2) + (SELECT count(*) FROM enrollments WHERE id = $3 AND origin = 'purchase') AS n", [e.user_id, e.course_id, e.id])).rows[0].n;
       if (used > 0 || Number(paid) > 0) return false;
+      await c.query('DELETE FROM lesson_watch WHERE user_id = $1 AND lesson_id IN (SELECT id FROM lessons WHERE course_id = $2)', [e.user_id, e.course_id]);
+      await c.query('DELETE FROM attempt_grants WHERE user_id = $1 AND assessment_id IN (SELECT id FROM assessments WHERE course_id = $2)', [e.user_id, e.course_id]);
+      await c.query('DELETE FROM exam_unlocks WHERE user_id = $1 AND assessment_id IN (SELECT id FROM assessments WHERE course_id = $2)', [e.user_id, e.course_id]);
       await c.query('DELETE FROM enrollments WHERE id = $1', [e.id]);
       return true;
     });

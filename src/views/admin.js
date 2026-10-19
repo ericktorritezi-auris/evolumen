@@ -12,7 +12,7 @@ const isoDate = (d) => (d ? new Date(d).toLocaleDateString('en-CA', { timeZone: 
 const shell = (ctx, title, content, path = '/admin/cursos') => shellApp({ cfg: ctx.cfg, user: ctx.user, csrf: ctx.csrf, flash: ctx.flash, path, title, content });
 
 function tabs(course, active) {
-  const t = [['dados', 'Dados do curso', `/admin/cursos/${course.id}`], ['conteudo', 'Módulos e aulas', `/admin/cursos/${course.id}/conteudo`], ['matriculas', 'Matrículas', `/admin/cursos/${course.id}/matriculas`]];
+  const t = [['dados', 'Dados do curso', `/admin/cursos/${course.id}`], ['conteudo', 'Módulos e aulas', `/admin/cursos/${course.id}/conteudo`], ['avaliacoes', 'Avaliações e certificado', `/admin/cursos/${course.id}/avaliacoes`], ['matriculas', 'Matrículas', `/admin/cursos/${course.id}/matriculas`]];
   return html`<nav class="tabs" aria-label="Seções do curso">${t.map(([k, label, href]) => html`<a href="${href}" class="${k === active ? 'is-active' : ''}"${k === active ? raw(' aria-current="page"') : ''}>${label}</a>`)}
     <a href="/cursos/${course.slug}" class="tabs__ext">Ver página ↗</a><a href="/curso/${course.slug}" class="tabs__ext">Ver como aluno ↗</a></nav>`;
 }
@@ -171,4 +171,4 @@ function matriculas(ctx, { course, rows, created = null, errors = {}, email = ''
   return shell(ctx, 'Matrículas', content);
 }
 
-module.exports = { cursosList, cursoForm, conteudo, matriculas, enrollActions, ORIGIN };
+module.exports = { cursosList, cursoForm, conteudo, matriculas, enrollActions, ORIGIN, tabs, area };

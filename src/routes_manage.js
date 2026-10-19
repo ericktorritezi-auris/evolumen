@@ -65,7 +65,8 @@ function build(cfg, h) {
     const done = await db.tx(async (c) => {
       await c.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [u.id]);
       const links = (await c.query(`SELECT (SELECT count(*) FROM enrollments WHERE user_id = $1) + (SELECT count(*) FROM lesson_progress WHERE user_id = $1)
-      + (SELECT count(*) FROM acceptances WHERE user_id = $1) + (SELECT count(*) FROM data_requests WHERE user_id = $1) + (SELECT count(*) FROM coupon_redemptions WHERE user_id = $1) AS n`, [u.id])).rows[0].n;
+      + (SELECT count(*) FROM acceptances WHERE user_id = $1) + (SELECT count(*) FROM data_requests WHERE user_id = $1) + (SELECT count(*) FROM coupon_redemptions WHERE user_id = $1)
+      + (SELECT count(*) FROM assessment_attempts WHERE user_id = $1) + (SELECT count(*) FROM certificates WHERE user_id = $1) AS n`, [u.id])).rows[0].n;
       if (Number(links) > 0) return false;
       await c.query('DELETE FROM users WHERE id = $1', [u.id]);
       return true;

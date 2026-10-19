@@ -100,7 +100,7 @@ function shellAuth({ cfg, title, heading, lead, pose = 'guia', bubble = '', cont
 }
 
 // Página pública (landing e curso): cabeçalho com menu de seções, menu por cima da tela no celular.
-function shellPublic({ cfg, user, title, content, flash: f, description = '', ogImage = '' }) {
+function shellPublic({ cfg, user, title, content, flash: f, description = '', ogImage = '', robots = 'index, follow' }) {
   const items = menuFor('publico', '/', cfg.version.phase);
   const cta = user ? { href: user.role === 'admin' ? '/admin' : '/meus-cursos', label: user.role === 'admin' ? 'Painel' : 'Meus cursos' } : { href: '/entrar', label: 'Área de membros' };
   const links = items.map((i) => html`<a href="${i.href}" class="nav__item">${icon(i.icon, 20)}<span>${i.label}</span></a>`);
@@ -123,7 +123,7 @@ function shellPublic({ cfg, user, title, content, flash: f, description = '', og
 </div>
 <main id="conteudo" class="p-main">${flash(f)}${content}</main>
 ${renderFooter(cfg)}`;
-  return documentShell({ cfg, title, body, robots: 'index, follow', bodyClass: 'is-public', description });
+  return documentShell({ cfg, title, body, robots, bodyClass: 'is-public', description });
 }
 
 module.exports = { documentShell, shellApp, shellAuth, shellPublic, flash, lumen };

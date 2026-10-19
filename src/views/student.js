@@ -32,9 +32,20 @@ function meusCursos({ cfg, user, csrf, flash, courses, resume }) {
 function lessonRow(course, l, ctx) {
   const done = ctx.progress.done.has(String(l.id));
   const cur = ctx.current && ctx.current.id === l.id;
-  return html`<li class="lrow${done ? ' is-done' : ''}${cur ? ' is-current' : ''}"><a href="/curso/${course.slug}/aula/${l.id}"${cur ? raw(' aria-current="true"') : ''}>
-    <span class="lrow__st" aria-hidden="true">${done ? icon('check', 16) : (cur ? '▶' : '○')}</span><span class="lrow__t">${l.title}</span>
-    ${l.duration_min ? html`<span class="muted small">${dur(l.duration_min)}</span>` : ''}<span class="sr">${done ? 'concluída' : ''}</span></a></li>`;
+  const locked = !!(ctx.ov && ctx.ov.modules[l.module_id] && ctx.ov.modules[l.module_id].locked && !ctx.admin);
+  return html`<li class="lrow${done ? ' is-done' : ''}${cur ? ' is-current' : ''}${locked ? ' is-locked' : ''}"><a href="/curso/${course.slug}/aula/${l.id}"${cur ? raw(' aria-current="true"') : ''}>
+    <span class="lrow__st" aria-hidden="true">${locked ? icon('lock', 16) : done ? icon('check', 16) : (cur ? '▶' : '○')}</span><span class="lrow__t">${l.title}</span>
+    ${l.duration_min ? html`<span class="muted small">${dur(l.duration_min)}</span>` : ''}<span class="sr">${locked ? 'bloqueada até passar no quiz do módulo anterior' : done ? 'concluída' : ''}</span></a></li>`;
+}
+
+function quizRow(course, m, ov) {
+  const st = ov && ov.modules[m.id]; const q = st && st.quiz;
+  if (!q) return '';
+  const href = `/curso/${course.slug}/avaliacao/${q.id}`;
+  const label = q.passed ? html`Aprovado · nota ${q.best != null ? q.best.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : ''}` : st.locked ? 'Bloqueado' : st.quizAvailable ? (q.used ? `${q.left} ${q.left === 1 ? 'tentativa restante' : 'tentativas restantes'}` : 'Liberado') : 'Conclua as aulas do módulo para liberar';
+  const cls = q.passed ? 'is-done' : (st.quizAvailable ? 'is-current' : 'is-locked');
+  return html`<li class="lrow lrow--quiz ${cls}">${st.quizAvailable || q.passed ? html`<a href="${href}">` : html`<span class="lrow__a">`}
+    <span class="lrow__st" aria-hidden="true">${q.passed ? icon('check', 16) : st.quizAvailable ? '▶' : icon('lock', 16)}</span><span class="lrow__t">Quiz do módulo</span><span class="muted small">${label}</span>${st.quizAvailable || q.passed ? raw('</a>') : raw('</span>')}</li>`;
 }
 
 function curriculumList(course, cur, ctx) {
@@ -42,11 +53,27 @@ function curriculumList(course, cur, ctx) {
     const doneN = m.lessons.filter((l) => ctx.progress.done.has(String(l.id))).length;
     const open = ctx.current ? m.lessons.some((l) => l.id === ctx.current.id) : i === 0;
     return html`<details ${open ? raw('open') : ''}><summary><span>Módulo ${i + 1} · ${m.title}</span><span class="muted small">${doneN}/${m.lessons.length}</span></summary>
-      <ul class="lrows">${m.lessons.map((l) => lessonRow(course, l, ctx))}</ul></details>`;
+      <ul class="lrows">${m.lessons.map((l) => lessonRow(course, l, ctx))}${quizRow(course, m, ctx.ov)}</ul></details>`;
   })}</div>`;
 }
 
-function cursoHome({ cfg, user, csrf, flash, course, cur, progress, next, access }) {
+function examCard(course, ov) {
+  const f = ov.final; const c = ov.cert;
+  if (!f && !c) return '';
+  const fmt = (v) => (v == null ? '' : Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 1 }));
+  return html`<section class="card"><span class="eyebrow">Prova final e certificado</span>
+    <ul class="checks">
+      <li class="${c.pctOk ? 'is-ok' : ''}">${c.pctOk ? '✔' : '○'} Concluir 95% do curso <span class="muted small">(você está em ${c.pct}%${c.pctOk ? '' : `, faltam ${c.missing} ${c.missing === 1 ? 'aula' : 'aulas'}`})</span></li>
+      ${f ? html`<li class="${f.passed ? 'is-ok' : ''}">${f.passed ? '✔' : '○'} Passar na prova final <span class="muted small">(nota mínima ${fmt(f.pass)}${f.passed ? ', sua nota ' + fmt(f.best) : ''})</span></li>` : ''}
+    </ul>
+    ${f && !f.passed ? (f.unlocked ? html`<a class="btn btn--primary" href="/curso/${course.slug}/avaliacao/${f.id}">${f.used ? 'Continuar a prova final' : 'Fazer a prova final'}</a><p class="muted small">Tentativas usadas: ${f.used} de ${f.limit}.</p>`
+      : html`<p class="muted small">${icon('lock', 14)} ${f.why}</p>`) : ''}
+    ${c.eligible ? html`<a class="btn btn--primary" href="/certificados">${icon('cert', 18)} Ver meu certificado</a>`
+      : (f && f.passed && !c.pctOk ? html`<p class="muted small">Você já passou na prova. O certificado sai assim que você concluir 95% do curso.</p>` : '')}
+  </section>`;
+}
+
+function cursoHome({ cfg, user, csrf, flash, course, cur, progress, next, access, ov }) {
   const content = html`<a class="back" href="${navPath(user)}">← ${user.role === 'admin' ? 'Cursos' : 'Meus cursos'}</a>
   ${user.role === 'admin' ? html`<div class="alert alert--info">Você está vendo como administrador. Seu progresso aqui é de teste.</div>` : ''}
   ${titleRow(course.title, course.summary)}
@@ -54,12 +81,13 @@ function cursoHome({ cfg, user, csrf, flash, course, cur, progress, next, access
     <p class="muted">${progress.count} de ${progress.total} ${progress.total === 1 ? 'aula concluída' : 'aulas concluídas'} · ${progress.pct}%</p>${bar(progress.pct)}
     <p class="muted small">${access.expires_at ? 'Acesso até ' + fmtDate(access.expires_at) : 'Acesso vitalício'}</p></div>
     ${next ? html`<a class="btn btn--primary" href="/curso/${course.slug}/aula/${next.id}">${progress.count ? 'Continuar' : 'Começar o curso'}</a>` : ''}</div></section>
-  ${cur.length ? html`<h2 class="t-card">Conteúdo do curso</h2>${curriculumList(course, cur, { progress, current: null })}`
+  ${ov && user.role !== 'admin' ? examCard(course, ov) : ''}
+  ${cur.length ? html`<h2 class="t-card">Conteúdo do curso</h2>${curriculumList(course, cur, { progress, current: null, ov, admin: user.role === 'admin' })}`
     : html`<section class="card empty">${lumen('pensa', 90)}<p class="muted">O conteúdo deste curso está sendo preparado.</p></section>`}`;
   return shellApp({ cfg, user, csrf, flash, path: navPath(user), title: course.title, content });
 }
 
-function aula({ cfg, user, csrf, flash, course, cur, lesson, flat, progress, access }) {
+function aula({ cfg, user, csrf, flash, course, cur, lesson, flat, progress, access, ov }) {
   const idx = flat.findIndex((l) => l.id === lesson.id);
   const prev = flat[idx - 1]; const next = flat[idx + 1];
   const done = progress.done.has(String(lesson.id));
@@ -69,7 +97,7 @@ function aula({ cfg, user, csrf, flash, course, cur, lesson, flat, progress, acc
     <div class="lesson__main">
       <p class="muted small">${lesson.module_title} · Aula ${idx + 1} de ${flat.length}</p>
       ${lesson.youtube_id
-        ? html`<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/${lesson.youtube_id}?rel=0" title="${lesson.title}" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`
+        ? html`<div class="player" data-watch="/curso/${course.slug}/aula/${lesson.id}/assistido" data-csrf="${csrf}"${user.role === 'admin' ? raw(' data-admin="1"') : ''}><iframe id="yt-player" src="https://www.youtube-nocookie.com/embed/${lesson.youtube_id}?rel=0&enablejsapi=1&origin=${encodeURIComponent(cfg.baseUrl)}" title="${lesson.title}" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`
         : html`<div class="player player--empty">${lumen('pensa', 90)}<p class="muted">O vídeo desta aula ainda não foi publicado.</p></div>`}
       <h1 class="t-display t-display--sm">${lesson.title}</h1>
       <div class="lesson__act">
@@ -84,7 +112,7 @@ function aula({ cfg, user, csrf, flash, course, cur, lesson, flat, progress, acc
           <a class="btn btn--outline btn--sm" href="/arquivos/${f.file_id}">${icon('download', 16)} Baixar</a></li>`)}</ul></section>` : ''}
     </div>
     <aside class="lesson__side"><div class="card"><span class="eyebrow">Seu progresso</span><p class="muted small">${progress.pct}% concluído</p>${bar(progress.pct)}</div>
-      <h2 class="t-card">Conteúdo do curso</h2>${curriculumList(course, cur, { progress, current: lesson })}</aside>
+      <h2 class="t-card">Conteúdo do curso</h2>${curriculumList(course, cur, { progress, current: lesson, ov, admin: user.role === 'admin' })}</aside>
   </div>`;
   return shellApp({ cfg, user, csrf, flash, path: navPath(user), title: lesson.title, content });
 }
