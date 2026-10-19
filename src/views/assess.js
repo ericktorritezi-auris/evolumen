@@ -46,7 +46,8 @@ function quizPage({ cfg, user, csrf, flash, course, a, st, ov, mode, attempt, re
         ? (next ? html`<a class="btn btn--primary" href="${next.href}">${next.label}</a>` : html`<a class="btn btn--primary" href="/curso/${course.slug}">Voltar ao curso</a>`)
         : (st.left > 0 ? html`<form method="post" action="${base}/iniciar" class="inline">${csrfInput(csrf)}<button class="btn btn--primary" type="submit">Tentar de novo (${st.left} ${st.left === 1 ? 'restante' : 'restantes'})</button></form>` : html`<p class="muted">Você usou todas as tentativas. Fale com o suporte para pedir uma tentativa extra.</p>`)}
         <a class="btn btn--ghost" href="/curso/${course.slug}">Voltar ao curso</a></div></section>
-      ${isFinal ? '' : html`<h2 class="t-card">Correção</h2>${reviewList(rev, true)}`}`;
+      ${rev.length ? html`<h2 class="t-card">Correção</h2><p class="muted small">Agora que você atingiu a nota mínima, veja o que errou e a resposta certa.</p>${reviewList(rev, true)}`
+        : html`<p class="muted small">A correção com as respostas certas aparece quando você atingir a nota mínima.</p>`}`;
   } else {
     body = html`<section class="card">${isFinal
       ? html`<p>A prova final fecha o curso. Nota mínima <b>${score(st.pass)}</b>. Para receber o certificado, você também precisa concluir <b>95%</b> do curso.</p>`

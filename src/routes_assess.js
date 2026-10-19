@@ -76,7 +76,7 @@ function build(cfg, h) {
     if (ID.test(String(req.query.tentativa || ''))) {
       const at = (await db.q('SELECT * FROM assessment_attempts WHERE id = $1 AND user_id = $2 AND assessment_id = $3 AND finished_at IS NOT NULL', [req.query.tentativa, req.user.id, a.id])).rows[0];
       if (!at) return next();
-      return res.send(views.quizPage({ ...base, mode: 'review', attempt: at, rev: a.kind === 'quiz' ? await A.review(at, { reveal: true }) : [], next: step }));
+      return res.send(views.quizPage({ ...base, mode: 'review', attempt: at, rev: st.passed ? await A.review(at, { reveal: true }) : [], next: step }));
     }
     if (st.open_id) {
       const at = (await db.q('SELECT * FROM assessment_attempts WHERE id = $1', [st.open_id])).rows[0];

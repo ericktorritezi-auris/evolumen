@@ -98,7 +98,9 @@ test('quiz bloqueia o módulo seguinte até a nota mínima, com 3 tentativas e t
   assert.equal(done.status, 303); assert.match(done.location, new RegExp(`/avaliacao/${quiz}`));
   const intro = await sb.get(`${base()}/avaliacao/${quiz}`); assert.match(intro.text, /não vale nota/); assert.match(intro.text, /Tentativas: <b>0<\/b> de <b>3<\/b>/);
   // errar 3 vezes (acertando só 1 de 3 = 3,33)
-  for (let n = 1; n <= 3; n++) { const at = await takeAttempt(sb, quiz, 1); assert.equal(at.passed, false); assert.equal(Number(at.score), 3.33); assert.equal(at.number, n); }
+  for (let n = 1; n <= 3; n++) { const at = await takeAttempt(sb, quiz, 1); assert.equal(at.passed, false); assert.equal(Number(at.score), 3.33); assert.equal(at.number, n);
+    const pg = (await sb.get(`${base()}/avaliacao/${quiz}?tentativa=${at.id}`)).text;
+    assert.doesNotMatch(pg, /resposta certa|Você errou|Você acertou\.|Sem resposta|Porque sim/, 'sem atingir a nota, nada de gabarito'); assert.match(pg, /aparece quando você atingir a nota mínima/); }
   const out = await sb.post(`${base()}/avaliacao/${quiz}/iniciar`, {}, base()); assert.equal(out.status, 303);
   assert.equal((await q('SELECT count(*)::int n FROM assessment_attempts WHERE assessment_id=$1', [quiz])).rows[0].n, 3, 'a 4ª tentativa é recusada');
   assert.match((await sb.get(`${base()}/avaliacao/${quiz}`)).text, /usou todas as tentativas/);
@@ -109,7 +111,9 @@ test('quiz bloqueia o módulo seguinte até a nota mínima, com 3 tentativas e t
   assert.match((await admin.get(`/admin/avaliacoes/${quiz}/tentativas`)).text, /3 de 4/);
   const ok = await takeAttempt(sb, quiz, 3); assert.equal(ok.passed, true); assert.equal(Number(ok.score), 10); assert.equal(ok.number, 4);
   assert.equal((await sb.get(`${base()}/aula/${lb}`)).status, 200, 'módulo 2 liberado');
-  const rev = await sb.get(`${base()}/avaliacao/${quiz}?tentativa=${ok.id}`); assert.match(rev.text, /Aprovado/); assert.match(rev.text, /resposta certa/, 'quiz mostra a resposta certa');
+  const rev = await sb.get(`${base()}/avaliacao/${quiz}?tentativa=${ok.id}`); assert.match(rev.text, /Aprovado/); assert.match(rev.text, /resposta certa/, 'quiz mostra a resposta certa só depois de aprovado');
+  const firstFail = (await q('SELECT id FROM assessment_attempts WHERE assessment_id=$1 AND number=1', [quiz])).rows[0].id;
+  assert.match((await sb.get(`${base()}/avaliacao/${quiz}?tentativa=${firstFail}`)).text, /resposta certa/, 'depois de aprovado, vê a correção das tentativas antigas');
   // não lê a tentativa de outra pessoa
   const other = await makeStudent(t, { email: 'curiosa2@example.com', name: 'Curiosa Dois' }); await q("INSERT INTO enrollments (user_id, course_id) VALUES ($1,$2)", [other.id, course]);
   const ob = new Browser(t.base); await ob.login(other.email, other.password);
@@ -155,6 +159,7 @@ test('prova final: sem 95% fica aguardando, depois conclui as aulas e o certific
   assert.match((await sb.get(`${base()}/avaliacao/${fin}?tentativa=${bad.id}`)).text, /Ainda não foi desta vez/);
   assert.doesNotMatch((await sb.get(`${base()}/avaliacao/${fin}?tentativa=${bad.id}`)).text, /resposta certa/, 'prova final não revela as respostas');
   const ok = await takeAttempt(sb, fin, 4); assert.equal(ok.passed, true); assert.equal(Number(ok.score), 10);
+  assert.match((await sb.get(`${base()}/avaliacao/${fin}?tentativa=${ok.id}`)).text, /resposta certa/, 'prova final: correção só depois de aprovado');
   assert.equal((await q('SELECT count(*)::int n FROM certificates')).rows[0].n, 0, 'aprovado mas com 33%: ainda sem certificado');
   const wait = await sb.get(`${base()}/avaliacao/${fin}?tentativa=${ok.id}`); assert.match(wait.text, /95% do curso/); assert.match(wait.text, /Faltam 2 aulas/);
   const list = await sb.get('/certificados'); assert.match(list.text, /Concluir 95% do curso/); assert.match(list.text, /você está em 33%/);
