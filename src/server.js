@@ -71,6 +71,9 @@ function createApp(cfg) {
   app.get('/favicon.ico', (req, res) => res.redirect(301, '/static/icons/favicon-32.png'));
   app.use('/static', express.static(PUBLIC, { maxAge: cfg.isProd ? '7d' : 0, index: false }));
 
+  // Webhook do gateway: antes de sessão e CSRF (a autenticidade vem da assinatura).
+  const hooks = express.Router();
+  app.use('/webhooks', express.json({ limit: '100kb' }), hooks);
   app.use(express.urlencoded({ extended: false, limit: '100kb' }));
   app.use(sec.sessionMiddleware(cfg));
   app.use(sec.csrfMiddleware(cfg));
@@ -84,6 +87,10 @@ function createApp(cfg) {
   app.use(require('./routes_manage').build(cfg, main.helpers));
   app.use(require('./routes_assess').build(cfg, main.helpers));
   app.use(require('./routes_assessadm').build(cfg, main.helpers));
+  const pay = require('./routes_pay');
+  pay.mountWebhook(cfg, main.helpers, hooks);
+  app.use(pay.build(cfg, main.helpers));
+  app.use(require('./routes_sales').build(cfg, main.helpers));
 
   app.use((req, res) => {
     res.status(404).send(authViews.errorPage({ cfg, status: 404, message: 'O endereço não existe ou foi movido.', loggedIn: !!req.user }));
@@ -110,8 +117,11 @@ async function start() {
   const cleanup = () => db.q(`DELETE FROM sessions WHERE expires_at < now();
     DELETE FROM password_resets WHERE expires_at < now() - interval '7 days';
     DELETE FROM email_changes WHERE expires_at < now() - interval '7 days';
-    DELETE FROM audit_log WHERE at < now() - interval '30 days'`).catch((e) => log.warn('limpeza_falhou', { error: e.message }));
+    DELETE FROM audit_log WHERE at < now() - interval '30 days' AND action !~ '^(order_|refund_|payment_|legal_|checkout_)';
+    DELETE FROM audit_log WHERE at < now() - interval '5 years'`).catch((e) => log.warn('limpeza_falhou', { error: e.message }));
   cleanup(); setInterval(cleanup, 6 * 3600 * 1000).unref();
+  const sweep = () => require('./sales').sweepExpired(cfg, (pr) => Promise.resolve(pr).catch((e) => log.warn('email_falhou', { error: e.message }))).catch((e) => log.warn('varredura_pix_falhou', { error: e.message }));
+  setInterval(sweep, 5 * 60 * 1000).unref();
   const app = createApp(cfg);
   const server = app.listen(cfg.port, () => log.info('servidor_no_ar', { porta: cfg.port, ambiente: cfg.appEnv, versao: cfg.version.version }));
   const stop = () => server.close(async () => { await db.close(); process.exit(0); });

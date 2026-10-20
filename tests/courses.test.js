@@ -92,7 +92,7 @@ test('página pública do curso não vaza vídeos nem arquivos das aulas', async
   assert.match(p.text, /youtube-nocookie\.com\/embed\/dQw4w9WgXcQ/, 'só o vídeo de apresentação');
   await t.pool.query("UPDATE courses SET intro_youtube_id = NULL WHERE id=$1", [course.id]);
   const p2 = await anon.get('/cursos/protocolo-essencia');
-  assert.doesNotMatch(p2.text, new RegExp(VIDEO)); assert.doesNotMatch(p2.text, /\/arquivos\//); assert.match(p2.text, /Matrículas em breve/);
+  assert.doesNotMatch(p2.text, new RegExp(VIDEO)); assert.doesNotMatch(p2.text, /\/arquivos\//); assert.match(p2.text, /Matricular-se/);
   assert.match(p2.text, /Aulas|aulas/);
   assert.equal((await anon.get('/arquivos/1')).location, '/entrar'); assert.equal((await anon.get('/curso/protocolo-essencia')).location, '/entrar');
 });
@@ -111,7 +111,7 @@ test('acesso ao conteúdo: sem matrícula, matriculado, vencido e removido', asy
   const dl = await b.get(`/arquivos/${fileId}`); assert.equal(dl.status, 200); assert.match(dl.headers.get('content-disposition'), /attachment; filename="?apostila\.pdf"?/); assert.equal(dl.headers.get('x-content-type-options'), 'nosniff');
   await t.pool.query("UPDATE enrollments SET expires_at = now() - interval '1 day' WHERE user_id=$1", [s.id]);
   assert.equal((await b.get(lessonUrl)).status, 403, 'vencido'); assert.equal((await b.get(`/arquivos/${fileId}`)).status, 403);
-  assert.match((await b.get('/cursos/protocolo-essencia')).text, /Renovação em breve/);
+  assert.match((await b.get('/cursos/protocolo-essencia')).text, /Renovar acesso/);
   await t.pool.query("UPDATE enrollments SET expires_at = now() + interval '5 days' WHERE user_id=$1", [s.id]);
   assert.equal((await b.get(lessonUrl)).status, 200); assert.match((await b.get('/meus-cursos')).text, /acesso até/);
   const eid = (await t.pool.query('SELECT id FROM enrollments WHERE user_id=$1', [s.id])).rows[0].id;

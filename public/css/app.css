@@ -282,3 +282,42 @@ img{max-width:100%;height:auto}
 .syl__final{margin-top:10px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r)}
 .lrow--final .lrow__a{display:flex;gap:10px;align-items:center;padding:10px 6px;color:var(--bruma)}
 .lrow--final .lrow__a{width:100%;box-sizing:border-box;border-top:0}.lrow--final .lrow__t{flex:none;white-space:nowrap}.lrow--final .muted{flex:1;text-align:right}
+
+/* 0.5.0: tabelas com fonte menor que a do site (≈10pt) em todas as telas */
+.tbl{font-size:13px;line-height:1.4}
+.tbl th{font-size:11px;letter-spacing:.06em;padding:8px 8px}
+.tbl td{padding:10px 8px}
+.tbl--log td{font-size:13px}
+.tbl small,.tbl .small,.tbl .muted{font-size:12px}
+.tbl .btn{min-height:30px;padding:4px 12px;font-size:12px}
+.tbl .btn--sm{min-height:30px;padding:4px 12px;font-size:12px}
+.tbl .pill{font-size:11px;padding:1px 8px}
+.tbl .code{font-size:12px;letter-spacing:.04em;white-space:nowrap}
+.tbl td.tbl__act{white-space:normal;min-width:120px}.tbl td.tbl__act .btn{margin:2px 0 2px 4px}
+@media (max-width:639px){.tbl td.tbl__act{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;min-width:0}.tbl td.tbl__act .btn{margin:0}.tbl td[data-l]::before{font-size:11px}}
+
+/* 0.5.0: checkout, pedido e pagamentos */
+.checkout{max-width:1040px}
+.checkout__grid{display:grid;gap:24px;margin-top:16px}
+.checkout__main{display:grid;gap:18px;min-width:0}.checkout__side{min-width:0}
+@media (min-width:900px){.checkout__grid{grid-template-columns:minmax(0,1fr) 340px;align-items:start}.checkout__side{position:sticky;top:20px}}
+.coupon-form .row{gap:8px;flex-wrap:nowrap}.coupon-form input{flex:1;min-width:0}
+.paychoice{border:0;padding:0;margin:0;display:grid;gap:10px}
+.paychoice__opt{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);cursor:pointer}
+.paychoice__opt:has(input:checked){border-color:var(--ambar);background:rgba(255,178,87,.08)}
+.paychoice__opt input{margin-top:4px;accent-color:var(--ambar)}
+.paychoice__opt span{display:grid;gap:2px}.paychoice__opt small{color:var(--bruma);font-size:13px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;cursor:pointer}.check input{margin-top:4px;accent-color:var(--ambar)}
+.sumlist{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:8px}
+.sumlist li{display:flex;justify-content:space-between;gap:12px}
+.sumlist__off{color:var(--good)}
+.sumlist__total{border-top:1px solid var(--line);padding-top:10px;font-size:18px}
+.pixqr{display:block;margin:16px auto;width:min(280px,100%);height:auto;background:#fff;padding:10px;border-radius:14px}
+.pixcode{display:grid;gap:10px;margin:12px 0}
+.pixcode textarea{width:100%;font:13px/1.4 ui-monospace,Menlo,monospace;resize:none;word-break:break-all}
+.row--center{justify-content:center}
+.span2{grid-column:1/-1}
+.refund summary{cursor:pointer}
+.refund form{display:grid;gap:10px;margin-top:10px}
+.pixqr{border-radius:12px!important;aspect-ratio:1/1;box-sizing:border-box;object-fit:contain}
+.pixcode textarea{background:var(--profundo);color:var(--nevoa);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-sizing:border-box}

@@ -124,7 +124,7 @@ ${couponBanner(coupon)}
   return shellPublic({ cfg, user, title: 'Cursos de saúde emocional', description: 'EvoLumen Academy: cursos online de autoconhecimento e saúde emocional, com videoaulas e material de apoio.', content });
 }
 
-function coursePage({ cfg, user, course: c, cur, state, preview, coupon }) {
+function coursePage({ cfg, user, course: c, cur, state, preview, coupon, buy = {} }) {
   const lessons = cur.flatMap((m) => m.lessons);
   const videos = lessons.filter((l) => l.has_video).length;
   const materials = lessons.reduce((n, l) => n + (l.files ? l.files.length : 0), 0);
@@ -132,11 +132,14 @@ function coursePage({ cfg, user, course: c, cur, state, preview, coupon }) {
   const stat = (k, v) => html`<div class="stat"><span class="muted">${k}</span><b>${v}</b></div>`;
   const list = (items) => html`<ul class="tick">${items.map((i) => html`<li>${icon('check', 18)}<span>${i}</span></li>`)}</ul>`;
   const para = (t) => html`${String(t).split(/\n{2,}/).map((x) => html`<p>${x}</p>`)}`;
+  const buyUrl = `/checkout/${c.slug}${coupon && coupon.code ? `?cupom=${encodeURIComponent(coupon.code)}` : ''}`;
   const cta = state === 'enrolled'
-    ? html`<a class="btn btn--primary btn--lg btn--block" href="/curso/${c.slug}">Ir para o curso</a>`
+    ? html`<a class="btn btn--primary btn--lg btn--block" href="/curso/${c.slug}">Ir para o curso</a>${buy.open && buy.renew ? html`<p class="muted small">Seu acesso termina em breve. <a href="/checkout/${c.slug}">Renovar agora</a>.</p>` : ''}`
     : state === 'expired'
-      ? html`<button class="btn btn--primary btn--lg btn--block" type="button" disabled>Renovação em breve</button><p class="muted small">Seu acesso a este curso terminou. A renovação estará disponível em breve.</p>`
-      : html`<button class="btn btn--primary btn--lg btn--block" type="button" disabled>Matrículas em breve</button><p class="muted small">As matrículas e o pagamento serão abertos nos próximos dias.</p>`;
+      ? (buy.open ? html`<a class="btn btn--primary btn--lg btn--block" href="/checkout/${c.slug}">Renovar acesso</a><p class="muted small">Seu acesso a este curso terminou. Renove para voltar a estudar de onde parou.</p>`
+        : html`<button class="btn btn--primary btn--lg btn--block" type="button" disabled>Renovação em breve</button><p class="muted small">Seu acesso a este curso terminou. A renovação estará disponível em breve.</p>`)
+      : (buy.open ? html`<a class="btn btn--primary btn--lg btn--block" href="${buyUrl}">Matricular-se</a><p class="muted small">Pix ou cartão. Reembolso em até 7 dias.</p>`
+        : html`<button class="btn btn--primary btn--lg btn--block" type="button" disabled>Matrículas em breve</button><p class="muted small">As matrículas e o pagamento serão abertos nos próximos dias.</p>`);
   const content = html`
 ${couponBanner(coupon)}
 ${preview ? html`<div class="alert alert--info">Pré-visualização: este curso ainda não está publicado na vitrine.</div>` : ''}

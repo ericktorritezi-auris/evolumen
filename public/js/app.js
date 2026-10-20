@@ -44,7 +44,7 @@
     var cp = e.target.closest('[data-copy]');
     if (cp) {
       var src = document.getElementById(cp.getAttribute('data-copy')); if (!src) return;
-      var done = function (ok) { var old = cp.getAttribute('data-label') || cp.textContent; cp.setAttribute('data-label', old); cp.textContent = ok ? 'Link copiado' : 'Selecione e copie'; setTimeout(function () { cp.textContent = old; }, 2000); };
+      var done = function (ok) { var old = cp.getAttribute('data-label') || cp.textContent; cp.setAttribute('data-label', old); cp.textContent = ok ? 'Copiado' : 'Selecione e copie'; setTimeout(function () { cp.textContent = old; }, 2000); };
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(src.textContent).then(function () { done(true); }, function () { done(false); });
       else { var r = document.createRange(); r.selectNodeContents(src); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); done(false); }
     }
@@ -53,6 +53,37 @@
     var m = e.target.getAttribute && e.target.getAttribute('data-confirm');
     if (m && !window.confirm(m)) e.preventDefault();
   });
+
+  // Fase 4: página do pedido (consulta o andamento, contagem do Pix e ida ao checkout do cartão).
+  (function () {
+    var box = document.querySelector('[data-order-poll]');
+    if (!box) return;
+    var url = box.getAttribute('data-order-poll'), n = 0, stopped = false;
+    function tick() {
+      if (stopped) return;
+      n++;
+      fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+        if (j && j.status && j.status !== 'pending') { stopped = true; location.reload(); return; }
+        setTimeout(tick, n < 20 ? 4000 : 10000);
+      }).catch(function () { setTimeout(tick, 10000); });
+    }
+    setTimeout(tick, 4000);
+    var left = document.querySelector('[data-pix-left]');
+    if (left && left.getAttribute('data-pix-left')) {
+      var end = new Date(left.getAttribute('data-pix-left')).getTime();
+      var paint = function () {
+        var s = Math.max(0, Math.round((end - Date.now()) / 1000));
+        left.textContent = s > 0 ? 'Vale por mais ' + Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2) + ' minutos.' : 'O Pix venceu. Atualize a página para gerar outro.';
+      };
+      paint(); setInterval(paint, 1000);
+    }
+    var go = document.getElementById('paygo');
+    if (go) {
+      var key = 'paygo:' + url, seen = false;
+      try { seen = sessionStorage.getItem(key) === '1'; sessionStorage.setItem(key, '1'); } catch (e) {}
+      if (!seen) setTimeout(function () { location.href = go.href; }, 900);
+    }
+  })();
 
   // Fase 3: tempo assistido da aula (o player do YouTube informa o tempo tocado; o servidor soma com limite pelo tempo real).
   (function () {
