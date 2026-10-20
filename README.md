@@ -7,6 +7,7 @@ Mais um produto Belle Planner.
 
 | Versão | Fase | Data | O que mudou |
 |---|---|---|---|
+| 0.4.0 | 3 · Avaliações, progresso e certificados | 2026-10-19 | Tempo assistido pelo player do YouTube. Quiz por módulo (opcional, não pesa na nota, bloqueia o avanço até a nota mínima). Prova final por curso (libera com mais da metade da última aula assistida). Tentativas (3) e tentativa extra pelo administrador. Certificado em PDF com selo e QR Code, emitido ao passar na prova e concluir 95%, texto e carga horária editáveis, página pública de verificação mínima e revogação. Migração 006. Nova dependência: pdfkit. |
 | 0.3.0 | 2 · Etapa de base | 2026-10-19 | Fonte nova (Quicksand + Nunito, instaladas no próprio sistema). Cortesia. Regra "exclui só sem vínculo, senão inativa" em alunos, matrículas, módulos, aulas e cupons. Registro de atividades (30 por página, guardado 30 dias). Cupons com QR Code, imagem PNG (miniatura que abre em janela, baixar) e envio por e-mail. Migração 005. Novas dependências: qrcode e @resvg/resvg-js. |
 | 0.2.2 | 2 · Cursos e aulas | 2026-10-18 | Nível do curso ganha a opção "Não se aplica" (não aparece para o público). Nova migração 004. |
 | 0.2.1 | 2 · Cursos e aulas | 2026-10-17 | Foto do professor na página inicial. |
@@ -37,6 +38,18 @@ Endereço de produção: https://evolumen.ericktorritezi.com.br
 1. Envie o conteúdo do ZIP para a branch `staging` do GitHub.
 2. O Railway faz o deploy; migrações e seeds rodam sozinhos ao iniciar.
 3. Confira `/health` e entre com ADMIN_EMAIL e ADMIN_INITIAL_PASSWORD.
+
+## Como testar a Fase 3 (0.4.0)
+
+Suba a pasta por cima da 0.3.0. O deploy instala o `pdfkit` sozinho e a migração 006 roda na subida.
+
+1. **Criar a prova**: em **Cursos > (curso) > Avaliações e certificado**, crie o **Quiz** de um módulo e a **Prova final**. Adicione questões (múltipla escolha ou verdadeiro/falso). Em **Certificado**, preencha a carga horária e veja o exemplo em PDF.
+2. **Medir o tempo assistido**: entre como aluno de teste, abra a última aula do curso e assista a mais da metade do vídeo. A **prova final** libera. Antes disso ela aparece bloqueada com o motivo. Na última aula aparece um **contador** (barra com percentual e marca nos 50%) e, na lista de módulos, a linha **Prova final** (bloqueada, liberada ou aprovada). Ao passar de 50% a tela avisa "Prova final liberada!" sem recarregar. Dica: preencha a **duração (min)** de cada aula; o servidor usa esse valor como referência e ignora durações forjadas. Quiz e prova final só mostram a correção (o que errou e a resposta certa) depois que o aluno atinge a nota mínima; antes disso aparece só a nota e o total de acertos. (Se o vídeo não puder ser medido, use **Tentativas > Liberar prova**.)
+3. **Quiz bloqueia o avanço**: com quiz no módulo 1, conclua as aulas dele. O módulo 2 fica com cadeado até passar no quiz com 7,0 ou mais.
+4. **Tentativas**: erre o quiz até acabarem as 3. Em **Avaliações > Tentativas**, libere **+1 tentativa extra**.
+5. **Certificado**: passe na prova final e conclua 95% do curso. O certificado é emitido sozinho (menu **Certificados**) e dá para baixar o PDF. Passou na prova com menos de 95%? A tela diz quantas aulas faltam. Depois do certificado, o progresso só sobe: dá para marcar aulas que faltam, mas não desmarcar (o botão vira "Concluída"). Se o certificado for revogado, a edição volta ao normal.
+6. **Verificação pública**: leia o QR do PDF ou use **Verificar certificado** no rodapé. Mostra só nome, curso, carga horária, data e código.
+7. **Revogar**: em **Certificados** (admin), revogue com um motivo. A página pública passa a mostrar "Certificado cancelado". Cancelar a matrícula do aluno também revoga.
 
 ## Como testar a etapa de base (0.3.0)
 

@@ -82,6 +82,8 @@ function createApp(cfg) {
   app.use(require('./routes_student').build(cfg, main.helpers));
   app.use(require('./routes_admin').build(cfg, main.helpers));
   app.use(require('./routes_manage').build(cfg, main.helpers));
+  app.use(require('./routes_assess').build(cfg, main.helpers));
+  app.use(require('./routes_assessadm').build(cfg, main.helpers));
 
   app.use((req, res) => {
     res.status(404).send(authViews.errorPage({ cfg, status: 404, message: 'O endereço não existe ou foi movido.', loggedIn: !!req.user }));

@@ -75,6 +75,9 @@ const LABELS = {
   lesson_created: 'Criou aula', lesson_updated: 'Editou aula', lesson_moved: 'Reordenou aula', lesson_inactivated: 'Inativou aula', lesson_reactivated: 'Reativou aula', lesson_deleted: 'Excluiu aula',
   file_uploaded: 'Enviou arquivo', file_deleted: 'Removeu arquivo', file_downloaded: 'Baixou arquivo',
   student_created: 'Criou conta de aluno', student_inactivated: 'Inativou aluno', student_reactivated: 'Reativou aluno', student_deleted: 'Excluiu aluno',
+  assessment_created: 'Criou quiz ou prova', assessment_updated: 'Alterou quiz ou prova', assessment_deleted: 'Excluiu quiz ou prova', assessment_started: 'Aluno iniciou avaliação', assessment_submitted: 'Aluno enviou avaliação',
+  question_created: 'Criou questão', question_updated: 'Alterou questão', question_inactivated: 'Inativou questão', question_reactivated: 'Reativou questão', question_deleted: 'Excluiu questão',
+  attempt_granted: 'Liberou tentativa extra', exam_unlocked: 'Liberou a prova final', certificate_issued: 'Certificado emitido', certificate_downloaded: 'Certificado baixado', certificate_revoked: 'Revogou certificado', certificate_restored: 'Restabeleceu certificado', certificate_settings_saved: 'Alterou dados do certificado',
   enrollment_granted: 'Liberou acesso a curso', enrollment_cancelled: 'Cancelou matrícula', enrollment_reactivated: 'Reativou matrícula', enrollment_removed: 'Excluiu matrícula',
   gift_granted: 'Concedeu cortesia', coupon_created: 'Criou cupom', coupon_updated: 'Editou cupom', coupon_inactivated: 'Inativou cupom', coupon_sent: 'Enviou cupom por e-mail',
 };
