@@ -31,4 +31,48 @@ function htmlToText(h) {
     .replace(/\n{3,}/g, '\n\n').trim();
 }
 
-module.exports = { textToHtml, htmlToText };
+
+// Limpeza do HTML vindo do editor visual: só passa o que está na lista. Scripts, estilos, eventos e atributos somem.
+const ALLOWED = new Set(['p', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'strong', 'em', 'u', 'br', 'a', 'blockquote']);
+const BLOCK = new Set(['p', 'h2', 'h3', 'h4', 'ul', 'ol', 'blockquote']);
+const RENAME = { b: 'strong', i: 'em', h1: 'h2', h5: 'h4', h6: 'h4', div: 'p' };
+const DROP = 'script|style|iframe|object|embed|svg|math|textarea|noscript|template|head|title|form|button|select|link|meta';
+
+function safeHref(v) {
+  const h = String(v || '').replace(/&amp;/gi, '&').replace(/[\u0000- \u007f-\u009f]+/g, '').slice(0, 500);
+  if (!/^(https?:\/\/[^\s"'<>]+|mailto:[^\s"'<>]+)$/i.test(h)) return null;
+  return h.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
+function sanitizeHtml(src) {
+  let s = String(src == null ? '' : src).slice(0, 300000);
+  s = s.replace(new RegExp(`<(${DROP})\\b[\\s\\S]*?<\\/\\1\\s*>`, 'gi'), '').replace(new RegExp(`<(${DROP})\\b[\\s\\S]*$`, 'i'), '').replace(/<!--[\s\S]*?(-->|$)/g, '');
+  const out = []; const stack = [];
+  const re = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)([^<>]*)>|([^<]+)|</g;
+  let m;
+  while ((m = re.exec(s))) {
+    if (m[4] !== undefined) { out.push(m[4].replace(/&(?!(?:[a-zA-Z]+|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')); continue; }
+    if (!m[2]) { out.push('&lt;'); continue; }
+    let tag = m[2].toLowerCase(); tag = RENAME[tag] || tag;
+    if (!ALLOWED.has(tag)) continue;
+    if (m[1]) {
+      const i = stack.lastIndexOf(tag);
+      if (i >= 0) while (stack.length > i) out.push(`</${stack.pop()}>`);
+      continue;
+    }
+    if (tag === 'br') { out.push('<br>'); continue; }
+    if (tag === 'a') {
+      const hm = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(m[3] || '');
+      const href = hm ? safeHref(hm[1] !== undefined ? hm[1] : hm[2] !== undefined ? hm[2] : hm[3]) : null;
+      if (!href) continue;
+      stack.push('a'); out.push(`<a href="${href}" target="_blank" rel="noopener noreferrer">`); continue;
+    }
+    // Parágrafo não contém blocos: fecha o parágrafo aberto antes de abrir lista, título ou citação.
+    if (BLOCK.has(tag)) { const pi = stack.lastIndexOf('p'); if (pi >= 0) while (stack.length > pi) out.push(`</${stack.pop()}>`); }
+    stack.push(tag); out.push(`<${tag}>`);
+  }
+  while (stack.length) out.push(`</${stack.pop()}>`);
+  return out.join('').replace(/<(p|h2|h3|h4|li|strong|em|u|blockquote)>(\s|<br>|&nbsp;)*<\/\1>/g, '').trim();
+}
+
+module.exports = { textToHtml, htmlToText, sanitizeHtml };

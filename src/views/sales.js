@@ -91,14 +91,33 @@ function textos(ctx, { docs }) {
   return shell(ctx, 'Textos legais', content, '/admin/textos');
 }
 
-function texto(ctx, { d, src, error = '' }) {
+function texto(ctx, { d, error = '' }) {
   const draft = d.status === 'draft';
-  const content = html`<a class="back" href="/admin/textos">← Textos legais</a>${titleRow(`${d.title} · v${d.version}`, draft ? 'Rascunho. Só vale depois de publicar.' : 'Publicado. Não pode mais ser alterado.')}
-  ${draft ? html`<section class="card"><form method="post" action="/admin/textos/${d.id}" class="form">${csrfInput(ctx.csrf)}
-    ${area('body_src', 'Texto', src, { rows: 22, error, note: 'Use “# Título” para títulos, uma linha em branco entre parágrafos e “- ” para listas.' })}
+  const btn = (cmd, label, title, extra = '') => html`<button type="button" class="editor__btn${extra}" data-cmd="${cmd}" title="${title}" aria-label="${title}">${label}</button>`;
+  const content = html`<a class="back" href="/admin/textos">← Textos legais</a>${titleRow(`${d.title} · ${d.version}`, draft ? 'Rascunho. Só vale depois de publicar.' : 'Publicado. Não pode mais ser alterado.')}
+  ${draft ? html`<section class="card"><form method="post" action="/admin/textos/${d.id}" class="form" data-editor-form>${csrfInput(ctx.csrf)}
+    <div class="field"><label id="ed-l">Texto</label>
+      <div class="editor" data-editor>
+        <div class="editor__bar" role="toolbar" aria-label="Formatação do texto">
+          ${btn('formatBlock:h2', 'Título', 'Título')}${btn('formatBlock:h3', 'Subtítulo', 'Subtítulo')}${btn('formatBlock:p', 'Parágrafo', 'Parágrafo normal')}
+          <span class="editor__sep"></span>
+          ${btn('bold', 'N', 'Negrito', ' editor__btn--b')}${btn('italic', 'I', 'Itálico', ' editor__btn--i')}${btn('underline', 'S', 'Sublinhado', ' editor__btn--u')}
+          <span class="editor__sep"></span>
+          ${btn('insertUnorderedList', '• Lista', 'Lista com marcadores')}${btn('insertOrderedList', '1. Lista', 'Lista numerada')}${btn('formatBlock:blockquote', 'Citação', 'Citação')}
+          <span class="editor__sep"></span>
+          ${btn('link', 'Link', 'Inserir link')}${btn('unlink', 'Tirar link', 'Remover link')}${btn('removeFormat', 'Limpar', 'Limpar formatação')}
+          <span class="editor__sep"></span>
+          ${btn('undo', 'Desfazer', 'Desfazer')}${btn('redo', 'Refazer', 'Refazer')}
+        </div>
+        <div class="editor__area legal-body" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="ed-l" spellcheck="true">${raw(d.body_html)}</div>
+        <input type="hidden" name="body_html" value="">
+      </div>
+      <p class="field__msg">Escreva ou cole o texto aqui. Use os botões para título, negrito e listas. Não precisa de código. A formatação colada do Word é limpa automaticamente.</p>
+      ${error ? html`<div class="field__msg field__msg--err">${error}</div>` : ''}</div>
+    <noscript><p class="muted">Ative o JavaScript do navegador para usar o editor.</p></noscript>
     <div class="row"><button class="btn btn--outline" type="submit">Salvar rascunho</button></div></form>
-    <form method="post" action="/admin/textos/${d.id}/publicar" class="inline" data-confirm="Publicar? Depois de publicado, o texto não pode mais ser editado e passa a valer para novos aceites.">${csrfInput(ctx.csrf)}<button class="btn btn--primary" type="submit">Publicar esta versão</button></form></section>`
-    : html`<section class="card legal">${raw(d.body_html)}</section>`}`;
+    <form method="post" action="/admin/textos/${d.id}/publicar" class="inline" data-confirm="Publicar? Depois de publicado, o texto não pode mais ser editado e passa a valer para novos aceites. Salve o rascunho antes.">${csrfInput(ctx.csrf)}<button class="btn btn--primary" type="submit">Publicar esta versão</button></form></section>`
+    : html`<section class="card legal legal--full">${raw(d.body_html)}</section>`}`;
   return shell(ctx, d.title, content, '/admin/textos');
 }
 

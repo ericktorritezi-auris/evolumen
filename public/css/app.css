@@ -321,3 +321,22 @@ img{max-width:100%;height:auto}
 .refund form{display:grid;gap:10px;margin-top:10px}
 .pixqr{border-radius:12px!important;aspect-ratio:1/1;box-sizing:border-box;object-fit:contain}
 .pixcode textarea{background:var(--profundo);color:var(--nevoa);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-sizing:border-box}
+
+/* 0.5.0: editor visual dos textos legais */
+.editor{border:1px solid var(--line);border-radius:14px;background:var(--profundo);overflow:hidden}
+.editor__bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:2}
+.editor__btn{font:600 13px Nunito,sans-serif;color:var(--nevoa);background:transparent;border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-height:34px;cursor:pointer}
+.editor__btn:hover,.editor__btn:focus-visible{border-color:var(--ambar);color:var(--ambar);outline:none}
+.editor__btn--b{font-weight:800}.editor__btn--i{font-style:italic}.editor__btn--u{text-decoration:underline}
+.editor__sep{width:1px;align-self:stretch;background:var(--line);margin:2px 4px}
+.editor__area,.legal-body{padding:18px 20px;line-height:1.65}
+.editor__area{min-height:480px;max-height:70vh;overflow:auto;outline:none;font-size:16px}
+.editor__area:focus{box-shadow:inset 0 0 0 2px rgba(255,178,87,.35)}
+.editor__area h2,.legal--full h2{font:600 22px Quicksand,sans-serif;margin:22px 0 8px}
+.editor__area h3,.legal--full h3{font:600 18px Quicksand,sans-serif;margin:18px 0 6px}
+.editor__area p,.legal--full p{margin:0 0 12px}
+.editor__area ul,.editor__area ol,.legal--full ul,.legal--full ol{margin:0 0 12px;padding-left:24px}
+.editor__area blockquote,.legal--full blockquote{margin:0 0 12px;padding:4px 14px;border-left:3px solid var(--ambar);color:var(--bruma)}
+.editor__area a,.legal--full a{color:var(--aurora);text-decoration:underline}
+.legal--full{max-height:none;padding:18px 20px}
+@media (max-width:639px){.editor__area{min-height:360px;padding:14px}.editor__bar{gap:4px}.editor__btn{padding:6px 8px}}

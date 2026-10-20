@@ -54,6 +54,54 @@
     if (m && !window.confirm(m)) e.preventDefault();
   });
 
+  // Editor visual dos textos legais (sem código): barra de botões, colagem limpa e envio do HTML ao salvar.
+  (function () {
+    var box = document.querySelector('[data-editor]');
+    if (!box) return;
+    var area = box.querySelector('.editor__area'), hidden = box.querySelector('input[name=body_html]'), form = box.closest('form');
+    var OK = { P: 'p', H2: 'h2', H3: 'h3', H4: 'h4', UL: 'ul', OL: 'ol', LI: 'li', STRONG: 'strong', B: 'strong', EM: 'em', I: 'em', U: 'u', BR: 'br', A: 'a', BLOCKQUOTE: 'blockquote', H1: 'h2', H5: 'h4', H6: 'h4', DIV: 'p' };
+    var esc = function (t) { return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+    function clean(node) {
+      var out = '';
+      node.childNodes.forEach(function (n) {
+        if (n.nodeType === 3) { out += esc(n.nodeValue.replace(/ /g, ' ')); return; }
+        if (n.nodeType !== 1) return;
+        var tag = OK[n.tagName];
+        if (/^(SCRIPT|STYLE|META|LINK|TITLE|HEAD|IFRAME|OBJECT|SVG)$/.test(n.tagName)) return;
+        var inner = clean(n);
+        if (!tag) { out += inner; return; }
+        if (tag === 'br') { out += '<br>'; return; }
+        if (tag === 'a') { var h = n.getAttribute('href') || ''; out += /^(https?:\/\/|mailto:)/i.test(h) ? '<a href="' + h.replace(/"/g, '&quot;') + '">' + inner + '</a>' : inner; return; }
+        if (/^(p|h2|h3|h4|li)$/.test(tag) && !inner.replace(/<br>|\s/g, '')) return;
+        out += '<' + tag + '>' + inner + '</' + tag + '>';
+      });
+      return out;
+    }
+    try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch (e) {}
+    function run(cmd) {
+      area.focus();
+      var parts = cmd.split(':');
+      if (parts[0] === 'formatBlock') {
+        var cur = document.queryCommandValue('formatBlock').toLowerCase().replace(/[<>]/g, '');
+        document.execCommand('formatBlock', false, parts[1] === 'p' || cur === parts[1] ? 'p' : parts[1]);
+      } else if (cmd === 'link') {
+        var url = window.prompt('Endereço do link (começa com https://)', 'https://');
+        if (url && /^(https?:\/\/|mailto:)/i.test(url.trim())) document.execCommand('createLink', false, url.trim());
+      } else document.execCommand(cmd, false, null);
+    }
+    box.querySelector('.editor__bar').addEventListener('mousedown', function (e) { if (e.target.closest('[data-cmd]')) e.preventDefault(); });
+    box.querySelector('.editor__bar').addEventListener('click', function (e) { var b = e.target.closest('[data-cmd]'); if (b) run(b.getAttribute('data-cmd')); });
+    area.addEventListener('paste', function (e) {
+      var cd = e.clipboardData; if (!cd) return;
+      e.preventDefault();
+      var h = cd.getData('text/html');
+      if (h) { var doc = new DOMParser().parseFromString(h, 'text/html'); document.execCommand('insertHTML', false, clean(doc.body)); }
+      else document.execCommand('insertText', false, cd.getData('text/plain'));
+    });
+    if (!area.innerHTML.trim()) area.innerHTML = '<p><br></p>';
+    if (form) form.addEventListener('submit', function () { hidden.value = area.innerHTML; });
+  })();
+
   // Fase 4: página do pedido (consulta o andamento, contagem do Pix e ida ao checkout do cartão).
   (function () {
     var box = document.querySelector('[data-order-poll]');

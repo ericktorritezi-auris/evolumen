@@ -104,21 +104,21 @@ function build(cfg, h) {
     if (last && last.status === 'draft') return flashBack(req, res, 'error', 'Já existe um rascunho. Edite ou publique antes de criar outro.', `/admin/textos/${last.id}`);
     const n = (await db.q('SELECT count(*)::int AS n FROM legal_documents WHERE doc_type = $1', [t])).rows[0].n + 1;
     const d = (await db.q(`INSERT INTO legal_documents (doc_type, version, title, body_html, body_src, status) VALUES ($1,$2,$3,$4,$5,'draft') RETURNING id`,
-      [t, `v${n}.0`, last ? last.title : (t === 'terms' ? 'Termos de uso' : 'Política de privacidade'), last ? last.body_html : '', last ? (last.body_src || L.htmlToText(last.body_html)) : ''])).rows[0];
+      [t, `v${n}.0`, last ? last.title : (t === 'terms' ? 'Termos de uso' : 'Política de privacidade'), last ? last.body_html : '', null])).rows[0];
     await audit(req, 'legal_draft_created', { entity: 'legal_document', entityId: d.id });
     flashBack(req, res, 'success', 'Nova versão criada em rascunho.', `/admin/textos/${d.id}`);
   });
 
   r.get('/admin/textos/:id', async (req, res, next) => {
     const d = await docOr404(req); if (!d) return next();
-    res.send(views.texto(ctx(req, res), { d, src: d.body_src != null ? d.body_src : L.htmlToText(d.body_html) }));
+    res.send(views.texto(ctx(req, res), { d }));
   });
 
   r.post('/admin/textos/:id', async (req, res, next) => {
     const d = await docOr404(req); if (!d) return next();
     if (d.status !== 'draft') return flashBack(req, res, 'error', 'Texto publicado não pode ser alterado. Crie uma nova versão.', `/admin/textos/${d.id}`);
-    const src = String(req.body.body_src || '').slice(0, 120000);
-    await db.q('UPDATE legal_documents SET body_src = $2, body_html = $3 WHERE id = $1 AND status = $4', [d.id, src, L.textToHtml(src), 'draft']);
+    const clean = L.sanitizeHtml(req.body.body_html);
+    await db.q('UPDATE legal_documents SET body_html = $2, body_src = NULL WHERE id = $1 AND status = $3', [d.id, clean, 'draft']);
     await audit(req, 'legal_draft_saved', { entity: 'legal_document', entityId: d.id });
     flashBack(req, res, 'success', 'Rascunho salvo.', `/admin/textos/${d.id}`);
   });

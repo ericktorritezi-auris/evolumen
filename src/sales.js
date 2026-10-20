@@ -46,6 +46,12 @@ async function checkCoupon(code, course, { userId = null, email = null } = {}) {
   let uid = userId;
   if (!uid && email) { const u = (await db.q('SELECT id FROM users WHERE lower(email) = $1', [email])).rows[0]; uid = u ? u.id : null; }
   if (uid && (await db.q('SELECT 1 FROM coupon_redemptions WHERE coupon_id = $1 AND user_id = $2', [c.id, uid])).rowCount) return { error: 'Você já usou este cupom.' };
+  // Reserva: compras em andamento (pagamento ainda pendente) também seguram o cupom, para não valer em dois pedidos ao mesmo tempo.
+  const mail = String(email || '').toLowerCase();
+  const pend = (await db.q(`SELECT course_id, user_id, lower(buyer->>'email') AS email FROM orders WHERE coupon_id = $1 AND status = 'pending' AND created_at > now() - interval '35 minutes'`, [c.id])).rows;
+  const mine = (r) => (uid && String(r.user_id) === String(uid)) || (mail && r.email === mail);
+  if (pend.some((r) => mine(r) && String(r.course_id) !== String(course.id))) return { error: 'Você já está usando este cupom em outra compra que ainda não foi paga.' };
+  if (c.max_uses && c.uses + new Set(pend.filter((r) => !mine(r)).map((r) => r.email)).size >= c.max_uses) return { error: 'Este cupom está reservado em compras em andamento. Tente de novo em alguns minutos.' };
   return { coupon: c };
 }
 
@@ -205,13 +211,19 @@ async function finalize(cfg, c, o, course, pay) {
   if (!ex) await c.query("INSERT INTO enrollments (user_id, course_id, origin, expires_at) VALUES ($1,$2,'purchase',$3)", [user.id, course.id, newExp]);
   else if (live && !ex.expires_at) { /* vitalício: nada muda */ }
   else await c.query("UPDATE enrollments SET status = 'active', cancelled_at = NULL, starts_at = LEAST(starts_at, now()), expires_at = $2, origin = CASE WHEN status = 'cancelled' THEN 'purchase' ELSE origin END WHERE id = $1", [ex.id, newExp]);
-  if (o.coupon_id) await c.query('INSERT INTO coupon_redemptions (coupon_id, user_id, course_id) VALUES ($1,$2,$3) ON CONFLICT (coupon_id, user_id) DO NOTHING', [o.coupon_id, user.id, course.id]);
+  let couponFlag = null;
+  if (o.coupon_id) {
+    const ins = await c.query('INSERT INTO coupon_redemptions (coupon_id, user_id, course_id) VALUES ($1,$2,$3) ON CONFLICT (coupon_id, user_id) DO NOTHING', [o.coupon_id, user.id, course.id]);
+    const cp = (await c.query('SELECT max_uses, (SELECT count(*)::int FROM coupon_redemptions WHERE coupon_id = $1) AS uses FROM coupons WHERE id = $1', [o.coupon_id])).rows[0];
+    // A venda já foi paga e é honrada, mas fica registrado para você ver se o cupom foi usado além do combinado.
+    if (!ins.rowCount) couponFlag = 'coupon_repeated'; else if (cp && cp.max_uses && cp.uses > cp.max_uses) couponFlag = 'coupon_over_limit';
+  }
   const paid = pay.paidCents || o.price_cents;
   const row = (await c.query(`UPDATE orders SET status = 'approved', status_detail = $2, user_id = $3, provider_payment_id = $4, paid_cents = $5, installments = $6,
     approved_at = now(), refund_until = now() + ($7 || ' days')::interval, prev_expires_at = $8, prev_enrollment = $9, updated_at = now() WHERE id = $1 RETURNING *`,
   [o.id, pay.detail || null, user.id, pay.id, paid, pay.installments || null, String(cfg.refundDays), live ? ex.expires_at : null, live && !!ex.expires_at])).rows[0];
   const mail = { to: user.email, ...emails.purchaseApproved(cfg, { name: user.name, email: user.email, password, course, order: row, renewal: renewal && !!ex, expiresLabel: newExp ? fmtLong(newExp) : null }) };
-  return { order: row, user, mails: [mail], audits: [['order_approved', { order: o.id, course: course.id, user: user.id, valor: paid, novo_usuario: !!password }]] };
+  return { order: row, user, mails: [mail], audits: [['order_approved', { order: o.id, course: course.id, user: user.id, valor: paid, novo_usuario: !!password }], ...(couponFlag ? [[couponFlag, { order: o.id, coupon: o.coupon_id, user: user.id }]] : [])] };
 }
 
 // Encerra o acesso ligado a este pedido. Renovação volta ao prazo anterior; compra inicial cancela a matrícula.

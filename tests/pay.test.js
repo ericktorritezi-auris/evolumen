@@ -12,7 +12,7 @@ let t; let admin; let course; let doc1; let doc2;
 const slug = 'curso-pago';
 const q = (sql, p) => t.pool.query(sql, p);
 const bg = (p) => Promise.resolve(p);
-const LONG = '# Texto\n\n' + 'Este é um parágrafo de teste do documento legal, longo o bastante para ser publicado. '.repeat(4);
+const LONG = '<h1>Texto</h1><p>' + 'Este é um parágrafo de teste do documento legal, longo o bastante para ser publicado. '.repeat(4) + '</p>';
 let cpfN = 0;
 function genCpf(n) {
   const d = String(100000000 + n * 7919).slice(0, 9).split('').map(Number);
@@ -48,18 +48,21 @@ test('textos legais: rascunho vira publicado só com texto completo e depois nã
   assert.equal(early.status, 303);
   const checkoutClosed = await new Browser(t.base).get(`/checkout/${slug}`);
   assert.notEqual(checkoutClosed.status, 200, 'sem textos publicados o checkout não abre');
-  await admin.post(`/admin/textos/${terms.id}`, { body_src: LONG + '\n\n<script>alert(1)</script>' }, `/admin/textos/${terms.id}`);
+  await admin.post(`/admin/textos/${terms.id}`, { body_html: LONG + '<p onclick="x()">Com <b>negrito</b> e <a href="javascript:alert(1)">link ruim</a> e <a href="https://exemplo.com/a?b=1&c=2">link bom</a></p><script>alert(1)</script><img src=x onerror=alert(2)><ul><li>item</li></ul>' }, `/admin/textos/${terms.id}`);
   const html = (await q('SELECT body_html FROM legal_documents WHERE id=$1', [terms.id])).rows[0].body_html;
-  assert.match(html, /<h2>Texto<\/h2>/); assert.doesNotMatch(html, /<script>/, 'o texto é escapado');
-  await admin.post(`/admin/textos/${priv.id}`, { body_src: LONG }, `/admin/textos/${priv.id}`);
+  assert.match(html, /<h2>Texto<\/h2>/); assert.match(html, /<strong>negrito<\/strong>/); assert.match(html, /<ul><li>item<\/li><\/ul>/);
+  assert.doesNotMatch(html, /<script|onclick|onerror|<img|javascript:/i, 'o HTML é limpo no servidor');
+  assert.match(html, /<a href="https:\/\/exemplo.com\/a\?b=1&amp;c=2" target="_blank" rel="noopener noreferrer">link bom<\/a>/);
+  assert.match((await admin.get(`/admin/textos/${terms.id}`)).text, /data-editor/, 'editor visual na tela');
+  await admin.post(`/admin/textos/${priv.id}`, { body_html: LONG }, `/admin/textos/${priv.id}`);
   for (const d of [terms, priv]) { await admin.post(`/admin/textos/${d.id}/publicar`, {}, `/admin/textos/${d.id}`); await acceptAll(); }
   assert.equal((await q("SELECT count(*)::int n FROM legal_documents WHERE status='published'")).rows[0].n, 2);
-  const edit = await admin.post(`/admin/textos/${terms.id}`, { body_src: 'outro' }, '/admin/textos');
+  const edit = await admin.post(`/admin/textos/${terms.id}`, { body_html: '<p>outro</p>' }, '/admin/textos');
   assert.equal(edit.status, 303); assert.doesNotMatch((await q('SELECT body_html FROM legal_documents WHERE id=$1', [terms.id])).rows[0].body_html, /outro/, 'publicado é imutável');
   doc1 = terms.id; doc2 = priv.id;
   const nova = await admin.post('/admin/textos/nova', { doc_type: 'terms' }, '/admin/textos');
   assert.match(nova.location, /\/admin\/textos\/\d+/);
-  assert.equal((await q("SELECT version, status, body_src IS NOT NULL AS has FROM legal_documents WHERE doc_type='terms' ORDER BY id DESC LIMIT 1")).rows[0].status, 'draft');
+  assert.equal((await q("SELECT version, status FROM legal_documents WHERE doc_type='terms' ORDER BY id DESC LIMIT 1")).rows[0].status, 'draft');
   const outro = await admin.post('/admin/textos/nova', { doc_type: 'terms' }, '/admin/textos');
   assert.match(outro.location, /\/admin\/textos\/\d+/, 'já existe rascunho: volta para ele');
   assert.equal((await q("SELECT count(*)::int n FROM legal_documents WHERE doc_type='terms'")).rows[0].n, 2);
@@ -234,6 +237,20 @@ test('painel de vendas: filtros, detalhe e proteção de acesso', async () => {
   assert.equal((await sb.get('/pagamentos')).status, 200);
 });
 
+test('cupom limitado fica reservado enquanto há compra pendente e não vale em dois pedidos ao mesmo tempo', async () => {
+  const cp = (await q("INSERT INTO coupons (code, kind, percent, max_uses) VALUES ('EVO-UNICO1','percent',10,1) RETURNING id")).rows[0].id;
+  await q('INSERT INTO coupon_courses (coupon_id, course_id) VALUES ($1,$2)', [cp, course]);
+  const a = await buy(new Browser(t.base), { cupom: 'EVO-UNICO1' }); assert.equal(a.r.status, 303);
+  const dupA = await new Browser(t.base).post(`/checkout/${slug}`, { ...a.f, cupom: 'EVO-UNICO1' }, `/checkout/${slug}`);
+  assert.equal(dupA.status, 303, 'o mesmo comprador pode tentar de novo');
+  const b2 = await buy(new Browser(t.base), { cupom: 'EVO-UNICO1' });
+  assert.equal(b2.r.status, 422); assert.match(b2.r.text, /reservado|compras em andamento/);
+  await sim(a.pub, 'approved');
+  const b3 = await buy(new Browser(t.base), { cupom: 'EVO-UNICO1' });
+  assert.equal(b3.r.status, 422); assert.match(b3.r.text, /não está mais válido/);
+  assert.equal((await q('SELECT count(*)::int n FROM coupon_redemptions WHERE coupon_id=$1', [cp])).rows[0].n, 1);
+});
+
 test('revisão: recompra após reembolso não deixa acesso; reembolso antes da aprovação não matricula; ambiente sem declaração não liga o simulado', async () => {
   // recompra
   const b = new Browser(t.base);
@@ -349,3 +366,15 @@ test('simulador não existe em produção nem fora do provedor simulado', async 
   try { const ad = await adminReady(t3); assert.equal((await ad.get('/admin/simulador')).status, 404); } finally { await t3.close(); }
 });
 
+
+test('sanitizeHtml: lista de permitidos, links seguros e tags quebradas', () => {
+  const L = require('../src/legal');
+  assert.equal(L.sanitizeHtml('<p>a</p><style>p{}</style><iframe src=x></iframe>'), '<p>a</p>');
+  assert.equal(L.sanitizeHtml('<div style="x">oi <b>n</b> <i>i</i></div>'), '<p>oi <strong>n</strong> <em>i</em></p>');
+  assert.equal(L.sanitizeHtml('<a href=" JaVaScRiPt:alert(1)">x</a>'), 'x');
+  assert.equal(L.sanitizeHtml('<a href="data:text/html;base64,AAA">x</a>'), 'x');
+  assert.equal(L.sanitizeHtml('<p>aberto <strong>sem fechar'), '<p>aberto <strong>sem fechar</strong></p>');
+  assert.equal(L.sanitizeHtml('texto 1 < 2 & 3 > 1'), 'texto 1 &lt; 2 &amp; 3 &gt; 1');
+  assert.equal(L.sanitizeHtml('<h1>T</h1><span class="x">y</span>'), '<h2>T</h2>y');
+  assert.doesNotMatch(L.sanitizeHtml('<p onmouseover="a()">x</p><!-- <script> -->'), /onmouse|script|<!--/);
+});

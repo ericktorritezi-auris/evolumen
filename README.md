@@ -7,6 +7,7 @@ Mais um produto Belle Planner.
 
 | Versão | Fase | Data | O que mudou |
 |---|---|---|---|
+| 0.5.1 | 4 · Pagamentos (correções) | 2026-10-20 | Editor visual completo para Termos e Política (títulos, negrito, itálico, sublinhado, listas, citação, link, colagem limpa do Word, sem código; o servidor limpa o HTML). Cupom limitado agora fica reservado enquanto há compra pendente e não vale em dois pedidos ao mesmo tempo. Correção do título "vv1.0". Inclui tudo da 0.5.0. |
 | 0.5.0 | 4 · Pagamentos | 2026-10-20 | Checkout com Pix e cartão (Mercado Pago), matrícula automática só após o pagamento aprovado (webhook com assinatura), conta criada na compra com senha provisória por e-mail, cupom reconferido no servidor, renovação por nova compra, reembolso em até 7 dias (aluno pede, administrador aprova, sistema devolve e cancela acesso e certificado), Pix de 30 minutos com e-mail de lembrete, telas Vendas e renovações, Pagamentos e acessos, Textos legais editáveis e simulador de pagamento (só teste/staging). Tabelas passam a usar fonte menor em todas as telas. Migração 007. Guia do Mercado Pago em `docs/GUIA-MERCADO-PAGO.md`. |
 | 0.4.0 | 3 · Avaliações, progresso e certificados | 2026-10-19 | Tempo assistido pelo player do YouTube. Quiz por módulo (opcional, não pesa na nota, bloqueia o avanço até a nota mínima). Prova final por curso (libera com mais da metade da última aula assistida). Tentativas (3) e tentativa extra pelo administrador. Certificado em PDF com selo e QR Code, emitido ao passar na prova e concluir 95%, texto e carga horária editáveis, página pública de verificação mínima e revogação. Migração 006. Nova dependência: pdfkit. |
 | 0.3.0 | 2 · Etapa de base | 2026-10-19 | Fonte nova (Quicksand + Nunito, instaladas no próprio sistema). Cortesia. Regra "exclui só sem vínculo, senão inativa" em alunos, matrículas, módulos, aulas e cupons. Registro de atividades (30 por página, guardado 30 dias). Cupons com QR Code, imagem PNG (miniatura que abre em janela, baixar) e envio por e-mail. Migração 005. Novas dependências: qrcode e @resvg/resvg-js. |
@@ -43,14 +44,14 @@ Endereço de produção: https://evolumen.ericktorritezi.com.br
 2. O Railway faz o deploy; migrações e seeds rodam sozinhos ao iniciar.
 3. Confira `/health` e entre com ADMIN_EMAIL e ADMIN_INITIAL_PASSWORD.
 
-## Como testar a Fase 4 (0.5.0)
+## Como testar a Fase 4 (0.5.0 e 0.5.1)
 
 Suba por cima da 0.4.0. A migração 007 roda na subida. Passo a passo do Mercado Pago (conta, credenciais, webhook, variáveis, cartões de teste, Pix real de R$ 1,00): **`docs/GUIA-MERCADO-PAGO.md`**.
 
-1. **Textos legais**: em **Textos legais**, edite e **publique** Termos e Privacidade (o checkout só abre com os dois publicados). Depois de publicado não edita mais; para mudar, crie uma nova versão.
+1. **Textos legais**: em **Textos legais**, abra o rascunho e escreva no **editor visual** (botões de Título, Subtítulo, Negrito, Itálico, Sublinhado, Lista, Lista numerada, Citação e Link; colar do Word já vem limpo). **Salve o rascunho** e depois **Publique** os dois (o checkout só abre com Termos e Privacidade publicados). Depois de publicado não edita mais; para mudar, crie uma nova versão.
 2. **Ensaio com o simulador (staging sem token)**: abra um curso pago como visitante > **Matricular-se**. Preencha, escolha Pix e vá para o pagamento. Como administrador, abra **Vendas e renovações > simulador** e **Aprove**. O comprador recebe o e-mail com a senha provisória, entra e vê o curso. Aprovar duas vezes não duplica nada.
 3. **E-mail que já tem conta**: no checkout, o sistema pede para entrar e volta para a compra.
-4. **Cupom**: aplique um cupom; o valor é recalculado no servidor.
+4. **Cupom**: aplique um cupom; o valor é recalculado no servidor. Com cupom de poucos usos, uma compra ainda não paga segura a vaga: outra pessoa vê "reservado em compras em andamento" até o Pix vencer ou o pagamento sair.
 5. **Pix vencido**: no simulador use **Vencer** (ou espere 30 minutos): o comprador recebe um e-mail com o link para tentar de novo.
 6. **Renovação**: aluno com acesso perto do fim vê **Renovar agora**; o prazo novo é somado ao que resta.
 7. **Reembolso**: o aluno abre **Pagamentos**, pede reembolso (até 7 dias). Em **Vendas e renovações** aparece o pedido: **Aprovar** devolve o valor, cancela o acesso e revoga o certificado. **Recusar** avisa o aluno.
