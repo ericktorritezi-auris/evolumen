@@ -7,6 +7,7 @@ const { titleRow } = require('./student');
 const { area } = require('./admin');
 const { brl } = require('../courses');
 const { STATUS, STATUS_CLASS, METHOD, fmtDate, fmtDateTime } = require('./pay');
+const F = require('../finance');
 
 const shell = (ctx, title, content, path) => shellApp({ cfg: ctx.cfg, user: ctx.user, csrf: ctx.csrf, flash: ctx.flash, path, title, content });
 const sel = (id, name, value, opts) => html`<select id="${id}" name="${name}">${opts.map(([v, l]) => html`<option value="${v}"${String(value) === String(v) ? raw(' selected') : ''}>${l}</option>`)}</select>`;
@@ -121,4 +122,68 @@ function texto(ctx, { d, error = '' }) {
   return shell(ctx, d.title, content, '/admin/textos');
 }
 
-module.exports = { vendas, venda, simulador, textos, texto };
+// ---- cockpit financeiro ----
+const pct = (v) => (v == null ? '—' : `${v.toFixed(1).replace('.', ',')}%`);
+const dBR = (s) => s.split('-').reverse().join('/');
+const label = (k, unit) => (unit === 'month' ? `${k.slice(5, 7)}/${k.slice(2, 4)}` : `${k.slice(8, 10)}/${k.slice(5, 7)}`);
+
+function chart(series, unit) {
+  const W = 640; const H = 220; const padL = 8; const padB = 22; const padT = 10;
+  const max = Math.max(1, ...series.map((x) => Math.max(x.gross, x.refunds)));
+  const slot = (W - padL * 2) / series.length; const bw = Math.max(2, Math.min(18, slot / 2.6));
+  const y = (v) => padT + (H - padT - padB) * (1 - v / max);
+  const bars = series.map((x, i) => {
+    const cx = padL + slot * i + slot / 2;
+    const a = x.gross > 0 ? `<rect class="ch-g" x="${(cx - bw - 0.5).toFixed(1)}" y="${y(x.gross).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H - padB - y(x.gross)).toFixed(1)}" rx="2"/>` : '';
+    const b = x.refunds > 0 ? `<rect class="ch-r" x="${(cx + 0.5).toFixed(1)}" y="${y(x.refunds).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H - padB - y(x.refunds)).toFixed(1)}" rx="2"/>` : '';
+    return a + b;
+  }).join('');
+  const step = Math.max(1, Math.ceil(series.length / 8));
+  const ticks = series.map((x, i) => (i % step === 0 || i === series.length - 1 ? `<text class="ch-t" x="${(padL + slot * i + slot / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle">${label(x.key, unit)}</text>` : '')).join('');
+  const total = series.reduce((s, x) => s + x.gross, 0); const totalR = series.reduce((s, x) => s + x.refunds, 0);
+  return html`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico de receita bruta e devoluções por ${unit === 'month' ? 'mês' : 'dia'}. Total bruto ${brl(total)}. Total devolvido ${brl(totalR)}. Os valores estão na tabela abaixo do gráfico.">
+    <line class="ch-ax" x1="${padL}" y1="${H - padB}" x2="${W - padL}" y2="${H - padB}"/>${raw(bars)}${raw(ticks)}<text class="ch-t" x="${padL}" y="${padT + 6}">${brl(max)}</text></svg>`;
+}
+
+function financeiro(ctx, { per, curso, courses, data: d }) {
+  const custom = per.key === 'custom';
+  const content = html`${titleRow('Cockpit financeiro', 'Receita, devoluções e retenção. A venda conta no dia da aprovação do pagamento.')}
+  <form method="get" action="/admin/financeiro" class="form form--grid filters">
+    <div class="field"><label for="periodo">Período</label>${sel('periodo', 'periodo', per.key, Object.entries(F.PRESETS))}</div>
+    <div class="field"><label for="de">De</label><input id="de" type="date" name="de" value="${per.from}"></div>
+    <div class="field"><label for="ate">Até</label><input id="ate" type="date" name="ate" value="${per.to}"></div>
+    <div class="field"><label for="curso">Curso</label>${sel('curso', 'curso', curso || '', [['', 'Todos'], ...courses.map((c) => [c.id, c.title])])}</div>
+    <div class="row"><button class="btn btn--outline" type="submit">Atualizar</button></div></form>
+  <p class="muted small">${per.label}: ${dBR(per.from)} a ${dBR(per.to)}. ${custom ? '' : 'As datas "De" e "Até" só valem em "Período livre".'}</p>
+  <div class="stats stats--6">
+    <div class="stat"><span class="muted">Receita bruta</span><b class="t-card">${brl(d.sales.gross)}</b><span class="muted small">${d.sales.n} ${d.sales.n === 1 ? 'venda' : 'vendas'}</span></div>
+    <div class="stat"><span class="muted">Devolvido</span><b class="t-card">${brl(d.refunds.value)}</b><span class="muted small">${d.refunds.refunded} reembolso${d.refunds.refunded === 1 ? '' : 's'} · ${d.refunds.chargedBack} chargeback${d.refunds.chargedBack === 1 ? '' : 's'}</span></div>
+    <div class="stat"><span class="muted">Receita líquida</span><b class="t-card">${brl(d.net)}</b><span class="muted small">bruta − devolvido</span></div>
+    <div class="stat"><span class="muted">Ticket médio</span><b class="t-card">${brl(d.sales.avgTicket)}</b><span class="muted small">${d.sales.withCoupon} com cupom</span></div>
+    <div class="stat"><span class="muted">Novas e renovações</span><b class="t-card">${d.sales.news} · ${d.sales.renewals}</b><span class="muted small">novas · renovações</span></div>
+    <div class="stat"><span class="muted">Conclusões</span><b class="t-card">${d.certificates}</b><span class="muted small">certificados emitidos</span></div>
+    <div class="stat"><span class="muted">Churn</span><b class="t-card ${d.churn != null && d.churn > 20 ? 'down' : ''}">${pct(d.churn)}</b><span class="muted small">${d.lost} de ${d.base} (${d.refunds.n} devolv. + ${d.nonRenewals} não renov.)</span></div>
+    <div class="stat"><span class="muted">Efetividade</span><b class="t-card ${d.effectiveness != null && d.effectiveness >= 80 ? 'up' : ''}">${pct(d.effectiveness)}</b><span class="muted small">100% − churn</span></div></div>
+  <section class="card"><h2 class="t-card">Receita por ${d.unit === 'month' ? 'mês' : 'dia'}</h2>
+    <p class="chart-key small"><span class="key key--g"></span> Receita bruta <span class="key key--r"></span> Devolvido</p>
+    <div class="chart-wrap">${chart(d.series, d.unit)}</div>
+    <details class="chart-data"><summary class="small">Ver os valores do gráfico</summary><div class="tbl-wrap"><table class="tbl"><thead><tr><th>${d.unit === 'month' ? 'Mês' : 'Dia'}</th><th>Receita bruta</th><th>Devolvido</th></tr></thead><tbody>
+    ${d.series.filter((x) => x.gross || x.refunds).map((x) => html`<tr><td data-l="${d.unit === 'month' ? 'Mês' : 'Dia'}">${label(x.key, d.unit)}</td><td data-l="Receita bruta">${brl(x.gross)}</td><td data-l="Devolvido">${brl(x.refunds)}</td></tr>`)}</tbody></table></div></details></section>
+  <section class="card"><h2 class="t-card">Por curso</h2>
+    ${d.byCourse.length ? html`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Curso</th><th>Vendas</th><th>Bruta</th><th>Devoluções</th><th>Devolvido</th><th>Líquida</th></tr></thead><tbody>
+    ${d.byCourse.map((c) => html`<tr><td data-l="Curso">${c.title}</td><td data-l="Vendas">${c.sales}</td><td data-l="Bruta">${brl(c.gross)}</td><td data-l="Devoluções">${c.refunds}</td><td data-l="Devolvido">${brl(c.refunded_value)}</td><td data-l="Líquida">${brl(c.net)}</td></tr>`)}</tbody></table></div>` : html`<p class="muted">Nenhuma venda nem devolução neste período.</p>`}</section>
+  <section class="card"><h2 class="t-card">Por forma de pagamento</h2>
+    ${d.byMethod.length ? html`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Forma</th><th>Vendas</th><th>Bruta</th></tr></thead><tbody>
+    ${d.byMethod.map((m) => html`<tr><td data-l="Forma">${METHOD[m.method] || m.method}</td><td data-l="Vendas">${m.n}</td><td data-l="Bruta">${brl(m.gross)}</td></tr>`)}</tbody></table></div>` : html`<p class="muted">Sem vendas neste período.</p>`}</section>
+  <details class="card"><summary class="t-card">Como os números são calculados</summary>
+    <ul class="muted small"><li>A venda conta na data de aprovação do pagamento. A devolução conta na data em que foi devolvida.</li>
+    <li>Receita líquida = receita bruta das vendas do período − valor devolvido no período.</li>
+    <li>Churn = (reembolsos + chargebacks + não renovações) ÷ (novas compras + renovações + não renovações).</li>
+    <li>Não renovação: matrícula comprada cujo prazo venceu no período e não foi renovada. Prazos que ainda não chegaram não entram.</li>
+    <li>Se as devoluções do período vierem de vendas antigas e superarem a base, o churn é limitado a 100%.</li>
+    <li>Efetividade = 100% − churn. Conclusão = data de emissão do certificado. Cortesias e matrículas manuais não entram na receita.</li>
+    <li>Os valores são os recebidos; juros de parcelamento pagos pelo comprador entram no valor recebido.</li></ul></details>`;
+  return shell(ctx, 'Cockpit financeiro', content, '/admin/financeiro');
+}
+
+module.exports = { financeiro, vendas, venda, simulador, textos, texto };

@@ -7,6 +7,7 @@ Mais um produto Belle Planner.
 
 | Versão | Fase | Data | O que mudou |
 |---|---|---|---|
+| 0.5.2 | 4 · Pagamentos (cockpit) | 2026-10-27 | **Cockpit financeiro** em `/admin/financeiro` (receita bruta, devolvido, receita líquida, ticket médio, novas e renovações, conclusões, churn e efetividade; gráfico por dia ou mês; tabelas por curso e por forma de pagamento; filtros de período e curso). Aula: mensagem passa a "Assista sua aula!". Webhook com assinatura inválida agora registra no log um diagnóstico seguro (sem segredos). Sem migração nova. |
 | 0.5.1 | 4 · Pagamentos (correções) | 2026-10-20 | Editor visual completo para Termos e Política (títulos, negrito, itálico, sublinhado, listas, citação, link, colagem limpa do Word, sem código; o servidor limpa o HTML). Cupom limitado agora fica reservado enquanto há compra pendente e não vale em dois pedidos ao mesmo tempo. Correção do título "vv1.0". Inclui tudo da 0.5.0. |
 | 0.5.0 | 4 · Pagamentos | 2026-10-20 | Checkout com Pix e cartão (Mercado Pago), matrícula automática só após o pagamento aprovado (webhook com assinatura), conta criada na compra com senha provisória por e-mail, cupom reconferido no servidor, renovação por nova compra, reembolso em até 7 dias (aluno pede, administrador aprova, sistema devolve e cancela acesso e certificado), Pix de 30 minutos com e-mail de lembrete, telas Vendas e renovações, Pagamentos e acessos, Textos legais editáveis e simulador de pagamento (só teste/staging). Tabelas passam a usar fonte menor em todas as telas. Migração 007. Guia do Mercado Pago em `docs/GUIA-MERCADO-PAGO.md`. |
 | 0.4.0 | 3 · Avaliações, progresso e certificados | 2026-10-19 | Tempo assistido pelo player do YouTube. Quiz por módulo (opcional, não pesa na nota, bloqueia o avanço até a nota mínima). Prova final por curso (libera com mais da metade da última aula assistida). Tentativas (3) e tentativa extra pelo administrador. Certificado em PDF com selo e QR Code, emitido ao passar na prova e concluir 95%, texto e carga horária editáveis, página pública de verificação mínima e revogação. Migração 006. Nova dependência: pdfkit. |
@@ -44,7 +45,7 @@ Endereço de produção: https://evolumen.ericktorritezi.com.br
 2. O Railway faz o deploy; migrações e seeds rodam sozinhos ao iniciar.
 3. Confira `/health` e entre com ADMIN_EMAIL e ADMIN_INITIAL_PASSWORD.
 
-## Como testar a Fase 4 (0.5.0 e 0.5.1)
+## Como testar a Fase 4 (0.5.0, 0.5.1 e 0.5.2)
 
 Suba por cima da 0.4.0. A migração 007 roda na subida. Passo a passo do Mercado Pago (conta, credenciais, webhook, variáveis, cartões de teste, Pix real de R$ 1,00): **`docs/GUIA-MERCADO-PAGO.md`**.
 
@@ -57,7 +58,8 @@ Suba por cima da 0.4.0. A migração 007 roda na subida. Passo a passo do Mercad
 7. **Reembolso**: o aluno abre **Pagamentos**, pede reembolso (até 7 dias). Em **Vendas e renovações** aparece o pedido: **Aprovar** devolve o valor, cancela o acesso e revoga o certificado. **Recusar** avisa o aluno.
 8. **Estorno**: no simulador, **Estornar** cancela o acesso.
 9. **Mercado Pago de verdade (staging)**: siga o guia: cartão com cartões de teste e depois um Pix real de R$ 1,00 com reembolso.
-10. **Tabelas**: todas as tabelas do painel e das telas do aluno agora usam fonte menor (13 px, cabeçalho 11 px).
+10. **Cockpit financeiro (0.5.2)**: em **Cockpit financeiro** troque o período (este mês, 30 dias, 90 dias, ano ou período livre) e o curso. Confira receita bruta, devolvido, líquida, churn e efetividade com as vendas de teste. A fórmula está na própria tela ("Como os números são calculados").
+11. **Tabelas**: todas as tabelas do painel e das telas do aluno agora usam fonte menor (13 px, cabeçalho 11 px).
 
 ## Como testar a Fase 3 (0.4.0)
 

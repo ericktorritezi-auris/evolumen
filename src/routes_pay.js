@@ -167,7 +167,7 @@ function mountWebhook(cfg, h, router) {
   router.post('/mercadopago', async (req, res) => {
     if (cfg.paymentProvider !== 'mercadopago') return res.status(404).json({ ok: false });
     const gw = payments.mercadopago;
-    if (!gw.verifyWebhook(cfg, req)) { log.warn('webhook_assinatura_invalida', { ip: req.ip }); return res.status(401).json({ ok: false }); }
+    if (!gw.verifyWebhook(cfg, req)) { log.warn('webhook_assinatura_invalida', { ip: req.ip, assinatura: !!req.get('x-signature'), request_id: !!req.get('x-request-id'), data_id: !!(req.query['data.id'] || (req.body && req.body.data && req.body.data.id)), formato: req.query.topic ? 'ipn' : (req.body && req.body.type ? 'webhook' : 'desconhecido'), segredo_configurado: !!cfg.mpWebhookSecret }); return res.status(401).json({ ok: false }); }
     const pid = gw.paymentIdFrom(req);
     if (!pid) return res.json({ ok: true, ignored: true });
     const key = `${pid}:${req.get('x-request-id') || Date.now()}`;

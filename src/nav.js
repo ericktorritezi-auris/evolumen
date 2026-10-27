@@ -22,6 +22,7 @@ const NAV = {
     { href: '/admin/alunos', icon: 'users', label: 'Alunos', fase: 2 },
     { href: '/admin/cortesias', icon: 'star', label: 'Cortesias', fase: 2 },
     { href: '/admin/cupons', icon: 'card', label: 'Cupons', fase: 2 },
+    { href: '/admin/financeiro', icon: 'chart', label: 'Cockpit financeiro', fase: 4 },
     { href: '/admin/vendas', icon: 'cash', label: 'Vendas e renovações', fase: 4 },
     { href: '/admin/forum', icon: 'chat', label: 'Fórum e avaliações', fase: 5 },
     { href: '/admin/certificados', icon: 'cert', label: 'Certificados', fase: 3 },

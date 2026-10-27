@@ -202,5 +202,10 @@
     }
     [].forEach.call(document.querySelectorAll('select[name=kind]'), function (s) { sync(s); s.addEventListener('change', function () { sync(s); }); });
   })();
+  // Cockpit: editar uma data troca o período para "Período livre".
+  (function () {
+    var sel = document.getElementById('periodo'); if (!sel) return;
+    ['de', 'ate'].forEach(function (id) { var el = document.getElementById(id); if (el) el.addEventListener('change', function () { sel.value = 'custom'; }); });
+  })();
   if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function () {}); });
 })();

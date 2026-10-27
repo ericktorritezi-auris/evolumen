@@ -5,6 +5,7 @@ const db = require('./db');
 const C = require('./courses');
 const S = require('./sales');
 const L = require('./legal');
+const F = require('./finance');
 const { audit } = require('./audit');
 const views = require('./views/sales');
 
@@ -15,13 +16,22 @@ const SIM = { approved: 'approved', pending: 'pending', refused: 'refused', expi
 
 function build(cfg, h) {
   const r = express.Router();
-  r.use(['/admin/vendas', '/admin/reembolsos', '/admin/simulador', '/admin/textos'], h.needUser, h.gate, h.needAdmin);
+  r.use(['/admin/financeiro', '/admin/vendas', '/admin/reembolsos', '/admin/simulador', '/admin/textos'], h.needUser, h.gate, h.needAdmin);
   const ctx = (req, res, extra = {}) => ({ ...h.appCtx(req, res), ...extra });
   const flashBack = (req, res, type, text, to) => { h.setFlash(res, type, text); res.redirect(303, to); };
   const fail = (req, res, e, to) => {
     if (e && e.expose) return flashBack(req, res, 'error', e.message, to);
     throw e;
   };
+
+  // ---------- cockpit financeiro ----------
+  r.get('/admin/financeiro', async (req, res) => {
+    const per = F.period({ periodo: String(req.query.periodo || ''), de: String(req.query.de || ''), ate: String(req.query.ate || '') });
+    const curso = ID.test(String(req.query.curso || '')) ? String(req.query.curso) : '';
+    const data = await F.summary(per, curso || null);
+    const courses = (await db.q('SELECT id, title FROM courses ORDER BY title')).rows;
+    res.send(views.financeiro(ctx(req, res), { per, curso, courses, data }));
+  });
 
   // ---------- vendas ----------
   r.get('/admin/vendas', async (req, res) => {

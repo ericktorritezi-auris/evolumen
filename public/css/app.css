@@ -340,3 +340,10 @@ img{max-width:100%;height:auto}
 .editor__area a,.legal--full a{color:var(--aurora);text-decoration:underline}
 .legal--full{max-height:none;padding:18px 20px}
 @media (max-width:639px){.editor__area{min-height:360px;padding:14px}.editor__bar{gap:4px}.editor__btn{padding:6px 8px}}
+
+/* 0.5.2: cockpit financeiro */
+.stats--6{grid-template-columns:repeat(2,1fr)}
+.chart{width:100%;height:auto;display:block}.ch-g{fill:var(--aurora)}.ch-r{fill:var(--bad)}.ch-ax{stroke:var(--line);stroke-width:1}.ch-t{fill:var(--bruma);font:11px Nunito,sans-serif}
+.chart-key{display:flex;gap:14px;align-items:center;flex-wrap:wrap;color:var(--bruma)}.key{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}.key--g{background:var(--aurora)}.key--r{background:var(--bad)}
+@media (min-width:900px){.stats--6{grid-template-columns:repeat(4,1fr)}}
+.chart-wrap{overflow-x:auto}.chart-wrap .chart{min-width:560px}.chart-data{margin-top:10px}.chart-data summary{cursor:pointer;color:var(--aurora)}
