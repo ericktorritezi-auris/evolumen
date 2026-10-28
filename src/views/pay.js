@@ -17,7 +17,7 @@ const METHOD = { pix: 'Pix', card: 'Cartão' };
 
 function priceLines(course, price) {
   return html`<ul class="sumlist">
-    <li><span>Valor do curso</span><span>${brl(price.list)}</span></li>
+    <li><span>Valor</span><span>${brl(price.list)}</span></li>
     ${price.off > 0 ? html`<li class="sumlist__off"><span>${price.source === 'coupon' ? `Cupom ${price.coupon.code}` : price.source === 'renewal' ? 'Preço de renovação' : 'Preço promocional'}</span><span>− ${brl(price.off)}</span></li>` : ''}
     <li class="sumlist__total"><span>Total</span><b>${brl(price.final)}</b></li></ul>`;
 }
@@ -75,9 +75,9 @@ function orderPage({ cfg, user, csrf, order, course, newUser, simulated }) {
   let body;
   if (s === 'approved') {
     body = html`<div class="verify verify--ok">${lumen('celebra', 130)}<span class="eyebrow">Pagamento aprovado</span><h1 class="t-display">Tudo certo!</h1>
-      <p class="lead">O curso <b>${course.title}</b> já está liberado.</p>
+      <p class="lead">${course.product_type === 'download' ? 'O produto' : 'O curso'} <b>${course.title}</b> já está liberado.</p>
       ${newUser ? html`<p class="muted">Enviamos o seu login e uma senha provisória para <b>${maskEmail(order.buyer.email)}</b>. Se não encontrar, olhe a caixa de spam.</p>` : html`<p class="muted">Ele já está na sua área de membros.</p>`}
-      <div class="row row--center"><a class="btn btn--primary btn--lg" href="${newUser ? '/entrar' : `/curso/${course.slug}`}">${newUser ? 'Entrar na área de membros' : 'Abrir o curso'}</a></div></div>`;
+      <div class="row row--center"><a class="btn btn--primary btn--lg" href="${newUser ? '/entrar' : `/curso/${course.slug}`}">${newUser ? 'Entrar na área de membros' : (course.product_type === 'download' ? 'Baixar meus arquivos' : 'Abrir o curso')}</a></div></div>`;
   } else if (s === 'pending' && order.method === 'pix') {
     const mins = order.pix_expires_at ? Math.max(0, Math.ceil((new Date(order.pix_expires_at) - Date.now()) / 60000)) : 0;
     body = html`<div class="verify" data-order-poll="/pedido/${order.public_id}/status"><span class="eyebrow">Pague com Pix</span><h1 class="t-display">${brl(order.price_cents)}</h1>
@@ -106,7 +106,7 @@ function pagamentos({ cfg, user, csrf, flash, accesses, orders, refundOpen }) {
   const accessRow = (a) => html`<article class="card mcard"><span class="eyebrow">${a.live ? 'Acesso ativo' : a.cancelled ? 'Acesso cancelado' : 'Acesso vencido'}</span>
     <h3 class="t-card">${a.title}</h3>
     <p class="muted small">${a.origin === 'purchase' ? 'Compra' : a.origin === 'gift' ? 'Cortesia' : 'Liberação manual'} · ${a.expires_at ? (a.live ? 'vale até ' : 'venceu em ') + fmtDate(a.expires_at) : 'acesso vitalício'}</p>
-    <div class="row">${a.live ? html`<a class="btn btn--primary btn--sm" href="/curso/${a.slug}">Abrir o curso</a>` : ''}${a.renew ? html`<a class="btn btn--outline btn--sm" href="/checkout/${a.slug}">${a.live ? 'Renovar agora' : 'Renovar acesso'}</a>` : ''}</div></article>`;
+    <div class="row">${a.live ? html`<a class="btn btn--primary btn--sm" href="/curso/${a.slug}">${a.product_type === 'download' ? 'Baixar arquivos' : 'Abrir o curso'}</a>` : ''}${a.renew ? html`<a class="btn btn--outline btn--sm" href="/checkout/${a.slug}">${a.live ? 'Renovar agora' : 'Renovar acesso'}</a>` : ''}</div></article>`;
   const orderRow = (o) => {
     const canRefund = o.can_refund && !refundOpen.has(String(o.id));
     return html`<article class="card mcard"><span class="eyebrow"><span class="pill ${STATUS_CLASS[o.status] || ''}">${STATUS[o.status]}</span> ${o.kind === 'renewal' ? html`<span class="pill">Renovação</span>` : ''}</span>

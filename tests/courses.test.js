@@ -216,7 +216,7 @@ test('rematricular não apaga a origem da matrícula', async () => {
 });
 
 test('nível "Não se aplica": salva, aparece como opção e não mostra selo de nível ao público', async () => {
-  const f = await admin.get('/admin/cursos/novo');
+  const f = await admin.get('/admin/cursos/novo?tipo=curso');
   assert.match(f.text, /Não se aplica/);
   const ok = await admin.post('/admin/cursos', form({ title: 'Meditação guiada', slug: 'meditacao-guiada', level: 'nao_se_aplica' }), '/admin/cursos/novo');
   assert.equal(ok.status, 303);

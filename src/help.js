@@ -1,6 +1,10 @@
 'use strict';
 // Ajuda guiada da Lumen: o que fazer em cada tela, em passos curtos. Texto fixo, sem dados de ninguém.
 const STUDENT = [
+  { id: 'produto', match: /^\/__produto/, title: 'Seu produto digital', steps: [
+    'Em Seus arquivos estão os arquivos do produto. Toque em Baixar ao lado de cada um.',
+    'Se o professor atualizar o produto, você recebe um aviso no sino e por e-mail. Baixe de novo para ter a versão mais recente.',
+    'O acesso vale até a data indicada (ou é vitalício). Para renovar, use Pagamentos e acessos.'] },
   { id: 'meus-cursos', match: /^\/meus-cursos/, title: 'Seus cursos', steps: [
     'Cada cartão é um curso que você comprou ou ganhou. Toque no cartão para abrir.',
     'Na página do curso, o botão grande leva direto para a próxima aula (Começar ou Continuar).',
@@ -38,6 +42,16 @@ const STUDENT = [
 ];
 
 const ADMIN = [
+  { id: 'a-arquivos', match: /^\/admin\/cursos\/\d+\/arquivos/, title: 'Arquivos do produto digital', steps: [
+    'Escolha o arquivo, dê um nome para o comprador e escolha onde guardar: banco de dados (até 20 MB) ou volume do Railway (até 350 MB).',
+    'Se o arquivo passar de 20 MB, o sistema já sugere o volume. Quem decide é você.',
+    'Trocou ou acrescentou arquivos? Use Avisar sobre a atualização para o comprador receber o aviso no sino e por e-mail.'] },
+  { id: 'a-novo-tipo', match: /^\/admin\/cursos\/novo/, title: 'Novo cadastro', steps: [
+    'Escolha Curso (módulos, aulas, quiz e certificado) ou Produto digital (e-book, áudio, ferramenta, pacote para baixar).',
+    'O tipo não muda depois de criado. Preço, cupom, reembolso e relatórios funcionam igual para os dois.'] },
+  { id: 'produto', match: /^\/__produto/, title: 'Produto digital (visão do aluno)', steps: [
+    'É assim que o comprador vê o produto: a lista de arquivos com o botão Baixar.',
+    'Para trocar ou acrescentar arquivos, use Cursos e produtos, abra o produto e vá em Arquivos.'] },
   { id: 'a-forum', match: /^\/admin\/forum/, title: 'Fórum e avaliações', steps: [
     'A lista mostra as dúvidas sem resposta, da mais antiga para a mais nova.',
     'Toque em Abrir e responder para ir até a aula e escrever sua resposta. O aluno é avisado por e-mail.',
@@ -84,8 +98,9 @@ const FAQ = [
 const { AsyncLocalStorage } = require('async_hooks');
 const als = new AsyncLocalStorage();
 const middleware = (req, res, next) => als.run({ path: req.path }, next);
+const setPath = (p) => { const s = als.getStore(); if (s) s.path = p; };
 const current = () => (als.getStore() || {}).path || null;
 
 const forPath = (path, role) => (role === 'admin' ? ADMIN : STUDENT).find((x) => x.match.test(path)) || null;
 
-module.exports = { STUDENT, ADMIN, FAQ, forPath, middleware, current };
+module.exports = { STUDENT, ADMIN, FAQ, forPath, middleware, current, setPath };

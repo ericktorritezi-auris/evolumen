@@ -82,7 +82,7 @@ function csrfFor(cfg, req) {
 }
 
 // Envios de arquivo (multipart) só são aceitos nestas rotas; lá o token é conferido depois que o corpo é lido.
-const MULTIPART_OK = /^\/admin\/(cursos\/\d+\/capa|aulas\/\d+\/arquivos)$/;
+const MULTIPART_OK = /^\/admin\/(cursos\/\d+\/(capa|arquivos)|aulas\/\d+\/arquivos)$/;
 
 function tokenOk(req, got) {
   got = String(got || '');

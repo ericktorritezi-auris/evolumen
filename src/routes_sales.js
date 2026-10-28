@@ -28,9 +28,10 @@ function build(cfg, h) {
   r.get('/admin/financeiro', async (req, res) => {
     const per = F.period({ periodo: String(req.query.periodo || ''), de: String(req.query.de || ''), ate: String(req.query.ate || '') });
     const curso = ID.test(String(req.query.curso || '')) ? String(req.query.curso) : '';
-    const data = await F.summary(per, curso || null);
+    const tipo = ['course', 'download'].includes(req.query.tipo) ? req.query.tipo : '';
+    const data = await F.summary(per, curso || null, new Date(), tipo || null);
     const courses = (await db.q('SELECT id, title FROM courses ORDER BY title')).rows;
-    res.send(views.financeiro(ctx(req, res), { per, curso, courses, data }));
+    res.send(views.financeiro(ctx(req, res), { per, curso, tipo, courses, data }));
   });
 
   // ---------- vendas ----------

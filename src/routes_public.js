@@ -47,7 +47,8 @@ function build(cfg, h) {
     const coupon = code ? await K.publicView(code, course) : null;
     const buy = { open: !!cfg.paymentsEnabled && course.price_cents > 0 && !isAdmin && visible, renew: false };
     if (buy.open && state === 'enrolled' && req.user) buy.renew = (await require('./sales').buyState(req.user.id, course)).state === 'renew';
-    res.send(pub.coursePage({ cfg, user: req.user, course, cur, state, preview: !visible, coupon, buy }));
+    const items = C.typeOf(course) === 'download' ? await C.productFiles(course.id) : [];
+    res.send(pub.coursePage({ cfg, user: req.user, course, cur, state, preview: !visible, coupon, buy, items }));
   });
 
   // Capa: pública para curso publicado; rascunho só para o administrador.

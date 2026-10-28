@@ -137,12 +137,12 @@ function build(cfg, h) {
   const guard = [h.needUser, h.gate];
   r.get('/pagamentos', ...guard, async (req, res, next) => {
     if (req.user.role === 'admin') return res.redirect(303, '/admin/vendas');
-    const rows = (await db.q(`SELECT e.*, c.title, c.slug, c.access_type FROM enrollments e JOIN courses c ON c.id = e.course_id WHERE e.user_id = $1 ORDER BY e.created_at DESC`, [req.user.id])).rows;
+    const rows = (await db.q(`SELECT e.*, c.title, c.slug, c.access_type, c.product_type FROM enrollments e JOIN courses c ON c.id = e.course_id WHERE e.user_id = $1 ORDER BY e.created_at DESC`, [req.user.id])).rows;
     const accesses = [];
     for (const e of rows) {
       const live = e.status === 'active' && new Date(e.starts_at) <= new Date() && (!e.expires_at || new Date(e.expires_at) > new Date());
       const soon = e.access_type === 'months' && e.status === 'active' && e.expires_at && (new Date(e.expires_at) <= new Date() || new Date(e.expires_at).getTime() - Date.now() <= 30 * 86400000);
-      accesses.push({ title: e.title, slug: e.slug, origin: e.origin, expires_at: e.expires_at, live, cancelled: e.status === 'cancelled', renew: !!cfg.paymentsEnabled && !!soon });
+      accesses.push({ title: e.title, slug: e.slug, product_type: e.product_type, origin: e.origin, expires_at: e.expires_at, live, cancelled: e.status === 'cancelled', renew: !!cfg.paymentsEnabled && !!soon });
     }
     const orders = (await db.q(`SELECT o.*, c.title, cp.code AS coupon_code FROM orders o JOIN courses c ON c.id = o.course_id LEFT JOIN coupons cp ON cp.id = o.coupon_id
       WHERE o.user_id = $1 OR (o.user_id IS NULL AND lower(o.buyer->>'email') = $2) ORDER BY o.created_at DESC LIMIT 60`, [req.user.id, req.user.email.toLowerCase()])).rows

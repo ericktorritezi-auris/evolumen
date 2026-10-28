@@ -21,7 +21,7 @@ function build(cfg, h) {
     const courses = await C.myCourses(req.user.id);
     let resume = null;
     for (const c of courses) {
-      if (c.pct >= 100 || !c.total) continue;
+      if (c.product_type === 'download' || c.pct >= 100 || !c.total) continue;
       const cur = await C.curriculum(c.id);
       const prog = await C.progressFor(req.user.id, c.id);
       const nxt = C.flatLessons(cur).find((l) => !prog.done.has(String(l.id)));
@@ -42,6 +42,7 @@ function build(cfg, h) {
     const { course, access } = await load(req);
     if (!course) return next();
     const isAdmin = req.user.role === 'admin';
+    if (C.typeOf(course) === 'download') { require('./help').setPath('/__produto'); return res.send(views.produtoHome({ ...h.appCtx(req, res), course, items: await C.productFiles(course.id), access })); }
     const cur = await C.curriculum(course.id, { all: isAdmin });
     const progress = await C.progressFor(req.user.id, course.id);
     const ov = await A.overview(req.user.id, course);
@@ -53,7 +54,7 @@ function build(cfg, h) {
 
   r.get('/curso/:slug/aula/:lessonId', ...guard, async (req, res, next) => {
     const { course, access } = await load(req);
-    if (!course || !/^\d{1,12}$/.test(req.params.lessonId)) return next();
+    if (!course || C.typeOf(course) === 'download' || !/^\d{1,12}$/.test(req.params.lessonId)) return next();
     const cur = await C.curriculum(course.id, { withVideo: true, withFiles: true, all: req.user.role === 'admin' });
     const flat = C.flatLessons(cur);
     const lesson = flat.find((l) => String(l.id) === req.params.lessonId);
@@ -104,21 +105,21 @@ function build(cfg, h) {
   // Download: só quem tem acesso vigente ao curso da aula (ou o administrador).
   r.get('/arquivos/:id', ...guard, async (req, res, next) => {
     if (!/^\d{1,12}$/.test(req.params.id)) return next();
-    const link = await db.q(`SELECT l.course_id, (${C.LIVE}) AS live FROM lesson_files lf JOIN lessons l ON l.id = lf.lesson_id WHERE lf.file_id = $1`, [req.params.id]);
+    const link = await db.q(`SELECT l.course_id, (${C.LIVE}) AS live FROM lesson_files lf JOIN lessons l ON l.id = lf.lesson_id WHERE lf.file_id = $1
+      UNION ALL SELECT pf.product_id, TRUE FROM product_files pf WHERE pf.file_id = $1`, [req.params.id]);
     if (!link.rowCount || (!link.rows[0].live && req.user.role !== 'admin')) return next();
     const access = await C.accessFor(req.user, link.rows[0].course_id);
     if (!access.ok) throw deny();
-    if (req.user.role !== 'admin') {
+    const isProduct = (await db.q('SELECT 1 FROM product_files WHERE file_id = $1', [req.params.id])).rowCount > 0;
+    if (req.user.role !== 'admin' && !isProduct) {
       const lm = (await db.q('SELECT l.module_id FROM lesson_files lf JOIN lessons l ON l.id = lf.lesson_id WHERE lf.file_id = $1', [req.params.id])).rows[0];
       const course = await C.byId(link.rows[0].course_id);
       if (lm && A.lessonLocked(await A.overview(req.user.id, course), lm.module_id)) return next();
     }
     const f = await files.get(req.params.id);
     if (!f) return next();
-    await audit(req, 'file_downloaded', { entity: 'file', entityId: f.id });
-    res.set({ 'Content-Type': f.mime, 'Content-Length': f.size_bytes, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-store', 'Content-Security-Policy': "default-src 'none'; sandbox" });
-    res.attachment(f.filename);
-    res.send(f.data);
+    await audit(req, 'file_downloaded', { entity: 'file', entityId: f.id, meta: { storage: f.storage } });
+    files.serve(res, f, next);
   });
 
   return r;

@@ -375,3 +375,9 @@ img{max-width:100%;height:auto}
 .bell__item.is-read{opacity:.7}.bell__item span{min-width:0;display:block}.bell__item small{display:block;color:var(--muted,#9aa3c0);margin-top:2px}
 .bell__body{display:block;font-size:14px;overflow-wrap:anywhere}
 .bell__dot{flex:none;width:10px;height:10px;border-radius:50%;margin-top:6px;background:#8b92ad}.is-new .bell__dot{background:var(--ambar)}
+/* Produtos digitais (0.7.0) */
+.typegrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.typecard{display:flex;flex-direction:column;gap:8px;align-items:flex-start;text-decoration:none;color:inherit}
+.typecard:hover{border-color:var(--ambar)}
+@media (max-width:640px){.typegrid{grid-template-columns:1fr}}
+.pill--prod{border-color:var(--ambar);color:var(--ambar)}

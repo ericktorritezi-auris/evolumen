@@ -39,7 +39,7 @@ async function birthdays(now) {
 
 // Avisa nos dias definidos no curso (padrão 30, 7 e 1). Escolhe o prazo mais próximo já alcançado.
 async function expiring(cfg, bg, now) {
-  const rows = (await db.q(`SELECT e.id, e.user_id, e.course_id, e.expires_at, c.title, c.slug, c.expiry_notice_days, u.name, u.email
+  const rows = (await db.q(`SELECT e.id, e.user_id, e.course_id, e.expires_at, c.title, c.slug, c.product_type, c.expiry_notice_days, u.name, u.email
     FROM enrollments e JOIN courses c ON c.id = e.course_id JOIN users u ON u.id = e.user_id
     WHERE e.status = 'active' AND e.expires_at IS NOT NULL AND e.expires_at > $1 AND e.expires_at < $1::timestamptz + interval '366 days' AND u.status = 'active' AND u.role = 'student'`, [now.toISOString()])).rows;
   let n = 0;
@@ -59,11 +59,11 @@ async function expiring(cfg, bg, now) {
 async function nudges(now) {
   let n = 0;
   const idle = (await db.q(`SELECT e.id, e.user_id, c.title, c.slug FROM enrollments e JOIN courses c ON c.id = e.course_id JOIN users u ON u.id = e.user_id
-    WHERE e.status = 'active' AND u.status = 'active' AND u.role = 'student' AND e.starts_at <= $1::timestamptz - interval '3 days' AND (e.expires_at IS NULL OR e.expires_at > $1)
+    WHERE c.product_type = 'course' AND e.status = 'active' AND u.status = 'active' AND u.role = 'student' AND e.starts_at <= $1::timestamptz - interval '3 days' AND (e.expires_at IS NULL OR e.expires_at > $1)
       AND NOT EXISTS (SELECT 1 FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = e.user_id AND l.course_id = e.course_id)`, [now.toISOString()])).rows;
   for (const e of idle) if (await notify.add(e.user_id, { kind: 'nudge', title: 'Que tal começar o seu curso?', body: e.title + ' — a primeira aula leva poucos minutos.', link: `/curso/${e.slug}`, key: 'nudge0:' + e.id })) n++;
   const done = (await db.q(`SELECT e.id, e.user_id, c.id AS course_id, c.title, c.slug FROM enrollments e JOIN courses c ON c.id = e.course_id JOIN users u ON u.id = e.user_id
-    WHERE e.status = 'active' AND u.status = 'active' AND u.role = 'student' AND (e.expires_at IS NULL OR e.expires_at > $1)
+    WHERE c.product_type = 'course' AND e.status = 'active' AND u.status = 'active' AND u.role = 'student' AND (e.expires_at IS NULL OR e.expires_at > $1)
       AND NOT EXISTS (SELECT 1 FROM certificates ce WHERE ce.user_id = e.user_id AND ce.course_id = e.course_id)
       AND (SELECT count(*) FROM lessons l WHERE l.course_id = c.id AND ${C.LIVE}) > 0
       AND NOT EXISTS (SELECT 1 FROM lessons l WHERE l.course_id = c.id AND ${C.LIVE} AND NOT EXISTS (SELECT 1 FROM lesson_progress p WHERE p.lesson_id = l.id AND p.user_id = e.user_id))`, [now.toISOString()])).rows;
@@ -73,7 +73,7 @@ async function nudges(now) {
 
 async function run(cfg, bg, now = new Date()) {
   const out = {};
-  for (const [k, fn] of [['aniversarios', () => birthdays(now)], ['vencendo', () => expiring(cfg, bg, now)], ['lembretes', () => nudges(now)], ['limpeza', () => notify.cleanup()]]) {
+  for (const [k, fn] of [['aniversarios', () => birthdays(now)], ['vencendo', () => expiring(cfg, bg, now)], ['lembretes', () => nudges(now)], ['limpeza', () => notify.cleanup()], ['arquivos', () => require('./files').sweepVolume()]]) {
     try { out[k] = await fn(); } catch (e) { log.warn('varredura_diaria_falhou', { etapa: k, error: e.message }); }
   }
   return out;

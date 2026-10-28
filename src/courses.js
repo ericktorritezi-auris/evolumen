@@ -46,17 +46,18 @@ const dateOnly = (v) => {
 };
 
 // Valida o formulário do curso. Devolve { errors, values } com os valores prontos para o banco.
-function parseCourse(b) {
+function parseCourse(b, type = 'course') {
   const errors = {};
+  const dl = type === 'download';
   const clip = (v, n) => String(v || '').trim().slice(0, n);
   const title = clip(b.title, 120).replace(/\s+/g, ' ');
-  if (title.length < 3) errors.title = 'Informe o nome do curso (mínimo 3 letras).';
+  if (title.length < 3) errors.title = dl ? 'Informe o nome do produto (mínimo 3 letras).' : 'Informe o nome do curso (mínimo 3 letras).';
   let slug = clip(b.slug, 80).toLowerCase() || slugify(title);
   if (!SLUG_RE.test(slug) || slug.length < 3) errors.slug = 'Use só letras minúsculas, números e hífen. Ex.: protocolo-essencia.';
-  const level = Object.keys(LEVELS).includes(b.level) ? b.level : 'iniciante';
+  const level = dl ? 'nao_se_aplica' : (Object.keys(LEVELS).includes(b.level) ? b.level : 'iniciante');
 
   const price = parseMoney(b.price);
-  if (price.error || price.empty) errors.price = 'Informe o valor. Ex.: 197,00. Use 0 para curso gratuito.';
+  if (price.error || price.empty) errors.price = 'Informe o valor. Ex.: 197,00. Use 0 para gratuito.';
   const promo = parseMoney(b.promo_price);
   if (promo.error) errors.promo_price = 'Valor inválido. Ex.: 147,00.';
   if (!promo.error && !promo.empty && !price.error && !price.empty && promo.cents >= price.cents) errors.promo_price = 'O preço promocional precisa ser menor que o valor normal.';
@@ -78,7 +79,7 @@ function parseCourse(b) {
 
   const intro = youtubeId(b.intro_video);
   if (intro.error) errors.intro_video = 'Link do YouTube inválido.';
-  const hours = clip(b.workload_hours, 5);
+  const hours = dl ? '' : clip(b.workload_hours, 5);
   let workload = null;
   if (hours) { workload = Number(hours); if (!Number.isInteger(workload) || workload < 1 || workload > 2000) errors.workload_hours = 'Informe horas inteiras (1 a 2000).'; }
   const inst = Number(b.max_installments || 12);
@@ -100,8 +101,8 @@ function parseCourse(b) {
     errors,
     values: {
       slug, title, summary: clip(b.summary, 240), description: clip(b.description, 6000),
-      target_audience: clip(b.target_audience, 600), prerequisites: clip(b.prerequisites, 600), level, category: clip(b.category, 60),
-      workload_hours: workload, learn_items: lines(b.learn_items, 12, 200), able_items: lines(b.able_items, 12, 200), faq,
+      target_audience: dl ? '' : clip(b.target_audience, 600), prerequisites: dl ? '' : clip(b.prerequisites, 600), level, category: clip(b.category, 60),
+      workload_hours: workload, learn_items: lines(b.learn_items, 12, 200), able_items: dl ? [] : lines(b.able_items, 12, 200), faq,
       intro_youtube_id: intro.id || null,
       price_cents: price.cents ?? 0, promo_price_cents: promo.cents ?? null, promo_until: promoUntil,
       max_installments: inst, access_type: accessType, access_months: months,
@@ -121,12 +122,15 @@ const accessLabel = (c) => (c.access_type === 'lifetime' ? 'Vitalício' : c.acce
 // ---- consultas ----
 // Aula "viva" = aula ativa dentro de módulo ativo (o que o aluno enxerga e o que conta no progresso).
 const LIVE = 'l.active AND EXISTS (SELECT 1 FROM modules mm WHERE mm.id = l.module_id AND mm.active)';
+const TYPES = { course: 'Curso', download: 'Produto digital' };
+const typeOf = (c) => (c && c.product_type === 'download' ? 'download' : 'course');
 const VISIBLE = "c.status = 'published' AND c.published_at IS NOT NULL AND c.published_at <= now()";
 
 async function listPublic() {
   const r = await db.q(`
     SELECT c.*, (SELECT count(*)::int FROM lessons l WHERE l.course_id = c.id AND l.youtube_id IS NOT NULL AND ${LIVE}) AS videos,
-           (SELECT count(*)::int FROM lesson_files lf JOIN lessons l ON l.id = lf.lesson_id WHERE l.course_id = c.id AND ${LIVE}) AS materials
+           (SELECT count(*)::int FROM lesson_files lf JOIN lessons l ON l.id = lf.lesson_id WHERE l.course_id = c.id AND ${LIVE}) AS materials,
+           (SELECT count(*)::int FROM product_files pf WHERE pf.product_id = c.id) AS n_files
     FROM courses c WHERE ${VISIBLE}
     ORDER BY c.featured DESC, c.sort_order, c.published_at DESC, c.id`);
   return r.rows;
@@ -177,7 +181,8 @@ async function progressFor(userId, courseId) {
 
 async function myCourses(userId) {
   const r = await db.q(`
-    SELECT c.id, c.slug, c.title, c.summary, c.cover_file_id, e.expires_at,
+    SELECT c.id, c.slug, c.title, c.summary, c.cover_file_id, c.product_type, c.category, e.expires_at,
+           (SELECT count(*)::int FROM product_files pf WHERE pf.product_id = c.id) AS n_files,
            (SELECT count(*)::int FROM lessons l WHERE l.course_id = c.id AND ${LIVE}) AS total,
            (SELECT count(*)::int FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = e.user_id AND l.course_id = c.id AND ${LIVE}) AS done
     FROM enrollments e JOIN courses c ON c.id = e.course_id
@@ -186,4 +191,8 @@ async function myCourses(userId) {
   return r.rows.map((x) => ({ ...x, pct: x.total ? Math.floor((x.done / x.total) * 100) : 0 }));
 }
 
-module.exports = { LIVE, dateOnly, LEVELS, brl, brlInput, parseMoney, slugify, SLUG_RE, youtubeId, parseCourse, effectivePrice, accessLabel, listPublic, bySlug, byId, curriculum, flatLessons, accessFor, enrollmentState, progressFor, myCourses, VISIBLE };
+async function productFiles(productId) {
+  return (await db.q(`SELECT pf.id AS link_id, pf.label, pf.created_at, f.id AS file_id, f.filename, f.size_bytes, f.storage FROM product_files pf JOIN files f ON f.id = pf.file_id WHERE pf.product_id = $1 ORDER BY pf.position, pf.id`, [productId])).rows;
+}
+
+module.exports = { productFiles, TYPES, typeOf, LIVE, dateOnly, LEVELS, brl, brlInput, parseMoney, slugify, SLUG_RE, youtubeId, parseCourse, effectivePrice, accessLabel, listPublic, bySlug, byId, curriculum, flatLessons, accessFor, enrollmentState, progressFor, myCourses, VISIBLE };

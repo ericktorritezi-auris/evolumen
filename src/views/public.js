@@ -33,11 +33,11 @@ function courseCard(c) {
   return html`<article class="ccard">
     <a class="ccard__cover" href="/cursos/${c.slug}" tabindex="-1" aria-hidden="true">${coverBox(c)}</a>
     <div class="ccard__body">
-      <div class="ccard__tags">${c.featured ? html`<span class="pill pill--star">Destaque</span>` : ''}${c.category ? html`<span class="pill">${c.category}</span>` : ''}</div>
+      <div class="ccard__tags">${c.featured ? html`<span class="pill pill--star">Destaque</span>` : ''}${c.product_type === 'download' ? html`<span class="pill pill--prod">${c.category || 'Produto digital'}</span>` : (c.category ? html`<span class="pill">${c.category}</span>` : '')}</div>
       <h3 class="ccard__title"><a href="/cursos/${c.slug}">${c.title}</a></h3>
       ${c.summary ? html`<p class="muted">${c.summary}</p>` : ''}
-      <ul class="chips">${c.workload_hours ? html`<li>${c.workload_hours} h</li>` : ''}${c.videos ? html`<li>${plural(c.videos, 'vídeo', 'vídeos')}</li>` : ''}${c.level !== 'nao_se_aplica' ? html`<li>${C.LEVELS[c.level]}</li>` : ''}</ul>
-      <div class="ccard__foot">${priceBlock(c)}<a class="btn btn--outline btn--sm" href="/cursos/${c.slug}">Ver curso →</a></div>
+      <ul class="chips">${c.product_type === 'download' ? html`<li>${plural(c.n_files, 'arquivo', 'arquivos')}</li>` : ''}${c.workload_hours ? html`<li>${c.workload_hours} h</li>` : ''}${c.videos ? html`<li>${plural(c.videos, 'vídeo', 'vídeos')}</li>` : ''}${c.level !== 'nao_se_aplica' ? html`<li>${C.LEVELS[c.level]}</li>` : ''}</ul>
+      <div class="ccard__foot">${priceBlock(c)}<a class="btn btn--outline btn--sm" href="/cursos/${c.slug}">${c.product_type === 'download' ? 'Ver produto →' : 'Ver curso →'}</a></div>
     </div>
   </article>`;
 }
@@ -124,7 +124,8 @@ ${couponBanner(coupon)}
   return shellPublic({ cfg, user, title: 'Cursos de saúde emocional', description: 'EvoLumen Academy: cursos online de autoconhecimento e saúde emocional, com videoaulas e material de apoio.', content });
 }
 
-function coursePage({ cfg, user, course: c, cur, state, preview, coupon, buy = {} }) {
+function coursePage({ cfg, user, course: c, cur, state, preview, coupon, buy = {}, items = [] }) {
+  const dl = c.product_type === 'download';
   const lessons = cur.flatMap((m) => m.lessons);
   const videos = lessons.filter((l) => l.has_video).length;
   const materials = lessons.reduce((n, l) => n + (l.files ? l.files.length : 0), 0);
@@ -134,19 +135,19 @@ function coursePage({ cfg, user, course: c, cur, state, preview, coupon, buy = {
   const para = (t) => html`${String(t).split(/\n{2,}/).map((x) => html`<p>${x}</p>`)}`;
   const buyUrl = `/checkout/${c.slug}${coupon && coupon.code ? `?cupom=${encodeURIComponent(coupon.code)}` : ''}`;
   const cta = state === 'enrolled'
-    ? html`<a class="btn btn--primary btn--lg btn--block" href="/curso/${c.slug}">Ir para o curso</a>${buy.open && buy.renew ? html`<p class="muted small">Seu acesso termina em breve. <a href="/checkout/${c.slug}">Renovar agora</a>.</p>` : ''}`
+    ? html`<a class="btn btn--primary btn--lg btn--block" href="/curso/${c.slug}">${dl ? 'Baixar meus arquivos' : 'Ir para o curso'}</a>${buy.open && buy.renew ? html`<p class="muted small">Seu acesso termina em breve. <a href="/checkout/${c.slug}">Renovar agora</a>.</p>` : ''}`
     : state === 'expired'
-      ? (buy.open ? html`<a class="btn btn--primary btn--lg btn--block" href="/checkout/${c.slug}">Renovar acesso</a><p class="muted small">Seu acesso a este curso terminou. Renove para voltar a estudar de onde parou.</p>`
+      ? (buy.open ? html`<a class="btn btn--primary btn--lg btn--block" href="/checkout/${c.slug}">Renovar acesso</a><p class="muted small">Seu acesso terminou. Renove para voltar a ter acesso.</p>`
         : html`<button class="btn btn--primary btn--lg btn--block" type="button" disabled>Renovação em breve</button><p class="muted small">Seu acesso a este curso terminou. A renovação estará disponível em breve.</p>`)
-      : (buy.open ? html`<a class="btn btn--primary btn--lg btn--block" href="${buyUrl}">Matricular-se</a><p class="muted small">Pix ou cartão. Reembolso em até 7 dias.</p>`
+      : (buy.open ? html`<a class="btn btn--primary btn--lg btn--block" href="${buyUrl}">${dl ? 'Comprar agora' : 'Matricular-se'}</a><p class="muted small">Pix ou cartão. Reembolso em até 7 dias.</p>`
         : html`<button class="btn btn--primary btn--lg btn--block" type="button" disabled>Matrículas em breve</button><p class="muted small">As matrículas e o pagamento serão abertos nos próximos dias.</p>`);
   const content = html`
 ${couponBanner(coupon)}
-${preview ? html`<div class="alert alert--info">Pré-visualização: este curso ainda não está publicado na vitrine.</div>` : ''}
+${preview ? html`<div class="alert alert--info">Pré-visualização: ${dl ? 'este produto' : 'este curso'} ainda não está publicado na vitrine.</div>` : ''}
 <article class="cpage">
   <div class="cpage__main">
-    <a class="back" href="/#cursos">← Todos os cursos</a>
-    <div class="ccard__tags">${c.category ? html`<span class="pill">${c.category}</span>` : ''}${c.level !== 'nao_se_aplica' ? html`<span class="pill">${C.LEVELS[c.level]}</span>` : ''}</div>
+    <a class="back" href="/#cursos">← Todos os cursos e produtos</a>
+    <div class="ccard__tags">${c.category ? html`<span class="pill${dl ? ' pill--prod' : ''}">${c.category}</span>` : (dl ? html`<span class="pill pill--prod">Produto digital</span>` : '')}${c.level !== 'nao_se_aplica' ? html`<span class="pill">${C.LEVELS[c.level]}</span>` : ''}</div>
     <h1 class="t-display">${c.title}</h1>
     ${c.summary ? html`<p class="lead">${c.summary}</p>` : ''}
     ${c.intro_youtube_id
@@ -154,15 +155,16 @@ ${preview ? html`<div class="alert alert--info">Pré-visualização: este curso 
       : (c.cover_file_id ? coverBox(c, 'cover--wide') : '')}
     <div class="stats">
       ${c.workload_hours ? stat('Carga horária', `${c.workload_hours} horas`) : ''}
-      ${stat('Videoaulas', plural(videos, 'vídeo', 'vídeos'))}
-      ${materials ? stat('Apostilas', plural(materials, 'material', 'materiais')) : ''}
+      ${dl ? stat('Você recebe', plural(items.length, 'arquivo', 'arquivos')) : stat('Videoaulas', plural(videos, 'vídeo', 'vídeos'))}
+      ${!dl && materials ? stat('Apostilas', plural(materials, 'material', 'materiais')) : ''}
       ${stat('Acesso', C.accessLabel(c))}
     </div>
-    ${c.description ? html`<section class="blk"><h2 class="t-card">Sobre o curso</h2>${para(c.description)}</section>` : ''}
+    ${c.description ? html`<section class="blk"><h2 class="t-card">${dl ? 'Sobre o produto' : 'Sobre o curso'}</h2>${para(c.description)}</section>` : ''}
     ${c.target_audience ? html`<section class="blk"><h2 class="t-card">Para quem é</h2>${para(c.target_audience)}</section>` : ''}
     ${c.prerequisites ? html`<section class="blk"><h2 class="t-card">Pré-requisitos</h2>${para(c.prerequisites)}</section>` : ''}
-    ${c.learn_items.length ? html`<section class="blk"><h2 class="t-card">O que você vai aprender</h2>${list(c.learn_items)}</section>` : ''}
+    ${c.learn_items.length ? html`<section class="blk"><h2 class="t-card">${dl ? 'O que você recebe' : 'O que você vai aprender'}</h2>${list(c.learn_items)}</section>` : ''}
     ${c.able_items.length ? html`<section class="blk"><h2 class="t-card">Ao concluir, você estará apto a</h2>${list(c.able_items)}</section>` : ''}
+    ${dl && items.length ? html`<section class="blk"><h2 class="t-card">Arquivos incluídos</h2><ul class="tick">${items.map((f) => html`<li>${icon('file', 18)}<span>${f.label}</span></li>`)}</ul></section>` : ''}
     ${cur.length ? html`<section class="blk"><h2 class="t-card">Conteúdo do curso</h2>
       <p class="muted small">${plural(cur.length, 'módulo', 'módulos')} · ${plural(lessons.length, 'aula', 'aulas')}${total ? ' · ' + dur(total) : ''}</p>
       <div class="syl">${cur.map((m, i) => html`<details ${i === 0 ? raw('open') : ''}><summary><span>Módulo ${i + 1} · ${m.title}</span><span class="muted small">${plural(m.lessons.length, 'aula', 'aulas')}</span></summary>
