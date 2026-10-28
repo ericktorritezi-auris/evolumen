@@ -18,4 +18,10 @@ function field({ id, name, label, type = 'text', value = '', error = '', autocom
 
 const csrfInput = (csrf) => html`<input type="hidden" name="_csrf" value="${csrf}">`;
 
-module.exports = { field, csrfInput };
+// Nome abreviado para uso público: primeiro nome e inicial do último ("Ana L."). Seguro com acentos decompostos e emoji.
+function shortName(n) {
+  const p = String(n || '').normalize('NFC').trim().split(/\s+/).filter(Boolean);
+  if (!p.length) return 'Aluno';
+  return p.length > 1 ? `${p[0]} ${Array.from(p[p.length - 1])[0].toLocaleUpperCase('pt-BR')}.` : p[0];
+}
+module.exports = { field, csrfInput, shortName };

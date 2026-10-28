@@ -98,10 +98,12 @@ function build(cfg, h) {
     const wa = String(b.support_whatsapp || '').trim().slice(0, 25);
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) errors.support_email = 'Informe um e-mail válido.';
     if (wa && !/^[0-9 ()+.-]{8,25}$/.test(wa)) errors.support_whatsapp = 'Use só números, espaços, parênteses e traços.';
-    const values = { support_email: email, support_whatsapp: wa, forum_enabled: b.forum_enabled === '1' ? '1' : '0', notify_questions: b.notify_questions === '1' ? '1' : '0' };
+    const dl = b.download_limit === undefined ? String((await Set_.all()).download_limit) : String(b.download_limit).trim();
+    if (!/^\d{1,2}$/.test(dl) || Number(dl) < 1 || Number(dl) > 50) errors.download_limit = 'Informe um número de 1 a 50.';
+    const values = { support_email: email, support_whatsapp: wa, download_limit: dl, forum_enabled: b.forum_enabled === '1' ? '1' : '0', notify_questions: b.notify_questions === '1' ? '1' : '0' };
     if (Object.keys(errors).length) return res.status(422).send(views.configuracoes(ctx(req, res), { settings: { ...(await Set_.all()), ...values }, status: await statusInfo(), errors }));
     await Set_.save(values, req.user.id);
-    await audit(req, 'settings_saved', { meta: { forum: values.forum_enabled, notify: values.notify_questions } });
+    await audit(req, 'settings_saved', { meta: { forum: values.forum_enabled, notify: values.notify_questions, download_limit: values.download_limit } });
     flashBack(req, res, 'success', 'Configurações salvas.', '/admin/configuracoes');
   });
   return r;

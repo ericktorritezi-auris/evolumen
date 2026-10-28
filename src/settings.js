@@ -2,7 +2,7 @@
 // Configurações da plataforma (chave e valor). Valores padrão cobrem o que ainda não foi salvo.
 const db = require('./db');
 
-const DEFAULTS = { support_email: '', support_whatsapp: '', forum_enabled: '1', notify_questions: '1' };
+const DEFAULTS = { support_email: '', support_whatsapp: '', forum_enabled: '1', notify_questions: '1', download_limit: '3' };
 
 async function all() {
   const rows = (await db.q('SELECT key, value FROM platform_settings')).rows;

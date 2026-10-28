@@ -257,6 +257,7 @@ async function cancelAccess(c, o) {
     return false;
   }
   await c.query("UPDATE enrollments SET status = 'cancelled', cancelled_at = now() WHERE user_id = $1 AND course_id = $2 AND status = 'active'", [o.user_id, o.course_id]);
+  await require('./downloads').resetFor(c, o.user_id, o.course_id);
   return true;
 }
 

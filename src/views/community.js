@@ -2,11 +2,11 @@
 // Telas da comunidade: fórum por aula, avaliação do curso e o painel do administrador.
 const { html, raw } = require('../html');
 const { shellApp } = require('../layout');
-const { csrfInput } = require('./ui');
+const { csrfInput, shortName } = require('./ui');
 const fmtDateTime = (d) => new Date(d).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' });
 
 const titleRow = (title, sub) => html`<div class="title-row"><h1 class="t-display">${title}</h1>${sub ? html`<p class="muted">${sub}</p>` : ''}</div>`;
-const firstLast = (n) => { const p = String(n || '').trim().split(/\s+/); return p.length > 1 ? `${p[0]} ${p[p.length - 1][0]}.` : p[0] || 'Aluno'; };
+const firstLast = shortName;
 const shell = (ctx, title, content, path) => shellApp({ cfg: ctx.cfg, user: ctx.user, csrf: ctx.csrf, flash: ctx.flash, path, title, content });
 
 function postView(p, { csrf, user, base, admin, isReply }) {
@@ -42,16 +42,20 @@ function forumSection({ csrf, user, course, lesson, posts, enabled, error }) {
 
 function stars(n) { return '★'.repeat(n) + '☆'.repeat(5 - n); }
 
-function reviewCard({ csrf, course, review }) {
+function reviewCard({ csrf, course, review, kind = 'course' }) {
   const v = review || {};
-  return html`<section class="card review" id="avaliacao"><h2 class="t-card">${review ? 'Sua avaliação do curso' : 'Como foi o curso?'}</h2>
-    <p class="muted small">${review ? 'Obrigado! Você pode mudar sua avaliação quando quiser.' : 'Você concluiu o curso. Sua opinião ajuda o professor a melhorar.'}</p>
+  const prod = kind === 'download';
+  const noun = prod ? 'produto' : 'curso';
+  return html`<section class="card review" id="avaliacao"><h2 class="t-card">${review ? `Sua avaliação do ${noun}` : prod ? 'O que você achou do produto?' : 'Como foi o curso?'}</h2>
+    <p class="muted small">${review ? 'Obrigado! Você pode mudar sua avaliação quando quiser.' : prod ? 'Você já baixou o produto. Sua opinião ajuda quem está decidindo e ajuda o professor a melhorar.' : 'Você concluiu o curso. Sua opinião ajuda o professor a melhorar.'}</p>
     <form method="post" action="/curso/${course.slug}/avaliar" class="form">${csrfInput(csrf)}
       <fieldset class="fieldset"><legend>Nota de 1 a 5 estrelas</legend><div class="starpick">
         ${[1, 2, 3, 4, 5].map((n) => html`<label class="starpick__o"><input type="radio" name="stars" value="${n}"${Number(v.stars) === n ? raw(' checked') : ''} required><span>${n} ${n === 1 ? 'estrela' : 'estrelas'}</span></label>`)}</div></fieldset>
-      <div class="field"><label for="nps">De 0 a 10, quanto você indicaria este curso a um amigo?</label><select id="nps" name="nps" required><option value="">Escolha</option>
+      <div class="field"><label for="nps">De 0 a 10, quanto você indicaria ${prod ? 'este produto' : 'este curso'} a um amigo?</label><select id="nps" name="nps" required><option value="">Escolha</option>
         ${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => html`<option value="${n}"${v.nps != null && Number(v.nps) === n ? raw(' selected') : ''}>${n}</option>`)}</select></div>
       <div class="field"><label for="comment">Quer contar mais? (opcional)</label><textarea id="comment" name="comment" rows="3" maxlength="1000">${v.comment || ''}</textarea></div>
+      <div class="field"><label class="chk"><input type="checkbox" name="consent" value="1"${v.consent_publish ? raw(' checked') : ''}> Autorizo publicar este depoimento na página ${prod ? 'do produto' : 'do curso'}, com meu primeiro nome e a inicial do sobrenome.</label>
+        <div class="field__msg">Opcional. Só vale se você escrever um texto, e o professor decide se publica. Você pode retirar o aceite aqui quando quiser.${v.published ? ' Seu depoimento está publicado agora.' : ''}</div></div>
       <div class="row"><button class="btn btn--primary" type="submit">${review ? 'Atualizar avaliação' : 'Enviar avaliação'}</button></div></form></section>`;
 }
 
@@ -74,7 +78,9 @@ function adminForum(ctx, { rows, filter, courses, curso, reviews, comments, open
     ${reviews.length ? html`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Curso</th><th>Avaliações</th><th>Média</th><th>NPS</th></tr></thead><tbody>
       ${reviews.map((r) => html`<tr><td data-l="Curso">${r.title}</td><td data-l="Avaliações">${r.n}</td><td data-l="Média">${String(r.stars).replace('.', ',')} ★</td><td data-l="NPS">${r.nps}</td></tr>`)}</tbody></table></div>
       <p class="muted small">NPS = % de notas 9 e 10 menos % de notas de 0 a 6. Vai de −100 a 100.</p>` : html`<p class="muted">Ainda não há avaliações.</p>`}
-    ${comments.length ? html`<h3 class="t-card">Comentários recentes</h3>${comments.map((c) => html`<article class="fpost"><header class="fpost__head"><b>${firstLast(c.author)}</b> <span class="muted small">${stars(c.stars)} · nota ${c.nps} · ${c.course_title}</span></header><div class="fpost__body">${c.comment}</div></article>`)}` : ''}</section>`;
+    ${comments.length ? html`<h3 class="t-card" id="depoimentos">Comentários e depoimentos</h3><p class="muted small">Só podem ser publicados os comentários em que o aluno deu o aceite. Na página pública aparecem com o primeiro nome e a inicial do sobrenome.</p>${comments.map((c) => html`<article class="fpost"><header class="fpost__head"><b>${firstLast(c.author)}</b> <span class="muted small">${stars(c.stars)} · nota ${c.nps} · ${c.course_title}</span>${c.published ? html` <span class="pill pill--ok">Publicado</span>` : c.consent_publish ? html` <span class="pill">Aceite dado</span>` : html` <span class="pill pill--draft">Sem aceite</span>`}</header><div class="fpost__body">${c.comment}</div>
+      ${c.published ? html`<form method="post" action="/admin/forum/avaliacao/${c.id}/despublicar" class="inline">${csrfInput(ctx.csrf)}<button class="btn btn--ghost btn--sm" type="submit">Retirar da página pública</button></form>`
+      : c.consent_publish ? html`<form method="post" action="/admin/forum/avaliacao/${c.id}/publicar" class="inline">${csrfInput(ctx.csrf)}<input type="hidden" name="ver" value="${c.ver}"><button class="btn btn--primary btn--sm" type="submit">Publicar depoimento</button></form>` : ''}</article>`)}` : ''}</section>`;
   return shell(ctx, 'Fórum e avaliações', content, '/admin/forum');
 }
 

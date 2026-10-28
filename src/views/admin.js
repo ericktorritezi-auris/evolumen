@@ -37,6 +37,19 @@ function escolherTipo(ctx) {
   return shell(ctx, 'Novo cadastro', content);
 }
 
+// Aviso de novidade: campainha por padrão; e-mail só se o administrador marcar. A chave única impede envio duplo (duplo clique).
+function avisoCard(ctx, course, { buyers, to }) {
+  const dl = course.product_type === 'download';
+  const token = require('crypto').randomBytes(8).toString('hex');
+  return html`<section class="card"><h2 class="t-card">Avisar ${dl ? 'compradores' : 'alunos'} sobre uma novidade</h2>
+    <p class="muted">Acrescentou algo novo ${dl ? 'ao produto' : 'ao curso'}? Avise quem tem acesso agora (${buyers} ${buyers === 1 ? 'pessoa' : 'pessoas'}). O aviso aparece na campainha; o e-mail só sai se você marcar.</p>
+    <form method="post" action="/admin/cursos/${course.id}/avisar" class="form" data-confirm="Enviar este aviso a quem tem acesso?">${csrfInput(ctx.csrf)}
+      <input type="hidden" name="token" value="${token}"><input type="hidden" name="to" value="${to}">
+      <div class="field"><label for="news">O que há de novo?</label><input id="news" name="message" maxlength="200" required placeholder="${dl ? 'Ex.: Nova versão do e-book com o capítulo 7.' : 'Ex.: Novo material de apoio na aula 3.'}"><div class="field__msg">Uma frase curta. É o que aparece na campainha.</div></div>
+      <div class="field"><label class="chk"><input type="checkbox" name="email" value="1"> Enviar também por e-mail</label></div>
+      <div class="row"><button class="btn btn--outline" type="submit"${buyers ? '' : raw(' disabled')}>Enviar aviso</button></div></form></section>`;
+}
+
 function produtoArquivos(ctx, { course, items, buyers }) {
   const content = html`<a class="back" href="/admin/cursos">← Cursos e produtos</a>
   ${titleRow(course.title, 'Os arquivos que o comprador baixa depois do pagamento aprovado.')}
@@ -53,10 +66,7 @@ function produtoArquivos(ctx, { course, items, buyers }) {
       ${storageField('armazenamento')}
       <div class="span2 row"><button class="btn btn--primary" type="submit">Enviar arquivo</button></div></form>
   </section>
-  <section class="card"><h2 class="t-card">Avisar compradores</h2>
-    <p class="muted">Mudou ou acrescentou arquivos? Avise quem já comprou (${buyers} ${buyers === 1 ? 'pessoa com acesso' : 'pessoas com acesso'}) pelo sino e por e-mail. O aviso sai uma vez por alteração.</p>
-    <form method="post" action="/admin/cursos/${course.id}/avisar-atualizacao" data-confirm="Avisar os compradores sobre a atualização?">${csrfInput(ctx.csrf)}<button class="btn btn--outline" type="submit"${course.files_updated_at ? '' : raw(' disabled')}>Avisar sobre a atualização</button></form>
-  </section>`;
+  ${avisoCard(ctx, course, { buyers, to: 'arquivos' })}`;
   return shell(ctx, 'Arquivos do produto', content);
 }
 
@@ -127,6 +137,7 @@ function cursoForm(ctx, { course, values, errors = {} }) {
       ${field({ id: 'sort_order', label: 'Ordem na vitrine', value: v.sort_order, inputmode: 'numeric', error: errors.sort_order, note: '1 aparece primeiro.' })}
       ${field({ id: 'published_at', label: 'Data de publicação', type: 'date', value: pubDate, error: errors.published_at, note: 'Vazio = hoje. Data futura agenda o lançamento.' })}
       <label class="check"><input type="checkbox" name="featured" value="1"${v.featured ? raw(' checked') : ''}><span>Destacar na vitrine</span></label>
+      ${errors.publish ? html`<div class="alert alert--error" role="alert">${errors.publish}</div>` : ''}
       <label class="check"><input type="checkbox" name="publish" value="1"${published ? raw(' checked') : ''}><span>Publicado na vitrine<br><small class="muted">Rascunhos não aparecem para o público.</small></span></label>
     </div></section>
     <div class="row"><button class="btn btn--primary btn--lg" type="submit">${isNew ? (dl ? 'Criar produto' : 'Criar curso') : (dl ? 'Salvar produto' : 'Salvar curso')}</button></div>
@@ -199,6 +210,7 @@ function matriculas(ctx, { course, rows, created = null, errors = {}, email = ''
   ${created ? html`<section class="card card--ok"><h2 class="t-card">${created.newUser ? 'Aluno criado e matriculado' : (created.already ? 'Esta pessoa já tinha acesso' : 'Matrícula criada')}</h2>
     <p>${created.newUser ? html`Conta criada para <b>${created.email}</b>. A senha provisória também foi enviada por e-mail:` : html`<b>${created.email}</b> ${created.already ? 'já tinha acesso vigente a este curso. O prazo nunca diminui, e nenhum e-mail foi enviado.' : 'já tinha conta e agora tem acesso ao curso.'}`}</p>
     ${created.password ? html`<p class="secret">${created.password}</p><p class="muted small">Anote agora: por segurança, ela não aparece de novo. No primeiro acesso o aluno escolhe a própria senha.</p>` : ''}</section>` : ''}
+  ${avisoCard(ctx, course, { buyers: rows.filter((x) => x.status === 'active' && !x.expired).length, to: 'matriculas' })}
   <section class="card"><h2 class="t-card">Liberar acesso</h2>
     <p class="muted">Use para testes, cortesias e alunos que pagaram fora da plataforma. Se o e-mail ainda não tem conta, o aluno é criado e recebe a senha provisória por e-mail. A compra online abre na Fase 4.</p>
     <form method="post" action="/admin/cursos/${course.id}/matriculas" class="form form--grid" novalidate>${csrfInput(ctx.csrf)}
@@ -218,4 +230,4 @@ function matriculas(ctx, { course, rows, created = null, errors = {}, email = ''
   return shell(ctx, 'Matrículas', content);
 }
 
-module.exports = { escolherTipo, produtoArquivos, storageField, cursosList, cursoForm, conteudo, matriculas, enrollActions, ORIGIN, tabs, area };
+module.exports = { avisoCard, escolherTipo, produtoArquivos, storageField, cursosList, cursoForm, conteudo, matriculas, enrollActions, ORIGIN, tabs, area };

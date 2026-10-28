@@ -11,6 +11,7 @@ const views = require('./views/student');
 const Co = require('./community');
 const Set_ = require('./settings');
 const notify = require('./notify');
+const dl = require('./downloads');
 
 function build(cfg, h) {
   const r = express.Router();
@@ -42,7 +43,14 @@ function build(cfg, h) {
     const { course, access } = await load(req);
     if (!course) return next();
     const isAdmin = req.user.role === 'admin';
-    if (C.typeOf(course) === 'download') { require('./help').setPath('/__produto'); return res.send(views.produtoHome({ ...h.appCtx(req, res), course, items: await C.productFiles(course.id), access })); }
+    if (C.typeOf(course) === 'download') {
+      require('./help').setPath('/__produto');
+      const items = await C.productFiles(course.id);
+      const quota = isAdmin ? {} : await dl.statusFor(req.user.id, items.map((i) => i.file_id));
+      // a avaliação só abre depois do primeiro download
+      const review = !isAdmin && await dl.hasDownloaded(req.user.id, course.id) ? (await Co.reviewOf(req.user.id, course.id)) || {} : null;
+      return res.send(views.produtoHome({ ...h.appCtx(req, res), course, items, access, quota, review }));
+    }
     const cur = await C.curriculum(course.id, { all: isAdmin });
     const progress = await C.progressFor(req.user.id, course.id);
     const ov = await A.overview(req.user.id, course);
@@ -118,6 +126,16 @@ function build(cfg, h) {
     }
     const f = await files.get(req.params.id);
     if (!f) return next();
+    // Produto digital: cada aluno baixa cada arquivo um número limitado de vezes (o administrador não tem limite).
+    const limited = isProduct && req.user.role !== 'admin';
+    if (limited) {
+      // HEAD não entrega o arquivo e não pode gastar uma das vezes
+      if (req.method === 'HEAD') return res.status(405).set('Allow', 'GET').end();
+      // reserva atômica: abas ou requisições simultâneas não passam do limite
+      if (!(await dl.reserve(req.user.id, f.id))) return res.redirect(303, `/arquivos/${f.id}/solicitar`);
+      // download interrompido ou com erro devolve a reserva (não gasta uma das vezes)
+      res.on('close', () => { if (!res.writableFinished || res.statusCode !== 200) dl.release(req.user.id, f.id).catch((e) => require('./logger').warn('cota_nao_devolvida', { error: e.message })); });
+    }
     await audit(req, 'file_downloaded', { entity: 'file', entityId: f.id, meta: { storage: f.storage } });
     files.serve(res, f, next);
   });
