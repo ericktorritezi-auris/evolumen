@@ -204,12 +204,39 @@ function build(cfg, app) {
 
   // ---- telas iniciais (conteúdo real chega nas próximas fases) ----
   r.get('/admin', needUser, gate, needAdmin, async (req, res) => {
-    const m = await db.q('SELECT count(*)::int AS n FROM schema_migrations');
-    const l = await db.q("SELECT count(*)::int AS n FROM legal_documents WHERE status = 'published'");
-    res.send(appViews.adminHome({ ...appCtx(req, res), status: {
-      db: true, migrations: m.rows[0].n, legalPublished: l.rows[0].n,
-      mail: cfg.mailTransport === 'memory' || !!(cfg.resendApiKey && cfg.resendFrom), mailFrom: cfg.resendFrom ? cfg.resendFrom.replace(/^.*</, '').replace(/>$/, '') : '',
-    } }));
+    const F = require('./finance'); const Co = require('./community'); const dl = require('./downloads');
+    const health = await require('./health').snapshot(cfg); // primeiro: mostra "Sem conexão" em vez de erro se o banco cair
+    const one = async (sql) => (await db.q(sql)).rows[0].n;
+    let dash; let status;
+    try {
+      const [m, l, sum, students, pubs, refunds, lgpd, forum, dls, testi] = await Promise.all([
+        db.q('SELECT count(*)::int AS n FROM schema_migrations'),
+        db.q("SELECT count(*)::int AS n FROM legal_documents WHERE status = 'published'"),
+        F.summary(F.period({})),
+        one("SELECT count(DISTINCT user_id)::int AS n FROM enrollments WHERE status = 'active' AND starts_at <= now() AND (expires_at IS NULL OR expires_at > now())"),
+        db.q("SELECT count(*) FILTER (WHERE product_type = 'course')::int AS cursos, count(*) FILTER (WHERE product_type = 'download')::int AS produtos FROM courses WHERE status = 'published' AND published_at <= now()"),
+        one("SELECT count(*)::int AS n FROM refund_requests WHERE status = 'requested'"),
+        one("SELECT count(*)::int AS n FROM data_requests WHERE status = 'open'"),
+        Co.openCount(), dl.pendingCount(),
+        one("SELECT count(*)::int AS n FROM course_reviews WHERE consent_publish AND NOT published AND comment <> ''"),
+      ]);
+      dash = {
+        month: { n: sum.sales.n, gross: sum.sales.gross, refunds: sum.refunds.n, net: sum.net }, students, pubs: pubs.rows[0],
+        pending: [
+          { n: refunds, label: 'Pedidos de reembolso', href: '/admin/vendas' },
+          { n: lgpd, label: 'Pedidos de dados (LGPD)', href: '/admin/lgpd' },
+          { n: forum, label: 'Dúvidas sem resposta', href: '/admin/forum' },
+          { n: dls, label: 'Pedidos de novo download', href: '/admin/downloads' },
+          { n: testi, label: 'Depoimentos para publicar', href: '/admin/forum#depoimentos' },
+        ],
+      };
+      status = { migrations: m.rows[0].n, legalPublished: l.rows[0].n };
+    } catch (e) {
+      log.warn('dashboard_sem_dados', { error: e.message });
+      dash = { error: true, month: { n: 0, gross: 0, refunds: 0, net: 0 }, students: 0, pubs: { cursos: 0, produtos: 0 }, pending: [] };
+      status = { migrations: 0, legalPublished: 0 };
+    }
+    res.send(appViews.adminHome({ ...appCtx(req, res), health, dash, status }));
   });
 
   // ---- perfil ----

@@ -131,6 +131,39 @@ async function store(client, { kind, filename, mime, size, tmp, userId, storage 
   return r.rows[0].id;
 }
 
+// Copia um arquivo já guardado (banco ou volume) para um novo registro independente. Usado ao duplicar cursos e produtos.
+// Cada arquivo pertence a um único curso/produto; por isso a cópia é de verdade, nunca compartilhada.
+async function cloneFile(client, fileId, userId, created) {
+  const f = (await client.query('SELECT id, kind, filename, mime, size_bytes, sha256, storage, path FROM files WHERE id = $1', [fileId])).rows[0];
+  if (!f) return null;
+  if (f.storage === 'volume') {
+    if (!VOL) throw new UploadError('O volume do Railway não está ligado neste ambiente, então os arquivos dele não podem ser copiados.');
+    const name = crypto.randomBytes(18).toString('hex');
+    try { await fs.promises.copyFile(volFile(f.path), volFile(name)); } catch (e) {
+      fs.unlink(volFile(name), () => {});
+      if (e.code === 'ENOSPC') throw new UploadError('O volume ficou sem espaço durante a cópia. Libere espaço (apague arquivos que não usa) e tente de novo.', 507);
+      if (e.code === 'ENOENT') throw new UploadError(`Não foi possível copiar "${f.filename}": o arquivo não está no volume.`, 500);
+      throw new UploadError(`Não foi possível copiar "${f.filename}" (${e.code || 'erro'}).`, 500);
+    }
+    if (created) created.push(name);
+    try {
+      return (await client.query("INSERT INTO files (kind, filename, mime, size_bytes, sha256, storage, path, created_by) VALUES ($1,$2,$3,$4,$5,'volume',$6,$7) RETURNING id",
+        [f.kind, f.filename, f.mime, f.size_bytes, f.sha256, name, userId || null])).rows[0].id;
+    } catch (e) { fs.unlink(volFile(name), () => {}); throw e; }
+  }
+  return (await client.query("INSERT INTO files (kind, filename, mime, size_bytes, sha256, storage, data, created_by) SELECT kind, filename, mime, size_bytes, sha256, 'db', data, $2 FROM files WHERE id = $1 RETURNING id", [fileId, userId || null])).rows[0].id;
+}
+
+// Antes de copiar muitos arquivos do volume: confere se há espaço (com folga de 200 MB).
+function assertSpace(bytes) {
+  if (!VOL || !bytes) return;
+  let free = null; try { const st = fs.statfsSync(VOL); free = Number(st.bavail) * Number(st.bsize); } catch { return; }
+  if (free < bytes + 200 * MB) throw new UploadError(`Não há espaço suficiente no volume para copiar estes arquivos (precisa de ${humanSize(bytes)} e há ${humanSize(Math.max(0, free))} livres).`, 507);
+}
+// Apaga na hora arquivos de volume criados por uma cópia que falhou (sem passar pela lixeira).
+function dropVolumeFiles(names) { for (const n of names || []) fs.unlink(volFile(n), () => {}); }
+const volDir = () => VOL;
+
 // Recebe um único campo "arquivo", direto em disco (nunca na memória). Erros do multer viram mensagens em português.
 function receive(req, res, next, kind = 'doc') {
   const max = limitFor(kind);
@@ -184,4 +217,4 @@ async function sweepVolume() {
 
 const humanSize = (n) => (n >= MB ? `${(n / MB).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
-module.exports = { configure, volumeOn, validate, chooseStorage, store, receive, get, serve, sweepVolume, discard, humanSize, UploadError, MAX_DOC, MAX_DB, MAX_VOLUME, MAX_COVER, DOC_TYPES, IMG_TYPES, PRODUCT_TYPES, ALLOWED };
+module.exports = { configure, volumeOn, volDir, assertSpace, dropVolumeFiles, validate, chooseStorage, store, cloneFile, receive, get, serve, sweepVolume, discard, humanSize, UploadError, MAX_DOC, MAX_DB, MAX_VOLUME, MAX_COVER, DOC_TYPES, IMG_TYPES, PRODUCT_TYPES, ALLOWED };

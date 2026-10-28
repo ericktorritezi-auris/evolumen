@@ -390,3 +390,33 @@ img{max-width:100%;height:auto}
 .testi__i { margin: 0; padding: 14px 16px; border-radius: 14px; background: var(--panel, rgba(255,255,255,.04)); border: 1px solid var(--line, rgba(255,255,255,.1)); }
 .testi__i p { margin: 0 0 8px; }
 .testi__by { display: block; font-style: normal; font-size: .9em; opacity: .8; }
+
+/* 0.8.1 · Caixas de seleção e opções: um único padrão para o sistema todo.
+   (".field label" e ".field input" são mais específicos que as regras antigas e deformavam o alinhamento.) */
+label.check, label.chk, .field label.check, .field label.chk, .check, .chk {
+  display: flex; align-items: flex-start; gap: 12px; margin: 0; padding: 0;
+  font: 400 15px/22px Nunito, sans-serif; color: var(--nevoa); cursor: pointer;
+}
+.field label.check, .field label.chk { font-weight: 400; }
+.check input[type=checkbox], .chk input[type=checkbox], .check input[type=radio], .chk input[type=radio],
+.field .check input, .field .chk input, .field input[type=checkbox], .field input[type=radio] {
+  flex: none; width: 22px; height: 22px; min-height: 0; margin: 0; padding: 0; accent-color: var(--ambar); cursor: pointer;
+}
+.check > span, .chk > span { display: block; min-width: 0; }
+.check small { display: block; font-size: 13px; line-height: 1.4; color: var(--bruma); }
+.starpick__o, .optrow label { align-items: center; }
+.opt, .paychoice__opt { align-items: flex-start; line-height: 22px; }
+.opt input[type=radio], .paychoice__opt input[type=radio] { margin: 1px 0 0; }
+.opt input[type=radio], .starpick__o input[type=radio], .paychoice__opt input[type=radio], .optrow input[type=radio] { width: 20px; height: 20px; min-height: 0; padding: 0; flex: none; }
+
+/* 0.8.1 · Saúde do sistema e pendências do Dashboard */
+.pill--warn{background:rgba(255,178,87,.18);color:var(--ambar)}.pill--bad{background:rgba(255,138,138,.18);color:var(--bad)}
+.health__dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;flex:none;background:var(--good)}
+.health__dot--warn{background:var(--ambar)}.health__dot--bad{background:var(--bad)}
+.health--warn{border-color:rgba(255,178,87,.45)}.health--bad{border-color:rgba(255,138,138,.55)}
+.health__txt{display:inline-flex;align-items:center;text-align:right;justify-content:flex-end;color:var(--nevoa)}
+.health__txt--warn{color:var(--ambar)}.health__txt--bad{color:var(--bad)}
+.pend{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:8px}.pend a{display:block;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--profundo);color:var(--nevoa);text-decoration:none}.pend a:hover{border-color:var(--ambar)}.pend b{color:var(--ambar);font-size:18px;margin-right:6px}
+.field input[type=checkbox]:focus-visible,.field input[type=radio]:focus-visible,.check input:focus-visible,.chk input:focus-visible,.opt input:focus-visible{outline:3px solid var(--ambar);outline-offset:2px}
+.optrow label{display:inline-flex;align-items:center;gap:8px}
+.chk{font-weight:600}.field label.chk{font-weight:600}

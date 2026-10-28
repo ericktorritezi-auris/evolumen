@@ -77,7 +77,7 @@ test('admin: primeiro acesso força a troca de senha e depois libera o painel', 
   const ok = await b.post('/primeiro-acesso', { current: ADMIN.password, password: 'NovaSenha2026', confirm: 'NovaSenha2026' });
   assert.equal(ok.location, '/admin');
   const page = await b.get('/admin'); assert.equal(page.status, 200);
-  assert.match(page.text, /Verificação do ambiente/); assert.match(page.text, /noreply@belleplanner\.com\.br/);
+  assert.match(page.text, /Saúde do sistema/); assert.match(page.text, /noreply@belleplanner\.com\.br/);
   assert.equal((await b.get('/meus-cursos')).status, 200);
 });
 
