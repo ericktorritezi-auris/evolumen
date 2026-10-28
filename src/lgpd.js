@@ -22,6 +22,7 @@ async function exportFor(userId) {
     tentativas_de_avaliacao: await q('SELECT assessment_id, number, score, passed, started_at, finished_at FROM assessment_attempts WHERE user_id = $1 ORDER BY id'),
     emails_enviados: await q('SELECT subject, template, status, created_at FROM email_log WHERE lower(to_email) = lower((SELECT email FROM users WHERE id = $1)) ORDER BY id'),
     aulas_concluidas: await q('SELECT l.title AS aula, p.completed_at FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = $1 ORDER BY p.completed_at'),
+    avisos_da_campainha: await q('SELECT kind, title, body, created_at, read_at FROM notifications WHERE user_id = $1 ORDER BY id'),
     mensagens_do_forum: await q('SELECT lesson_id, body, status, created_at FROM forum_posts WHERE user_id = $1 ORDER BY id'),
     avaliacoes_de_cursos: await q('SELECT course_id, stars, nps, comment, created_at, updated_at FROM course_reviews WHERE user_id = $1 ORDER BY id'),
     registro_de_atividade: await q('SELECT at, action, ip FROM audit_log WHERE actor_user_id = $1 ORDER BY id'),
@@ -42,6 +43,7 @@ async function anonymize(userId, client) {
     await c.query('DELETE FROM password_resets WHERE user_id = $1', [userId]);
     await c.query('DELETE FROM email_changes WHERE user_id = $1', [userId]);
     await c.query('UPDATE forum_posts SET body = $2 WHERE user_id = $1', [userId, REMOVED]);
+    await c.query('DELETE FROM notifications WHERE user_id = $1 OR subject_user_id = $1', [userId]);
     // Rastros do e-mail antigo que não precisam ser guardados.
     await c.query('UPDATE email_log SET to_email = $2 WHERE lower(to_email) = lower($1)', [u.email, `removido-${userId}@removido.invalid`]);
     await c.query("UPDATE data_requests SET note = NULL WHERE user_id = $1 AND type = 'email_change_admin'", [userId]);

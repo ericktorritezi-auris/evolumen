@@ -44,11 +44,18 @@ function profileFields(body, { allowCpf = false } = {}) {
     cpf = digits(body.cpf) || null;
     if (cpf && !validCpf(cpf)) errors.cpf = 'CPF inválido. Confira os 11 números.';
   }
+  const bd = String(body.birth_date || '').trim();
+  let birth = null;
+  if (bd) {
+    const t = Date.parse(bd + 'T12:00:00Z');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(bd) || Number.isNaN(t) || new Date(t).toISOString().slice(0, 10) !== bd || bd < '1900-01-01' || t > Date.now()) errors.birth_date = 'Informe uma data de nascimento válida.';
+    else birth = bd;
+  }
   const clip = (v, n) => String(v || '').trim().slice(0, n);
   return {
     errors,
     values: {
-      ...(allowCpf ? { cpf } : {}), name, phone: phone || null, cep: cep || null, state: state || null,
+      ...(allowCpf ? { cpf } : {}), name, phone: phone || null, birth_date: birth, cep: cep || null, state: state || null,
       street: clip(body.street, 160) || null, street_number: clip(body.street_number, 20) || null,
       complement: clip(body.complement, 80) || null, district: clip(body.district, 80) || null, city: clip(body.city, 80) || null,
     },

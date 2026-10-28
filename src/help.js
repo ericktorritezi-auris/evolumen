@@ -4,7 +4,8 @@ const STUDENT = [
   { id: 'meus-cursos', match: /^\/meus-cursos/, title: 'Seus cursos', steps: [
     'Cada cartão é um curso que você comprou ou ganhou. Toque no cartão para abrir.',
     'Na página do curso, o botão grande leva direto para a próxima aula (Começar ou Continuar).',
-    'A barra mostra quanto você já concluiu. O acesso vence na data indicada, se o curso tiver prazo.'] },
+    'A barra mostra quanto você já concluiu. O acesso vence na data indicada, se o curso tiver prazo.',
+    'O sino ao lado do ? guarda seus avisos: resposta do professor, certificado e prazo do acesso. Amarelo é novo.'] },
   { id: 'aula', match: /^\/curso\/[^/]+\/aula\//, title: 'Assistindo a uma aula', steps: [
     'Aperte o play e assista com atenção. O tempo assistido conta para liberar a prova final.',
     'Quando terminar, toque em Marcar como concluída. Depois use Próxima aula.',

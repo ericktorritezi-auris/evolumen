@@ -18,8 +18,12 @@ function menuButton() {
   return html`<button type="button" class="icon-btn" id="menu-open" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu-overlay">${icon('menu', 22)}</button>`;
 }
 
-function mobileHeader({ area, help = false }) {
-  return html`<header class="m-header">${brand({ size: 30 })}<div class="m-header__actions">${help ? html`<button type="button" class="help-btn" data-help-open aria-haspopup="dialog" aria-label="Ajuda desta tela">?</button>` : ''}${menuButton()}</div></header>`;
+function bellButton(csrf) {
+  return html`<button type="button" class="help-btn bell-btn" data-bell data-csrf="${csrf}" aria-haspopup="dialog" aria-label="Avisos">${icon('bell', 20)}<span class="bell-btn__n" data-bell-n hidden>0</span></button>`;
 }
 
-module.exports = { brand, icon, menuButton, mobileHeader };
+function mobileHeader({ area, help = false, bell = '' }) {
+  return html`<header class="m-header">${brand({ size: 30 })}<div class="m-header__actions">${bell ? bellButton(bell) : ''}${help ? html`<button type="button" class="help-btn" data-help-open aria-haspopup="dialog" aria-label="Ajuda desta tela">?</button>` : ''}${menuButton()}</div></header>`;
+}
+
+module.exports = { brand, icon, menuButton, mobileHeader, bellButton };

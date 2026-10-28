@@ -6,6 +6,7 @@ const L = require('./lgpd');
 const Set_ = require('./settings');
 const mailer = require('./mailer');
 const emails = require('./emails');
+const notify = require('./notify');
 const { audit } = require('./audit');
 const views = require('./views/lgpd');
 
@@ -70,6 +71,8 @@ function build(cfg, h) {
       return 'ok';
     });
     if (done === 'already') return flashBack(req, res, 'info', 'Este pedido já foi respondido.', '/admin/lgpd');
+    await notify.resolveAdmins('lgpd:' + d.id);
+    if (!wipe) await notify.add(d.user_id, { kind: 'lgpd', title: ok ? 'Seu pedido foi atendido' : 'Seu pedido foi analisado', body: note ? note.slice(0, 200) : 'Veja os detalhes no seu e-mail.', link: '/perfil', key: 'lgpdans:' + d.id });
     if (d.type !== 'email_change_admin') {
       const send = mailer.send(cfg, { to: d.email, ...emails.dataRequestDone(cfg, { name: d.name, kind: d.type, ok, note }) }); // endereço lido antes da anonimização
       if (wipe) { try { await send; } catch { /* o aviso é melhor esforço */ } await L.scrubEmailLog(d.email, d.user_id); } else h.background(send);

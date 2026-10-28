@@ -95,6 +95,7 @@ function createApp(cfg) {
   app.use(require('./routes_sales').build(cfg, main.helpers));
   app.use(require('./routes_community').build(cfg, main.helpers));
   app.use(require('./routes_lgpd').build(cfg, main.helpers));
+  app.use(require('./routes_notify').build(cfg, main.helpers));
 
   app.use((req, res) => {
     res.status(404).send(authViews.errorPage({ cfg, status: 404, message: 'O endereço não existe ou foi movido.', loggedIn: !!req.user }));
@@ -126,6 +127,9 @@ async function start() {
   cleanup(); setInterval(cleanup, 6 * 3600 * 1000).unref();
   const sweep = () => require('./sales').sweepExpired(cfg, (pr) => Promise.resolve(pr).catch((e) => log.warn('email_falhou', { error: e.message }))).catch((e) => log.warn('varredura_pix_falhou', { error: e.message }));
   setInterval(sweep, 5 * 60 * 1000).unref();
+  // Campainha: aniversários, prazos e lembretes. Uma vez por hora (cada aviso tem chave e não se repete).
+  const daily = () => require('./reminders').run(cfg, (pr) => Promise.resolve(pr).catch((e) => log.warn('email_falhou', { error: e.message })));
+  setTimeout(daily, 60 * 1000).unref(); setInterval(daily, 3600 * 1000).unref();
   const app = createApp(cfg);
   const server = app.listen(cfg.port, () => log.info('servidor_no_ar', { porta: cfg.port, ambiente: cfg.appEnv, versao: cfg.version.version }));
   const stop = () => server.close(async () => { await db.close(); process.exit(0); });

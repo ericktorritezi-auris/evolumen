@@ -25,6 +25,60 @@
       t.setAttribute('aria-label', show ? 'Ocultar senha' : 'Mostrar senha');
     }
   });
+  // Campainha de avisos (texto sempre inserido como texto, nunca como HTML)
+  var bellEl = $('#bell-panel'), bellFrom = null, bellCsrf = '';
+  function ago(iso) {
+    var s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 60) return 'agora'; if (s < 3600) return 'há ' + Math.floor(s / 60) + ' min';
+    if (s < 86400) return 'há ' + Math.floor(s / 3600) + ' h'; var d = Math.floor(s / 86400); return 'há ' + d + (d === 1 ? ' dia' : ' dias');
+  }
+  function bellBadge(n) {
+    document.querySelectorAll('[data-bell-n]').forEach(function (b) { b.textContent = n > 99 ? '99+' : String(n); b.hidden = n < 1; });
+    document.querySelectorAll('[data-bell]').forEach(function (b) { b.classList.toggle('has-new', n > 0); b.setAttribute('aria-label', n > 0 ? 'Avisos: ' + n + ' novos' : 'Avisos'); });
+  }
+  function bellLoad() {
+    if (!document.querySelector('[data-bell]')) return Promise.resolve();
+    return fetch('/notificacoes.json', { credentials: 'same-origin', headers: { Accept: 'application/json' } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      if (!d) return; bellBadge(d.unread);
+      if (!bellEl) return;
+      var ul = bellEl.querySelector('[data-bell-list]'), sub = bellEl.querySelector('[data-bell-sub]'), all = bellEl.querySelector('[data-bell-all]');
+      ul.textContent = '';
+      d.items.forEach(function (it) {
+        var li = document.createElement('li'), a = document.createElement('a');
+        a.href = '/notificacoes/' + encodeURIComponent(it.id) + '/abrir'; a.className = 'bell__item' + (it.read ? ' is-read' : ' is-new');
+        var dot = document.createElement('span'); dot.className = 'bell__dot'; dot.setAttribute('aria-hidden', 'true');
+        var box = document.createElement('span'), t = document.createElement('strong'), b = document.createElement('span'), w = document.createElement('small');
+        t.textContent = it.title; b.textContent = it.body; b.className = 'bell__body'; w.textContent = ago(it.at) + (it.read ? '' : ' · novo');
+        box.appendChild(t); if (it.body) box.appendChild(b); box.appendChild(w); a.appendChild(dot); a.appendChild(box); li.appendChild(a); ul.appendChild(li);
+      });
+      sub.textContent = d.items.length ? (d.unread ? d.unread + (d.unread === 1 ? ' aviso novo' : ' avisos novos') : 'Tudo em dia.') : 'Você não tem avisos.';
+      all.hidden = d.unread < 1;
+    }).catch(function () {});
+  }
+  function bellOpen(from) { if (!bellEl) return; bellFrom = from; bellCsrf = from.getAttribute('data-csrf') || ''; bellEl.hidden = false; document.body.classList.add('menu-open'); bellLoad(); var b = bellEl.querySelector('.help__x'); if (b) b.focus(); }
+  function bellClose() { if (!bellEl || bellEl.hidden) return; bellEl.hidden = true; document.body.classList.remove('menu-open'); if (bellFrom) bellFrom.focus(); }
+  document.addEventListener('click', function (e) {
+    var o = e.target.closest('[data-bell]'); if (o) bellOpen(o);
+    if (e.target.closest('[data-bell-close]')) bellClose();
+    if (e.target.closest('[data-bell-all]')) {
+      fetch('/notificacoes/ler-todas', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'fetch' }, body: '_csrf=' + encodeURIComponent(bellCsrf) }).then(bellLoad).catch(function () {});
+    }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') bellClose();
+    if (e.key === 'Tab' && bellEl && !bellEl.hidden) {
+      var bf = bellEl.querySelectorAll('a, button:not([hidden])'); if (!bf.length) return;
+      var b1 = bf[0], b2 = bf[bf.length - 1];
+      if (e.shiftKey && document.activeElement === b1) { e.preventDefault(); b2.focus(); }
+      else if (!e.shiftKey && document.activeElement === b2) { e.preventDefault(); b1.focus(); }
+      else if (!bellEl.contains(document.activeElement)) { e.preventDefault(); b1.focus(); }
+    }
+  });
+  if (document.querySelector('[data-bell]')) {
+    bellLoad();
+    setInterval(function () { if (!document.hidden) bellLoad(); }, 60000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) bellLoad(); });
+  }
   // Ajuda da Lumen
   var helpEl = $('#help-panel'), helpFrom = null;
   function helpOpen(from) { if (!helpEl) return; helpFrom = from; helpEl.hidden = false; document.body.classList.add('menu-open'); var b = helpEl.querySelector('.help__x'); if (b) b.focus(); }

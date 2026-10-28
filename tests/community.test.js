@@ -131,7 +131,7 @@ test('LGPD: aceites filtrados, CSV seguro e acesso só do administrador', async 
 test('configurações, ajuda e landing', async () => {
   const bad = await admin.post('/admin/configuracoes', { support_email: 'sem-arroba', support_whatsapp: 'abc' }, '/admin/configuracoes'); assert.equal(bad.status, 422);
   assert.match(bad.text, /e-mail válido/);
-  const cfgPage = await admin.get('/admin/configuracoes'); assert.match(cfgPage.text, /Situação do sistema/); assert.match(cfgPage.text, /0\.6\.0/); assert.ok(!/SESSION_SECRET|ACCESS_TOKEN/.test(cfgPage.text));
+  const cfgPage = await admin.get('/admin/configuracoes'); assert.match(cfgPage.text, /Situação do sistema/); assert.match(cfgPage.text, /0\.6\.1/); assert.ok(!/SESSION_SECRET|ACCESS_TOKEN/.test(cfgPage.text));
   const aj = await anaB.get('/ajuda'); assert.equal(aj.status, 200); assert.match(aj.text, /suporte@example\.com/); assert.match(aj.text, /Perguntas frequentes/);
   const lesson = await anaB.get(aula()); assert.match(lesson.text, /data-help-open/); assert.match(lesson.text, /Assistindo a uma aula/, 'ajuda contextual da aula, não a do menu');
   assert.match((await admin.get('/admin/forum')).text, /Fórum e avaliações/); assert.match((await admin.get('/admin/forum')).text, /Ajuda da Lumen/);

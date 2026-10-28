@@ -7,6 +7,7 @@ Mais um produto Belle Planner.
 
 | Versão | Fase | Data | O que mudou |
 |---|---|---|---|
+| 0.6.1 | 5 · Campainha | 2026-10-28 | **Campainha de avisos** para o professor e para o aluno (sino ao lado do **?**, com contador). Amarelo = novo; ao abrir ou responder fica cinza e some em 7 dias. Professor: pergunta no fórum, venda, pedido de reembolso, chargeback, pedido de exclusão ou troca de e-mail, aluno com 50% do curso, aulas todas vistas, certificado emitido, avaliação nova e aniversários da semana. Aluno: professor respondeu, pagamento confirmado, certificado pronto, reembolso, resposta ao pedido de dados, prazo do acesso acabando (30, 7 e 1 dias, agora **também por e-mail**), lembretes de estudo e feliz aniversário. O que já estava pendente aparece no sino na primeira subida. Novo campo opcional **Data de nascimento** no perfil. Exclusão de dados apaga os avisos da pessoa. Migração 009. Inclui tudo da 0.6.0. |
 | 0.6.0 | 5 · Comunidade, ajuda e LGPD | 2026-10-28 | **Fórum por aula** (só alunos com acesso; o professor responde pelo painel e o aluno é avisado por e-mail; ocultar mensagens; o aluno apaga a própria se ainda não tiver respostas). **Avaliação do curso** (1 a 5 estrelas e NPS) para quem recebeu o certificado, com média e NPS em **Fórum e avaliações**. **Ajuda da Lumen**: botão **?** em cada tela com o passo a passo dela e página **Ajuda** com perguntas frequentes. **LGPD e aceites** no painel: fila de pedidos do titular (prazo de 15 dias, cópia dos dados em JSON, exclusão com anonimização; pedidos com os dados da compra, aceites e certificados ficam guardados por obrigação legal) e consulta e exportação (CSV) dos aceites com data, hora e IP. **Configurações**: contato de suporte, fórum ligado ou desligado, aviso de nova dúvida e situação do sistema. Receita e valor recebido passam a usar o preço do curso (sem juros do parcelamento). Limite de requisições no acompanhamento do pedido. Tag "Sociedade Brasileira de Coaching" removida da landing. Migração 008. |
 | 0.5.2 | 4 · Pagamentos (cockpit) | 2026-10-27 | **Cockpit financeiro** em `/admin/financeiro` (receita bruta, devolvido, receita líquida, ticket médio, novas e renovações, conclusões, churn e efetividade; gráfico por dia ou mês; tabelas por curso e por forma de pagamento; filtros de período e curso). Aula: mensagem passa a "Assista sua aula!". Webhook com assinatura inválida agora registra no log um diagnóstico seguro (sem segredos). Sem migração nova. |
 | 0.5.1 | 4 · Pagamentos (correções) | 2026-10-20 | Editor visual completo para Termos e Política (títulos, negrito, itálico, sublinhado, listas, citação, link, colagem limpa do Word, sem código; o servidor limpa o HTML). Cupom limitado agora fica reservado enquanto há compra pendente e não vale em dois pedidos ao mesmo tempo. Correção do título "vv1.0". Inclui tudo da 0.5.0. |
@@ -45,6 +46,17 @@ Endereço de produção: https://evolumen.ericktorritezi.com.br
 1. Envie o conteúdo do ZIP para a branch `staging` do GitHub.
 2. O Railway faz o deploy; migrações e seeds rodam sozinhos ao iniciar.
 3. Confira `/health` e entre com ADMIN_EMAIL e ADMIN_INITIAL_PASSWORD.
+
+## Como testar a campainha (0.6.1)
+
+Suba por cima da 0.6.0. A migração 009 roda na subida.
+
+1. **Sino do professor**: ao lado do **?** (no celular, no topo, ao lado do menu). Tudo que estava pendente (perguntas sem resposta, pedidos de reembolso e de dados) já aparece em amarelo.
+2. Como aluno, faça uma pergunta no fórum: o sino do professor ganha um aviso amarelo. Responda pelo botão **Responder**: o aviso fica cinza e o aluno ganha "O professor respondeu sua dúvida".
+3. Toque em um aviso: abre a tela certa e ele fica cinza. **Marcar todos como lidos** limpa o contador. Avisos lidos somem depois de 7 dias.
+4. Compra aprovada, pedido de reembolso, conclusão de 50% e certificado também acendem o sino (professor e aluno, conforme o caso).
+5. **Perfil**: preencha a **Data de nascimento** (opcional). Aniversários dos próximos 7 dias aparecem para o professor, e no dia o aluno recebe o parabéns.
+6. **Prazo do acesso**: o aluno é avisado no sino e por e-mail nos dias definidos no curso (padrão 30, 7 e 1). A varredura roda de hora em hora.
 
 ## Como testar a Fase 5 (0.6.0)
 

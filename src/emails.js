@@ -196,6 +196,18 @@ function forumAnswer(cfg, { name, course, lesson, body, postId }) {
   };
 }
 
+function accessExpiring(cfg, { name, course, days, whenLabel }) {
+  const first = esc(String(name).split(' ')[0]);
+  const url = `${cfg.baseUrl}/curso/${course.slug}`;
+  const left = days <= 0 ? 'vence hoje' : days === 1 ? 'vence amanhã' : `vence em ${days} dias`;
+  return {
+    subject: `Seu acesso a "${course.title}" ${left}`, template: 'acesso_vencendo',
+    html: layout({ cfg, title: 'Seu acesso está perto de vencer', intro: `Olá, ${first}. Seu acesso ao curso <b>${esc(course.title)}</b> ${left} (${esc(whenLabel)}).`,
+      bodyHtml: '<p style="margin:12px 0;font-size:14px;line-height:1.6">Aproveite para terminar as aulas e emitir o certificado. Se precisar de mais tempo, você pode renovar o acesso.</p>', cta: { url, label: 'Continuar o curso' } }),
+    text: `Olá, ${name}. Seu acesso a "${course.title}" ${left} (${whenLabel}). Continue em ${url}`,
+  };
+}
+
 function dataRequestDone(cfg, { name, kind, ok, note }) {
   const first = esc(String(name).split(' ')[0]);
   const what = kind === 'delete' ? 'exclusão dos seus dados' : kind === 'export' ? 'cópia dos seus dados' : 'pedido sobre os seus dados';
@@ -207,4 +219,4 @@ function dataRequestDone(cfg, { name, kind, ok, note }) {
   };
 }
 
-module.exports = { forumQuestion, forumAnswer, dataRequestDone, purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };
+module.exports = { accessExpiring, forumQuestion, forumAnswer, dataRequestDone, purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };

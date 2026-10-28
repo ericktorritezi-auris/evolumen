@@ -9,6 +9,7 @@ const sec = require('./security');
 const { audit } = require('./audit');
 const acceptance = require('./acceptance');
 const mailer = require('./mailer');
+const notify = require('./notify');
 const emails = require('./emails');
 const V = require('./validation');
 const authViews = require('./views/auth');
@@ -232,8 +233,8 @@ function build(cfg, app) {
     if (Object.keys(errors).length) return res.status(422).send(await loadProfile(req, res, { errors, values: { ...req.user, ...values } }));
     if (!isAdmin) values.cpf = req.user.cpf; // aluno nunca altera o CPF por aqui
     const changed = Object.keys(values).filter((k) => String(values[k] ?? '') !== String(req.user[k] ?? ''));
-    await db.q(`UPDATE users SET name=$2, phone=$3, cep=$4, state=$5, street=$6, street_number=$7, complement=$8, district=$9, city=$10, cpf=$11, updated_at=now() WHERE id=$1`,
-      [req.user.id, values.name, values.phone, values.cep, values.state, values.street, values.street_number, values.complement, values.district, values.city, values.cpf ?? null]);
+    await db.q(`UPDATE users SET name=$2, phone=$3, cep=$4, state=$5, street=$6, street_number=$7, complement=$8, district=$9, city=$10, cpf=$11, birth_date=$12, updated_at=now() WHERE id=$1`,
+      [req.user.id, values.name, values.phone, values.cep, values.state, values.street, values.street_number, values.complement, values.district, values.city, values.cpf ?? null, values.birth_date]);
     await audit(req, 'profile_updated', { entity: 'user', entityId: req.user.id, meta: { fields: changed } });
     setFlash(res, 'success', 'Dados atualizados.');
     res.redirect(303, '/perfil');
@@ -336,7 +337,8 @@ function build(cfg, app) {
     const newEmail = V.normalizeEmail(req.body.new_email);
     if (req.user.role !== 'student') return res.redirect(303, '/perfil');
     if (!newEmail) return res.status(422).send(appViews.perfilEmail({ ...appCtx(req, res), adminMode: true, errors: { new_email: 'Informe um e-mail válido.' }, newEmail: String(req.body.new_email || '').slice(0, 254) }));
-    await db.q("INSERT INTO data_requests (user_id, type, note) VALUES ($1,'email_change_admin',$2)", [req.user.id, newEmail]);
+    const dr = await db.q("INSERT INTO data_requests (user_id, type, note) VALUES ($1,'email_change_admin',$2) RETURNING id", [req.user.id, newEmail]);
+    await notify.toAdmins({ kind: 'lgpd', title: 'Pedido de troca de e-mail de ' + req.user.name, body: 'Novo e-mail pedido: ' + newEmail, link: '/admin/lgpd', key: 'lgpd:' + dr.rows[0].id, subject: req.user.id });
     await audit(req, 'email_change_admin_requested', { entity: 'user', entityId: req.user.id, meta: { new_email: newEmail } });
     const admins = await db.q("SELECT email FROM users WHERE role = 'admin' AND status = 'active'");
     background(Promise.all(admins.rows.map((a) => mailer.send(cfg, { to: a.email, ...emails.adminEmailRequest(cfg, req.user, newEmail) }))));
@@ -355,6 +357,7 @@ function build(cfg, app) {
     const ins = await db.q("INSERT INTO data_requests (user_id, type) VALUES ($1,'delete') ON CONFLICT DO NOTHING RETURNING id", [req.user.id]);
     if (ins.rowCount) {
       await audit(req, 'data_deletion_requested', { entity: 'user', entityId: req.user.id });
+      await notify.toAdmins({ kind: 'lgpd', title: 'Pedido de exclusão de dados de ' + req.user.name, body: 'Prazo: 15 dias', link: '/admin/lgpd', key: 'lgpd:' + ins.rows[0].id, subject: req.user.id });
     }
     setFlash(res, 'info', 'Pedido de exclusão registrado. O administrador analisa e responde por e-mail.');
     res.redirect(303, '/perfil');

@@ -9,6 +9,7 @@ const Co = require('./community');
 const Set_ = require('./settings');
 const mailer = require('./mailer');
 const emails = require('./emails');
+const notify = require('./notify');
 const { audit } = require('./audit');
 const views = require('./views/community');
 
@@ -43,6 +44,12 @@ function build(cfg, h) {
     try {
       const { post, parent } = await Co.create({ user: req.user, course, lesson, body: req.body.body, parentId: req.body.parent || null });
       await audit(req, 'forum_post', { entity: 'forum_post', entityId: post.id, meta: { course: course.id, lesson: lesson.id, reply: !!parent } });
+      const postLink = `${back}#post-${post.id}`;
+      if (req.user.role === 'student' && !parent) await notify.toAdmins({ kind: 'forum', title: req.user.name + ' fez uma pergunta', body: lesson.title, link: postLink, key: 'forum:' + post.id, subject: req.user.id });
+      if (req.user.role === 'admin' && parent) {
+        await notify.resolveAdmins('forum:' + parent.id);
+        if (parent.user_id !== req.user.id) await notify.add(parent.user_id, { kind: 'forumans', title: 'O professor respondeu sua dúvida', body: lesson.title, link: postLink, key: 'forumans:' + post.id });
+      }
       if (req.user.role === 'student' && !parent && st.notify_questions === '1') {
         const admins = (await db.q("SELECT email FROM users WHERE role = 'admin' AND status = 'active'")).rows;
         for (const a of admins) h.background(mailer.send(cfg, { to: a.email, ...emails.forumQuestion(cfg, { student: req.user, course, lesson, body: post.body, postId: post.id }) }));
@@ -59,7 +66,7 @@ function build(cfg, h) {
     const { course, lesson } = await loadLesson(req);
     if (!course || !lesson) return next();
     const ok = await Co.removeOwn(req.params.id, req.user.id);
-    if (ok) await audit(req, 'forum_post_deleted', { entity: 'forum_post', entityId: req.params.id });
+    if (ok) { await audit(req, 'forum_post_deleted', { entity: 'forum_post', entityId: req.params.id }); await notify.resolveAdmins('forum:' + req.params.id); }
     flashBack(req, res, ok ? 'success' : 'error', ok ? 'Mensagem apagada.' : 'Não foi possível apagar: a mensagem já tem respostas ou não é sua.', `/curso/${course.slug}/aula/${lesson.id}#forum`);
   });
 
@@ -76,6 +83,7 @@ function build(cfg, h) {
     try {
       await Co.saveReview({ userId: req.user.id, courseId: course.id, stars: req.body.stars, nps: req.body.nps, comment: req.body.comment });
       await audit(req, 'course_reviewed', { entity: 'course', entityId: course.id });
+      await notify.toAdmins({ kind: 'review', title: req.user.name + ' avaliou o curso', body: `${course.title} — ${Number(req.body.stars) || ''} estrelas`, link: '/admin/forum', key: `review:${req.user.id}:${course.id}`, subject: req.user.id });
       flashBack(req, res, 'success', 'Obrigado pela sua avaliação!', back);
     } catch (e) { if (e.expose) return flashBack(req, res, 'error', e.message, back); throw e; }
   });
@@ -92,6 +100,8 @@ function build(cfg, h) {
   for (const [path, hidden] of [['ocultar', true], ['mostrar', false]]) {
     r.post(`/admin/forum/:id/${path}`, async (req, res, next) => {
       const p = await Co.setHidden(req.params.id, hidden); if (!p) return next();
+      if (hidden) await notify.resolveAdmins('forum:' + p.id);
+      if (hidden && p.by_admin && p.parent_id) await db.q("UPDATE notifications SET read_at = NULL WHERE ref_key = $1 AND user_id IN (SELECT id FROM users WHERE role = 'admin')", ['forum:' + p.parent_id]);
       await audit(req, hidden ? 'forum_post_hidden' : 'forum_post_shown', { entity: 'forum_post', entityId: p.id });
       flashBack(req, res, 'success', hidden ? 'Mensagem ocultada. Os alunos não a veem mais.' : 'Mensagem visível de novo.', safeBack(req.body.back, '/admin/forum'));
     });
