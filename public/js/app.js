@@ -44,7 +44,7 @@
     var cp = e.target.closest('[data-copy]');
     if (cp) {
       var src = document.getElementById(cp.getAttribute('data-copy')); if (!src) return;
-      var done = function (ok) { var old = cp.getAttribute('data-label') || cp.textContent; cp.setAttribute('data-label', old); cp.textContent = ok ? 'Link copiado' : 'Selecione e copie'; setTimeout(function () { cp.textContent = old; }, 2000); };
+      var done = function (ok) { var old = cp.getAttribute('data-label') || cp.textContent; cp.setAttribute('data-label', old); cp.textContent = ok ? 'Copiado' : 'Selecione e copie'; setTimeout(function () { cp.textContent = old; }, 2000); };
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(src.textContent).then(function () { done(true); }, function () { done(false); });
       else { var r = document.createRange(); r.selectNodeContents(src); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); done(false); }
     }
@@ -53,6 +53,85 @@
     var m = e.target.getAttribute && e.target.getAttribute('data-confirm');
     if (m && !window.confirm(m)) e.preventDefault();
   });
+
+  // Editor visual dos textos legais (sem código): barra de botões, colagem limpa e envio do HTML ao salvar.
+  (function () {
+    var box = document.querySelector('[data-editor]');
+    if (!box) return;
+    var area = box.querySelector('.editor__area'), hidden = box.querySelector('input[name=body_html]'), form = box.closest('form');
+    var OK = { P: 'p', H2: 'h2', H3: 'h3', H4: 'h4', UL: 'ul', OL: 'ol', LI: 'li', STRONG: 'strong', B: 'strong', EM: 'em', I: 'em', U: 'u', BR: 'br', A: 'a', BLOCKQUOTE: 'blockquote', H1: 'h2', H5: 'h4', H6: 'h4', DIV: 'p' };
+    var esc = function (t) { return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+    function clean(node) {
+      var out = '';
+      node.childNodes.forEach(function (n) {
+        if (n.nodeType === 3) { out += esc(n.nodeValue.replace(/ /g, ' ')); return; }
+        if (n.nodeType !== 1) return;
+        var tag = OK[n.tagName];
+        if (/^(SCRIPT|STYLE|META|LINK|TITLE|HEAD|IFRAME|OBJECT|SVG)$/.test(n.tagName)) return;
+        var inner = clean(n);
+        if (!tag) { out += inner; return; }
+        if (tag === 'br') { out += '<br>'; return; }
+        if (tag === 'a') { var h = n.getAttribute('href') || ''; out += /^(https?:\/\/|mailto:)/i.test(h) ? '<a href="' + h.replace(/"/g, '&quot;') + '">' + inner + '</a>' : inner; return; }
+        if (/^(p|h2|h3|h4|li)$/.test(tag) && !inner.replace(/<br>|\s/g, '')) return;
+        out += '<' + tag + '>' + inner + '</' + tag + '>';
+      });
+      return out;
+    }
+    try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch (e) {}
+    function run(cmd) {
+      area.focus();
+      var parts = cmd.split(':');
+      if (parts[0] === 'formatBlock') {
+        var cur = document.queryCommandValue('formatBlock').toLowerCase().replace(/[<>]/g, '');
+        document.execCommand('formatBlock', false, parts[1] === 'p' || cur === parts[1] ? 'p' : parts[1]);
+      } else if (cmd === 'link') {
+        var url = window.prompt('Endereço do link (começa com https://)', 'https://');
+        if (url && /^(https?:\/\/|mailto:)/i.test(url.trim())) document.execCommand('createLink', false, url.trim());
+      } else document.execCommand(cmd, false, null);
+    }
+    box.querySelector('.editor__bar').addEventListener('mousedown', function (e) { if (e.target.closest('[data-cmd]')) e.preventDefault(); });
+    box.querySelector('.editor__bar').addEventListener('click', function (e) { var b = e.target.closest('[data-cmd]'); if (b) run(b.getAttribute('data-cmd')); });
+    area.addEventListener('paste', function (e) {
+      var cd = e.clipboardData; if (!cd) return;
+      e.preventDefault();
+      var h = cd.getData('text/html');
+      if (h) { var doc = new DOMParser().parseFromString(h, 'text/html'); document.execCommand('insertHTML', false, clean(doc.body)); }
+      else document.execCommand('insertText', false, cd.getData('text/plain'));
+    });
+    if (!area.innerHTML.trim()) area.innerHTML = '<p><br></p>';
+    if (form) form.addEventListener('submit', function () { hidden.value = area.innerHTML; });
+  })();
+
+  // Fase 4: página do pedido (consulta o andamento, contagem do Pix e ida ao checkout do cartão).
+  (function () {
+    var box = document.querySelector('[data-order-poll]');
+    if (!box) return;
+    var url = box.getAttribute('data-order-poll'), n = 0, stopped = false;
+    function tick() {
+      if (stopped) return;
+      n++;
+      fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+        if (j && j.status && j.status !== 'pending') { stopped = true; location.reload(); return; }
+        setTimeout(tick, n < 20 ? 4000 : 10000);
+      }).catch(function () { setTimeout(tick, 10000); });
+    }
+    setTimeout(tick, 4000);
+    var left = document.querySelector('[data-pix-left]');
+    if (left && left.getAttribute('data-pix-left')) {
+      var end = new Date(left.getAttribute('data-pix-left')).getTime();
+      var paint = function () {
+        var s = Math.max(0, Math.round((end - Date.now()) / 1000));
+        left.textContent = s > 0 ? 'Vale por mais ' + Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2) + ' minutos.' : 'O Pix venceu. Atualize a página para gerar outro.';
+      };
+      paint(); setInterval(paint, 1000);
+    }
+    var go = document.getElementById('paygo');
+    if (go) {
+      var key = 'paygo:' + url, seen = false;
+      try { seen = sessionStorage.getItem(key) === '1'; sessionStorage.setItem(key, '1'); } catch (e) {}
+      if (!seen) setTimeout(function () { location.href = go.href; }, 900);
+    }
+  })();
 
   // Fase 3: tempo assistido da aula (o player do YouTube informa o tempo tocado; o servidor soma com limite pelo tempo real).
   (function () {
@@ -122,6 +201,11 @@
       [].forEach.call(f.querySelectorAll('[data-kind-box]'), function (b) { b.hidden = b.getAttribute('data-kind-box') !== sel.value; });
     }
     [].forEach.call(document.querySelectorAll('select[name=kind]'), function (s) { sync(s); s.addEventListener('change', function () { sync(s); }); });
+  })();
+  // Cockpit: editar uma data troca o período para "Período livre".
+  (function () {
+    var sel = document.getElementById('periodo'); if (!sel) return;
+    ['de', 'ate'].forEach(function (id) { var el = document.getElementById(id); if (el) el.addEventListener('change', function () { sel.value = 'custom'; }); });
   })();
   if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function () {}); });
 })();

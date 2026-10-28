@@ -118,4 +118,61 @@ function adminEmailRequest(cfg, student, newEmail) {
   };
 }
 
-module.exports = { accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };
+const brl = (c) => (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const first = (n) => esc(String(n).split(' ')[0]);
+
+// Compra aprovada. Conta nova: leva login e senha provisória. Conta existente: só avisa do curso.
+function purchaseApproved(cfg, { name, email, password, course, order, renewal, expiresLabel }) {
+  const url = password ? `${cfg.baseUrl}/entrar` : `${cfg.baseUrl}/curso/${course.slug}`;
+  const intro = renewal ? `Olá, ${first(name)}. Sua renovação do curso <b>${esc(course.title)}</b> foi confirmada.` : `Olá, ${first(name)}. Seu pagamento foi aprovado e o curso <b>${esc(course.title)}</b> já está liberado para você.`;
+  const resumo = `<p style="margin:14px 0 4px;font-size:14px">Valor pago: <b>${brl(order.paid_cents || order.price_cents)}</b></p>${expiresLabel ? `<p style="margin:0 0 4px;font-size:14px">Acesso até: <b>${esc(expiresLabel)}</b></p>` : '<p style="margin:0 0 4px;font-size:14px">Acesso: <b>vitalício</b></p>'}`;
+  const cred = password ? `<p style="margin:14px 0 4px;font-size:14px">Login: <b>${esc(email)}</b></p><p style="margin:0 0 14px;font-size:14px">Senha provisória: <b style="letter-spacing:1px">${esc(password)}</b></p>` : '';
+  return {
+    subject: renewal ? `Renovação confirmada: ${course.title}` : `Pagamento aprovado: ${course.title}`,
+    template: renewal ? 'compra_renovacao' : (password ? 'compra_acesso' : 'compra_curso'),
+    html: layout({ cfg, title: renewal ? 'Renovação confirmada' : 'Pagamento aprovado', intro, bodyHtml: resumo + cred,
+      cta: { url, label: password ? 'Entrar na área de membros' : 'Abrir o curso' },
+      outro: `Você pode pedir reembolso em até ${cfg.refundDays} dias após a compra, em Pagamentos e acessos.${password ? ' No primeiro acesso você escolhe sua própria senha.' : ''}` }),
+    text: `Olá, ${name}. ${renewal ? 'Renovação confirmada' : 'Pagamento aprovado'}: ${course.title}.\nValor: ${brl(order.paid_cents || order.price_cents)}\n${password ? `Login: ${email}\nSenha provisória: ${password}\n` : ''}Acesse: ${url}\nReembolso em até ${cfg.refundDays} dias, em Pagamentos e acessos.`,
+  };
+}
+
+// Pix que venceu sem pagamento: convida a tentar de novo.
+function pixExpired(cfg, { name, course, retryUrl }) {
+  return {
+    subject: `Seu Pix venceu: ${course.title}`, template: 'pix_vencido',
+    html: layout({ cfg, title: 'Seu Pix venceu', intro: `Olá, ${first(name)}. O Pix do curso <b>${esc(course.title)}</b> venceu antes de ser pago. Nada foi cobrado.`,
+      cta: { url: retryUrl, label: 'Tentar de novo' }, outro: 'Se você já pagou, não se preocupe: a confirmação pode levar alguns minutos e o acesso chega por e-mail.' }),
+    text: `Olá, ${name}. O Pix do curso ${course.title} venceu sem pagamento. Nada foi cobrado. Tente de novo: ${retryUrl}`,
+  };
+}
+
+function refundDone(cfg, { name, course, amountCents }) {
+  return {
+    subject: `Reembolso realizado: ${course.title}`, template: 'reembolso_feito',
+    html: layout({ cfg, title: 'Reembolso realizado', intro: `Olá, ${first(name)}. Devolvemos <b>${brl(amountCents)}</b> do curso <b>${esc(course.title)}</b> e o acesso foi encerrado.`,
+      outro: 'O valor volta pela mesma forma de pagamento. O prazo para aparecer na fatura ou na conta depende do banco ou do cartão.' }),
+    text: `Olá, ${name}. Devolvemos ${brl(amountCents)} do curso ${course.title} e o acesso foi encerrado. O prazo para o valor aparecer depende do seu banco ou cartão.`,
+  };
+}
+
+function refundRejected(cfg, { name, course, note }) {
+  return {
+    subject: `Sobre o seu pedido de reembolso: ${course.title}`, template: 'reembolso_recusado',
+    html: layout({ cfg, title: 'Pedido de reembolso analisado', intro: `Olá, ${first(name)}. Analisamos o pedido de reembolso do curso <b>${esc(course.title)}</b> e, desta vez, não foi aprovado.`,
+      bodyHtml: note ? `<p style="margin:12px 0;font-size:14px;line-height:1.6">${esc(note)}</p>` : '', outro: 'Seu acesso ao curso continua normal.' }),
+    text: `Olá, ${name}. O pedido de reembolso do curso ${course.title} não foi aprovado.${note ? ' ' + note : ''} Seu acesso continua normal.`,
+  };
+}
+
+function refundRequested(cfg, { student, course, reason, orderId }) {
+  const url = `${cfg.baseUrl}/admin/vendas/${orderId}`;
+  return {
+    subject: `Pedido de reembolso: ${course.title}`, template: 'reembolso_pedido_admin',
+    html: layout({ cfg, title: 'Novo pedido de reembolso', intro: `<b>${esc(student.name)}</b> (${esc(student.email)}) pediu reembolso do curso <b>${esc(course.title)}</b>.`,
+      bodyHtml: reason ? `<p style="margin:12px 0;font-size:14px;line-height:1.6">Motivo informado: ${esc(reason)}</p>` : '', cta: { url, label: 'Analisar o pedido' } }),
+    text: `${student.name} (${student.email}) pediu reembolso do curso ${course.title}. ${reason || ''}\nAnalisar: ${url}`,
+  };
+}
+
+module.exports = { purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };

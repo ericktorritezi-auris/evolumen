@@ -96,7 +96,7 @@ test('princípio: conta sem matrícula não acessa curso; matrícula cancelada p
   assert.equal((await b.get('/curso/protocolo-essencia')).status, 403, 'cancelada');
   assert.doesNotMatch((await b.get('/meus-cursos')).text, /Protocolo ESSÊNCIA/);
   assert.match((await admin.get('/admin/cortesias')).text, /Cancelada/);
-  assert.match((await b.get('/cursos/protocolo-essencia')).text, /Matrículas em breve/, 'cancelada não aparece como vencida');
+  assert.match((await b.get('/cursos/protocolo-essencia')).text, /Matricular-se/, "cancelada não aparece como vencida");
   await admin.post(`/admin/matriculas/${eid}/reativar`, { to: 'cortesias' }, '/admin/cortesias');
   assert.equal((await b.get('/curso/protocolo-essencia')).status, 200);
   // com progresso a matrícula não se exclui

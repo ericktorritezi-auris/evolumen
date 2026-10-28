@@ -107,7 +107,7 @@ function meter(course, lesson, ov, user) {
   return html`<section class="wmeter${f.unlocked ? ' is-open' : ''}" data-wmeter data-href="${href}">
     <div class="wmeter__top"><span>Tempo assistido desta aula</span><b data-wpct>${pct}%</b></div>
     <div class="bar wmeter__bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span data-wfill style="width:${pct}%"></span><i class="wmeter__mark" aria-hidden="true"></i></div>
-    <p class="small" data-wmsg>${f.unlocked ? html`<b>Prova final liberada!</b> <a href="${href}">Fazer a prova final</a>` : 'A prova final libera quando você assistir mais da metade (50%) desta aula. Deixe o vídeo tocando.'}</p></section>`;
+    <p class="small" data-wmsg>${f.unlocked ? html`<b>Prova final liberada!</b> <a href="${href}">Fazer a prova final</a>` : 'A prova final libera quando você assistir mais da metade (50%) desta aula. Assista sua aula!'}</p></section>`;
 }
 
 function aula({ cfg, user, csrf, flash, course, cur, lesson, flat, progress, access, ov }) {

@@ -3,7 +3,7 @@ const { html } = require('../html');
 const { shellAuth } = require('../layout');
 const { field, csrfInput } = require('./ui');
 
-function login({ cfg, csrf, flash, email = '' }) {
+function login({ cfg, csrf, flash, email = '', next = '' }) {
   const showCourses = cfg.version.phase >= 2;
   return shellAuth({
     cfg, title: 'Entrar', flash,
@@ -14,7 +14,7 @@ function login({ cfg, csrf, flash, email = '' }) {
       <h2 class="t-card">Entrar</h2>
       <p class="muted">Alunos e administrador entram por aqui.</p>
       <form method="post" action="/entrar" class="form" novalidate>
-        ${csrfInput(csrf)}
+        ${csrfInput(csrf)}${next ? html`<input type="hidden" name="next" value="${next}">` : ''}
         ${field({ id: 'email', label: 'E-mail', type: 'email', value: email, autocomplete: 'username', required: true, placeholder: 'nome@email.com' })}
         ${field({ id: 'senha', name: 'password', label: 'Senha', type: 'password', autocomplete: 'current-password', required: true, password: true })}
         <div class="form__aside"><a href="/esqueci-senha">Esqueci minha senha</a></div>

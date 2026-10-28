@@ -69,9 +69,11 @@ function build(cfg, app) {
 
 
   // ---- login e logout ----
+  // Depois do login, só volta para páginas de compra e de curso (nunca para endereços de fora).
+  const safeNext = (v) => { const s = String(v || ''); return /^\/(checkout|cursos|curso)\/[a-z0-9-]{1,80}(\?cupom=[A-Za-z0-9-]{1,30})?$/.test(s) ? s : ''; };
   r.get('/entrar', (req, res) => {
-    if (req.user) return res.redirect(303, home(req.user));
-    res.send(authViews.login(view(req, res)));
+    if (req.user) return res.redirect(303, safeNext(req.query.next) || home(req.user));
+    res.send(authViews.login({ ...view(req, res), next: safeNext(req.query.next) }));
   });
 
   r.post('/entrar', loginLimit, async (req, res) => {
@@ -87,7 +89,7 @@ function build(cfg, app) {
         if (u.rows[0] && u.rows[0].just_locked) await audit(req, 'login_locked', { actor: user, entity: 'user', entityId: user.id });
       }
       await audit(req, 'login_failed', { entity: 'user', entityId: user ? user.id : null, meta: email ? { email } : {} });
-      res.status(401).send(authViews.login({ cfg, csrf: req.csrf, email: email || '', flash: { type: 'error', text: GENERIC_LOGIN_ERROR } }));
+      res.status(401).send(authViews.login({ cfg, csrf: req.csrf, email: email || '', next: safeNext(req.body.next), flash: { type: 'error', text: GENERIC_LOGIN_ERROR } }));
     };
     if (!email || !password || password.length > 200) return fail(null);
     const found = await db.q('SELECT * FROM users WHERE lower(email) = $1', [email]);
@@ -99,7 +101,7 @@ function build(cfg, app) {
     if (req.sessionId) await sec.destroySession(req, res);
     await sec.createSession(cfg, req, res, user.id);
     await audit(req, 'login_success', { actor: user, entity: 'user', entityId: user.id });
-    res.redirect(303, user.must_change_password ? '/primeiro-acesso' : home(user));
+    res.redirect(303, user.must_change_password ? '/primeiro-acesso' : (user.role === 'student' && safeNext(req.body.next)) || home(user));
   });
 
   r.post('/sair', async (req, res) => {
