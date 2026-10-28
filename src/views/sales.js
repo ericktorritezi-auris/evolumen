@@ -182,7 +182,7 @@ function financeiro(ctx, { per, curso, courses, data: d }) {
     <li>Não renovação: matrícula comprada cujo prazo venceu no período e não foi renovada. Prazos que ainda não chegaram não entram.</li>
     <li>Se as devoluções do período vierem de vendas antigas e superarem a base, o churn é limitado a 100%.</li>
     <li>Efetividade = 100% − churn. Conclusão = data de emissão do certificado. Cortesias e matrículas manuais não entram na receita.</li>
-    <li>Os valores são os recebidos; juros de parcelamento pagos pelo comprador entram no valor recebido.</li></ul></details>`;
+    <li>Os valores são o preço do curso. Os juros do parcelamento são pagos pelo aluno e não entram na receita.</li></ul></details>`;
   return shell(ctx, 'Cockpit financeiro', content, '/admin/financeiro');
 }
 

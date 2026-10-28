@@ -10,6 +10,7 @@ const K = require('./coupons');
 const V = require('./validation');
 const mailer = require('./mailer');
 const emails = require('./emails');
+const notify = require('./notify');
 const certs = require('./certificates');
 const payments = require('./payments');
 const { tempPassword } = require('./access');
@@ -166,7 +167,22 @@ async function applyPayment(cfg, bg, orderId, pay, req) {
   for (const [action, meta] of out.audits) await audit(req, action, { entity: 'order', entityId: out.order.id, meta });
   for (const fn of out.after) { try { await fn(); } catch (e) { log.error('pos_pagamento_falhou', { error: e.message }); } }
   for (const m of out.mails) bg(mailer.send(cfg, m));
+  await bell(out);
   return { result: out.result, orderId: out.order.id };
+}
+
+// Campainha depois da transação (melhor esforço).
+async function bell(out) {
+  const o = out.order; const title = out.course ? out.course.title : '';
+  if (out.result === 'aprovado') {
+    const who = (out.user && out.user.name) || (o.buyer && o.buyer.name) || 'Um aluno';
+    await notify.toAdmins({ kind: 'sale', title: who + (o.kind === 'renewal' ? ' renovou o acesso' : ' acabou de comprar'), body: title, link: '/admin/vendas', key: 'sale:' + o.id, subject: out.user ? out.user.id : null });
+    if (out.user) await notify.add(out.user.id, { kind: 'welcome', title: o.kind === 'renewal' ? 'Seu acesso foi renovado' : 'Pagamento confirmado. Bem-vindo!', body: title + ' — comece pela primeira aula.', link: '/curso/' + out.course.slug, key: 'welcome:' + o.id });
+  } else if (out.result === 'refunded' || out.result === 'charged_back') {
+    await notify.resolveRefundsOf(o.id);
+    if (out.result === 'charged_back') await notify.toAdmins({ kind: 'chargeback', title: 'Chargeback recebido', body: title, link: '/admin/vendas', key: 'chargeback:' + o.id, subject: o.user_id });
+    if (o.user_id && out.revokedAccess) await notify.add(o.user_id, { kind: 'refund', title: out.result === 'refunded' ? 'Seu reembolso foi concluído' : 'Pagamento estornado', body: title, link: '/pagamentos', key: 'refunddone:' + o.id });
+  }
 }
 
 // Aprovação: cria a conta (se preciso), grava aceites, cria ou estende a matrícula e registra o uso do cupom. Tudo na mesma transação.
@@ -251,6 +267,7 @@ async function requestRefund(cfg, bg, req, order, reason) {
   const course = await C.byId(order.course_id);
   const rr = await db.q('INSERT INTO refund_requests (order_id, requested_by, reason) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING RETURNING id', [order.id, req.user.id, String(reason || '').trim().slice(0, 500)]);
   if (!rr.rowCount) return false;
+  await notify.toAdmins({ kind: 'refund', title: 'Pedido de reembolso de ' + req.user.name, body: course.title, link: '/admin/vendas', key: 'refund:' + rr.rows[0].id, subject: req.user.id });
   await audit(req, 'refund_requested', { entity: 'order', entityId: order.id, meta: { course: order.course_id } });
   const admins = (await db.q("SELECT email FROM users WHERE role = 'admin' AND status = 'active'")).rows;
   for (const a of admins) bg(mailer.send(cfg, { to: a.email, ...emails.refundRequested(cfg, { student: req.user, course, reason: String(reason || '').trim().slice(0, 500), orderId: order.id }) }));
@@ -282,12 +299,14 @@ async function approveRefund(cfg, bg, req, orderId, { requestId = null, note = '
 }
 
 async function rejectRefund(cfg, bg, req, requestId, note) {
-  const rr = (await db.q("UPDATE refund_requests SET status = 'rejected', decided_by = $2, decided_at = now(), admin_note = $3 WHERE id = $1 AND status = 'requested' RETURNING *", [requestId, req.user.id, String(note || '').slice(0, 300)])).rows[0];
+  const rr = (await db.q("UPDATE refund_requests SET status = 'rejected', decided_by = $2, decided_at = now(), admin_note = $3 WHERE id = $1 AND status IN ('requested','failed') RETURNING *", [requestId, req.user.id, String(note || '').slice(0, 300)])).rows[0];
   if (!rr) return false;
   const o = (await db.q('SELECT * FROM orders WHERE id = $1', [rr.order_id])).rows[0];
   const user = (await db.q('SELECT * FROM users WHERE id = $1', [o.user_id])).rows[0];
   const course = await C.byId(o.course_id);
   await audit(req, 'refund_rejected', { entity: 'order', entityId: o.id });
+  await notify.resolveRefundsOf(rr.order_id);
+  if (user) await notify.add(user.id, { kind: 'refund', title: 'Seu pedido de reembolso foi analisado', body: course.title, link: '/pagamentos', key: 'refundno:' + rr.id });
   if (user) bg(mailer.send(cfg, { to: user.email, ...emails.refundRejected(cfg, { name: user.name, course, note: rr.admin_note }) }));
   return true;
 }

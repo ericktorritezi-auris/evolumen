@@ -4,7 +4,7 @@
 const { html, raw } = require('./html');
 const { menuFor } = require('./nav');
 const { renderFooter } = require('./footer');
-const { brand, icon, mobileHeader } = require('./header');
+const { brand, icon, mobileHeader, bellButton } = require('./header');
 
 function lumen(pose, size, alt = '') {
   return html`<img class="lumen lumen--${pose}" src="/static/img/lumen-${pose}.svg" width="${size}" alt="${alt}">`;
@@ -45,6 +45,26 @@ function flash(f) {
 }
 
 // Tela do app: barra lateral no computador, menu sanduíche por cima da tela no celular.
+const helpFor = (path, role) => { const h = require('./help'); return h.forPath(h.current() || path, role); };
+function bellPanel() {
+  return html`<div class="help bell" id="bell-panel" hidden><div class="help__scrim" data-bell-close></div>
+    <aside class="help__panel" role="dialog" aria-modal="true" aria-labelledby="bell-title">
+      <button type="button" class="icon-btn help__x" data-bell-close aria-label="Fechar avisos">${icon('close', 22)}</button>
+      <h2 class="t-card" id="bell-title">Avisos</h2>
+      <div class="bell__bar"><span class="muted" data-bell-sub>Carregando…</span><button type="button" class="btn btn--ghost btn--sm" data-bell-all hidden>Marcar todos como lidos</button></div>
+      <ul class="bell__list" data-bell-list></ul>
+    </aside></div>`;
+}
+function helpPanel(hp) {
+  return html`<div class="help" id="help-panel" hidden><div class="help__scrim" data-help-close></div>
+    <aside class="help__panel" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <button type="button" class="icon-btn help__x" data-help-close aria-label="Fechar ajuda">${icon('close', 22)}</button>
+      <div class="help__who">${lumen('guia', 72)}<div><span class="eyebrow">Ajuda da Lumen</span><h2 class="t-card" id="help-title">${hp ? hp.title : 'Como posso ajudar?'}</h2></div></div>
+      ${hp ? html`<ol class="help__steps">${hp.steps.map((x) => html`<li>${x}</li>`)}</ol>` : html`<p class="muted">Não tenho um passo a passo para esta tela, mas a página de Ajuda tem tudo.</p>`}
+      <p><a class="btn btn--outline btn--sm" href="/ajuda">Ver todas as ajudas e perguntas</a></p>
+    </aside></div>`;
+}
+
 function shellApp({ cfg, user, path, title, content, flash: f, csrf }) {
   const area = user.role === 'admin' ? 'admin' : 'aluno';
   const items = menuFor(area, path, cfg.version.phase);
@@ -52,6 +72,7 @@ function shellApp({ cfg, user, path, title, content, flash: f, csrf }) {
   const links = items.map((i) => html`<a href="${i.href}" class="nav__item${i.active ? ' is-active' : ''}"${i.active ? raw(' aria-current="page"') : ''}>${icon(i.icon, 20)}<span>${i.label}</span></a>`);
   const logoutForm = (cls) => html`<form method="post" action="/sair" class="${cls}"><input type="hidden" name="_csrf" value="${csrf}"><button type="submit" class="nav__item nav__item--btn">${icon('out', 20)}<span>Sair</span></button></form>`;
   const mascot = area === 'aluno' && user.mascot_enabled;
+  const hp = helpFor(path, user.role);
   const body = html`
 <div class="app">
   <aside class="sidebar" aria-label="Menu">
@@ -59,7 +80,7 @@ function shellApp({ cfg, user, path, title, content, flash: f, csrf }) {
     <nav class="nav" aria-label="${area === 'admin' ? 'Painel do administrador' : 'Área do aluno'}">${links}${logoutForm('nav__logout')}</nav>
     ${mascot ? html`<div class="sidebar__lumen">${lumen('ola', 64)}<p>Oi! Eu sou a Lumen. Estou por aqui.</p></div>` : ''}
   </aside>
-  ${mobileHeader({ area })}
+  ${mobileHeader({ area, help: true, bell: csrf })}
   <div class="menu-overlay" id="menu-overlay" hidden>
     <div class="menu-overlay__scrim" data-menu-close></div>
     <aside class="menu-overlay__panel" role="dialog" aria-modal="true" aria-label="Menu">
@@ -70,10 +91,12 @@ function shellApp({ cfg, user, path, title, content, flash: f, csrf }) {
     </aside>
   </div>
   <main class="main" id="conteudo">
-    <div class="topbar"><span>Olá, ${user.name.split(' ')[0]}</span></div>
+    <div class="topbar"><span>Olá, ${user.name.split(' ')[0]}</span><span class="topbar__btns">${bellButton(csrf)}<button type="button" class="help-btn" data-help-open aria-haspopup="dialog" aria-label="Ajuda desta tela">?</button></span></div>
     ${flash(f)}
     ${content}
   </main>
+  ${helpPanel(hp)}
+  ${bellPanel()}
   ${renderFooter(cfg)}
 </div>`;
   return documentShell({ cfg, title, body });

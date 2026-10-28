@@ -46,7 +46,7 @@ function build(cfg, h) {
     const total = (await db.q(`SELECT count(*)::int AS n FROM orders o WHERE ${where}`, p)).rows[0].n;
     const pages = Math.max(1, Math.ceil(total / PAGE));
     const rows = (await db.q(`SELECT o.*, c.title AS course_title, cp.code AS coupon_code FROM orders o JOIN courses c ON c.id = o.course_id LEFT JOIN coupons cp ON cp.id = o.coupon_id WHERE ${where} ORDER BY o.created_at DESC, o.id DESC LIMIT ${PAGE} OFFSET ${(Math.min(page, pages) - 1) * PAGE}`, p)).rows;
-    const kpi = (await db.q(`SELECT count(*) FILTER (WHERE status = 'approved')::int AS approved, COALESCE(sum(COALESCE(paid_cents, price_cents)) FILTER (WHERE status = 'approved'), 0)::bigint AS paid,
+    const kpi = (await db.q(`SELECT count(*) FILTER (WHERE status = 'approved')::int AS approved, COALESCE(sum(price_cents) FILTER (WHERE status = 'approved'), 0)::bigint AS paid,
       count(*) FILTER (WHERE status = 'pending')::int AS pending, count(*) FILTER (WHERE status IN ('refunded','charged_back'))::int AS refunded FROM orders`)).rows[0];
     kpi.paid = Number(kpi.paid);
     const requests = (await db.q(`SELECT rr.*, o.price_cents, o.paid_cents, o.buyer->>'email' AS email, COALESCE(u.name, o.buyer->>'name') AS student_name, c.title AS course_title

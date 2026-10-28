@@ -95,6 +95,15 @@ test('revisão: título de curso com HTML sai escapado na tela', async () => {
   await q("UPDATE courses SET title = 'Curso Um' WHERE id = $1", [c1]);
 });
 
+test('juros do parcelamento não entram na receita', async () => {
+  const u = (await makeStudent(t, { email: 'juros@example.com' })).id;
+  await order({ course: c2, user: u, cents: 20000, method: 'card' });
+  await q("UPDATE orders SET paid_cents = 23500, installments = 6 WHERE price_cents = 20000");
+  const d = await F.summary(F.period({ periodo: '30d' }), c2);
+  assert.equal(d.sales.gross, 5000 + 20000, 'vale o preço do curso, não o valor com juros');
+  await q("DELETE FROM orders WHERE price_cents = 20000");
+});
+
 test('filtro por curso e período vazio', async () => {
   const d = await F.summary(F.period({ periodo: '30d' }), c2);
   assert.equal(d.sales.n, 1); assert.equal(d.sales.gross, 5000); assert.equal(d.refunds.n, 0); assert.equal(d.nonRenewals, 1);

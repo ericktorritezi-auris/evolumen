@@ -5,6 +5,7 @@ const path = require('path');
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
 const db = require('./db');
+const notify = require('./notify');
 const A = require('./assess');
 
 const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -43,7 +44,12 @@ async function maybeIssue(userId, course) {
       const r = await db.q(`INSERT INTO certificates (code, user_id, course_id, student_name, course_title, hours, body_text, signer, signer_role, final_score, issued_at)
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (user_id, course_id) DO NOTHING RETURNING *`,
       [newCode(), userId, course.id, user.name, fresh.title, fresh.cert_hours, body, fresh.cert_signer || DEFAULT_SIGNER, fresh.cert_signer_role || DEFAULT_ROLE, ov.final ? ov.final.best : null, issued]);
-      return r.rows[0] || null;
+      const row = r.rows[0] || null;
+      if (row) {
+        await notify.add(userId, { kind: 'cert', title: 'Seu certificado está pronto!', body: fresh.title, link: '/certificados', key: 'cert:' + row.id });
+        await notify.toAdmins({ kind: 'done', title: user.name + ' concluiu o curso', body: fresh.title, link: '/admin/alunos', key: 'done:' + row.id, subject: userId });
+      }
+      return row;
     } catch (e) { if (e.code !== '23505') throw e; }
   }
   return null;

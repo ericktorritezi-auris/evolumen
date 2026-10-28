@@ -5,6 +5,7 @@
 //  - Churn = (reembolsos + chargebacks + não renovações) ÷ (novas compras + renovações + não renovações).
 //    "Não renovação" = matrícula comprada cujo prazo venceu dentro do período e não foi renovada. Prazos que ainda não chegaram não contam.
 //  - Efetividade = 100% − churn.
+//  - Valores = preço do curso (sem juros do parcelamento, que o aluno paga).
 //  - Conclusão = data de emissão do certificado.
 const db = require('./db');
 
@@ -39,7 +40,7 @@ async function summary({ from, to }, courseId, now = new Date()) {
   // início e fim (exclusivo) em horário de Brasília
   const S = "($1::date)::timestamp AT TIME ZONE 'America/Sao_Paulo'";
   const E = "(($2::date) + 1)::timestamp AT TIME ZONE 'America/Sao_Paulo'";
-  const money = 'COALESCE(o.paid_cents, o.price_cents)';
+  const money = 'o.price_cents'; // preço do curso: os juros do parcelamento são do aluno e não são receita
   const crs = 'AND ($3::bigint IS NULL OR o.course_id = $3::bigint)';
 
   const sales = (await db.q(`SELECT count(*)::int AS n, COALESCE(sum(${money}),0)::bigint AS gross,

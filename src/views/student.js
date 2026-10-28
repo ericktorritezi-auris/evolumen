@@ -2,6 +2,7 @@
 const { html, raw } = require('../html');
 const { shellApp, lumen } = require('../layout');
 const { icon } = require('../header');
+const { forumSection, reviewCard } = require('./community');
 const { csrfInput } = require('./ui');
 const { coverBox, dur, plural } = require('./public');
 const files = require('../files');
@@ -84,7 +85,7 @@ function examCard(course, ov) {
   </section>`;
 }
 
-function cursoHome({ cfg, user, csrf, flash, course, cur, progress, next, access, ov }) {
+function cursoHome({ cfg, user, csrf, flash, course, cur, progress, next, access, ov, review }) {
   const content = html`<a class="back" href="${navPath(user)}">← ${user.role === 'admin' ? 'Cursos' : 'Meus cursos'}</a>
   ${user.role === 'admin' ? html`<div class="alert alert--info">Você está vendo como administrador. Seu progresso aqui é de teste.</div>` : ''}
   ${titleRow(course.title, course.summary)}
@@ -93,6 +94,7 @@ function cursoHome({ cfg, user, csrf, flash, course, cur, progress, next, access
     <p class="muted small">${access.expires_at ? 'Acesso até ' + fmtDate(access.expires_at) : 'Acesso vitalício'}</p></div>
     ${next ? html`<a class="btn btn--primary" href="/curso/${course.slug}/aula/${next.id}">${progress.count ? 'Continuar' : 'Começar o curso'}</a>` : ''}</div></section>
   ${ov && user.role !== 'admin' ? examCard(course, ov) : ''}
+  ${review ? reviewCard({ csrf, course, review: review.id ? review : null }) : ''}
   ${cur.length ? html`<h2 class="t-card">Conteúdo do curso</h2>${curriculumList(course, cur, { progress, current: null, ov, admin: user.role === 'admin' })}`
     : html`<section class="card empty">${lumen('pensa', 90)}<p class="muted">O conteúdo deste curso está sendo preparado.</p></section>`}`;
   return shellApp({ cfg, user, csrf, flash, path: navPath(user), title: course.title, content });
@@ -110,7 +112,7 @@ function meter(course, lesson, ov, user) {
     <p class="small" data-wmsg>${f.unlocked ? html`<b>Prova final liberada!</b> <a href="${href}">Fazer a prova final</a>` : 'A prova final libera quando você assistir mais da metade (50%) desta aula. Assista sua aula!'}</p></section>`;
 }
 
-function aula({ cfg, user, csrf, flash, course, cur, lesson, flat, progress, access, ov }) {
+function aula({ cfg, user, csrf, flash, course, cur, lesson, flat, progress, access, ov, forum }) {
   const idx = flat.findIndex((l) => l.id === lesson.id);
   const prev = flat[idx - 1]; const next = flat[idx + 1];
   const done = progress.done.has(String(lesson.id));
@@ -136,6 +138,7 @@ function aula({ cfg, user, csrf, flash, course, cur, lesson, flat, progress, acc
       ${lesson.files.length ? html`<section class="blk"><h2 class="t-card">Apostilas e materiais · ${lesson.files.length}</h2>
         <ul class="dl">${lesson.files.map((f) => html`<li>${icon('file', 20)}<div><b>${f.label}</b><span class="muted small">${f.filename} · ${files.humanSize(f.size_bytes)}</span></div>
           <a class="btn btn--outline btn--sm" href="/arquivos/${f.file_id}">${icon('download', 16)} Baixar</a></li>`)}</ul></section>` : ''}
+      ${forum ? forumSection({ csrf, user, course, lesson, posts: forum.posts, enabled: forum.enabled }) : ''}
     </div>
     <aside class="lesson__side"><div class="card"><span class="eyebrow">Seu progresso</span><p class="muted small">${progress.pct}% concluído</p>${bar(progress.pct)}</div>
       <h2 class="t-card">Conteúdo do curso</h2>${curriculumList(course, cur, { progress, current: lesson, ov, admin: user.role === 'admin' })}</aside>

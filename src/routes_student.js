@@ -8,6 +8,9 @@ const A = require('./assess');
 const certs = require('./certificates');
 const { audit } = require('./audit');
 const views = require('./views/student');
+const Co = require('./community');
+const Set_ = require('./settings');
+const notify = require('./notify');
 
 function build(cfg, h) {
   const r = express.Router();
@@ -44,7 +47,8 @@ function build(cfg, h) {
     const ov = await A.overview(req.user.id, course);
     const open = (l) => isAdmin || !A.lessonLocked(ov, l.module_id);
     const next_ = C.flatLessons(cur).find((l) => open(l) && !progress.done.has(String(l.id))) || C.flatLessons(cur).find(open);
-    res.send(views.cursoHome({ ...h.appCtx(req, res), course, cur, progress, next: next_, access, ov }));
+    const review = !isAdmin && ov && ov.cert && ov.cert.issued ? (await Co.reviewOf(req.user.id, course.id)) || {} : null;
+    res.send(views.cursoHome({ ...h.appCtx(req, res), course, cur, progress, next: next_, access, ov, review }));
   });
 
   r.get('/curso/:slug/aula/:lessonId', ...guard, async (req, res, next) => {
@@ -57,7 +61,9 @@ function build(cfg, h) {
     const progress = await C.progressFor(req.user.id, course.id);
     const ov = await A.overview(req.user.id, course);
     if (req.user.role !== 'admin' && A.lessonLocked(ov, lesson.module_id)) { h.setFlash(res, 'info', `Passe no quiz do módulo “${ov.modules[lesson.module_id].blockedBy.title}” para avançar.`); return res.redirect(303, `/curso/${course.slug}`); }
-    res.send(views.aula({ ...h.appCtx(req, res), course, cur, lesson, flat, progress, access, ov }));
+    const st = await Set_.all();
+    const posts = st.forum_enabled === '1' ? await Co.listLesson(lesson.id, { admin: req.user.role === 'admin' }) : [];
+    res.send(views.aula({ ...h.appCtx(req, res), course, cur, lesson, flat, progress, access, ov, forum: { enabled: st.forum_enabled === '1', posts } }));
   });
 
   r.post('/curso/:slug/aula/:lessonId/concluir', ...guard, async (req, res, next) => {
@@ -76,6 +82,11 @@ function build(cfg, h) {
     const i = flat.findIndex((x) => x.id === l.rows[0].id);
     const nxt = req.body.done === '1' ? flat[i + 1] : null;
     let msg = req.body.done === '1' ? 'Aula concluída.' : 'Aula desmarcada.';
+    if (req.body.done === '1' && req.user.role === 'student') {
+      const pr = (await db.q(`SELECT count(*)::int AS total, count(p.lesson_id)::int AS done FROM lessons l LEFT JOIN lesson_progress p ON p.lesson_id = l.id AND p.user_id = $2 WHERE l.course_id = $1 AND ${C.LIVE}`, [course.id, req.user.id])).rows[0];
+      if (pr.total >= 2 && pr.done * 2 >= pr.total) await notify.toAdmins({ kind: 'progress', title: req.user.name + ' chegou a 50% do curso', body: course.title, link: '/admin/alunos', key: `p50:${req.user.id}:${course.id}`, subject: req.user.id });
+      if (pr.total >= 1 && pr.done >= pr.total) await notify.toAdmins({ kind: 'progress', title: req.user.name + ' assistiu todas as aulas', body: course.title, link: '/admin/alunos', key: `p100:${req.user.id}:${course.id}`, subject: req.user.id });
+    }
     if (req.body.done === '1' && req.user.role === 'student') {
       const c = await certs.maybeIssue(req.user.id, course);
       if (c) { await audit(req, 'certificate_issued', { entity: 'certificate', entityId: c.id, meta: { code: c.code, course: course.id } }); msg = 'Parabéns! Seu certificado foi emitido. Veja em Certificados.'; }
