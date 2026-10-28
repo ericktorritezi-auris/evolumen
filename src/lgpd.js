@@ -24,7 +24,9 @@ async function exportFor(userId) {
     aulas_concluidas: await q('SELECT l.title AS aula, p.completed_at FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = $1 ORDER BY p.completed_at'),
     avisos_da_campainha: await q('SELECT kind, title, body, created_at, read_at FROM notifications WHERE user_id = $1 ORDER BY id'),
     mensagens_do_forum: await q('SELECT lesson_id, body, status, created_at FROM forum_posts WHERE user_id = $1 ORDER BY id'),
-    avaliacoes_de_cursos: await q('SELECT course_id, stars, nps, comment, created_at, updated_at FROM course_reviews WHERE user_id = $1 ORDER BY id'),
+    avaliacoes_de_cursos: await q('SELECT course_id, stars, nps, comment, consent_publish, published, created_at, updated_at FROM course_reviews WHERE user_id = $1 ORDER BY id'),
+    pedidos_de_download: await q('SELECT file_id, course_id, reason, status, response, created_at, decided_at FROM download_requests WHERE user_id = $1 ORDER BY id'),
+    downloads_de_arquivos: await q('SELECT file_id, used, extra, last_at FROM file_quota WHERE user_id = $1'),
     registro_de_atividade: await q('SELECT at, action, ip FROM audit_log WHERE actor_user_id = $1 ORDER BY id'),
   };
 }
@@ -48,7 +50,9 @@ async function anonymize(userId, client) {
     await c.query('UPDATE email_log SET to_email = $2 WHERE lower(to_email) = lower($1)', [u.email, `removido-${userId}@removido.invalid`]);
     await c.query("UPDATE data_requests SET note = NULL WHERE user_id = $1 AND type = 'email_change_admin'", [userId]);
     await c.query("UPDATE webhook_events w SET payload = '{}'::jsonb FROM orders o WHERE o.user_id = $1 AND w.provider = o.provider AND w.payment_id = o.provider_payment_id", [userId]);
-    await c.query("UPDATE course_reviews SET comment = '' WHERE user_id = $1", [userId]);
+    await c.query("UPDATE download_requests SET reason = '[removido a pedido do titular]', response = '', status = CASE WHEN status = 'pending' THEN 'denied' ELSE status END, decided_at = COALESCE(decided_at, now()) WHERE user_id = $1", [userId]);
+    await c.query('DELETE FROM file_quota WHERE user_id = $1', [userId]);
+    await c.query("UPDATE course_reviews SET comment = '', consent_publish = false, published = false, published_at = NULL WHERE user_id = $1", [userId]);
     return true;
   });
 }

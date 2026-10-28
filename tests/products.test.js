@@ -16,7 +16,7 @@ const PDF = Buffer.from('%PDF-1.4\n' + 'texto do e-book '.repeat(50));
 const ZIP = Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.alloc(3000, 7)]);
 const MP3 = Buffer.concat([Buffer.from('ID3'), Buffer.alloc(2000, 1)]);
 const flash = async (r) => { const b = new Browser(t.base); b.cookies = r.cookies; return r.text; };
-const form = (o = {}) => ({ product_type: 'download', title: 'E-book Calma', slug, summary: 'Guia prático.', description: 'Um guia.', category: 'E-book', price: '39,90', access_type: 'lifetime', max_installments: '12', sort_order: '5', publish: '1', ...o });
+const form = (o = {}) => ({ product_type: 'download', title: 'E-book Calma', slug, summary: 'Guia prático.', description: 'Um guia.', category: 'E-book', price: '39,90', access_type: 'lifetime', max_installments: '12', sort_order: '5', ...o });
 const up = (b, file, fields = {}) => b.upload(`/admin/cursos/${pid}/arquivos`, fields, file, { csrfFrom: `/admin/cursos/${pid}/arquivos` });
 async function loginAs(u) { const b = new Browser(t.base); const r = await b.login(u.email, u.password); assert.equal(r.status, 303); return b; }
 
@@ -35,6 +35,9 @@ test('novo cadastro: primeiro escolhe o tipo; produto digital não tem nível, m
   assert.match(f.text, /Novo produto digital/); assert.match(f.text, /name="product_type" value="download"/);
   assert.doesNotMatch(f.text, /Pré-requisitos|Carga horária|Público-alvo/);
   const c = await admin.get('/admin/cursos/novo?tipo=curso'); assert.match(c.text, /Pré-requisitos/); assert.match(c.text, /value="course"/);
+  // produto novo não nasce publicado (ainda não tem arquivos)
+  const bad = await admin.post('/admin/cursos', form({ publish: '1', slug: 'sem-arquivos' }), '/admin/cursos/novo?tipo=arquivos');
+  assert.equal(bad.status, 422); assert.match(bad.text, /ainda não tem arquivos/); assert.equal((await q("SELECT count(*)::int n FROM courses WHERE slug='sem-arquivos'")).rows[0].n, 0);
   const r = await admin.post('/admin/cursos', form({ level: 'avancado', target_audience: 'ignorado' }), '/admin/cursos/novo?tipo=arquivos');
   assert.equal(r.status, 303, r.text.slice(0, 200)); assert.match(r.location, /\/admin\/cursos\/\d+\/arquivos$/);
   const row = (await q('SELECT * FROM courses WHERE slug=$1', [slug])).rows[0]; pid = row.id;
@@ -46,6 +49,9 @@ test('novo cadastro: primeiro escolhe o tipo; produto digital não tem nível, m
   assert.equal((await q("SELECT product_type FROM courses WHERE slug='curso-comum'")).rows[0].product_type, 'course');
   const list = await admin.get('/admin/cursos'); assert.match(list.text, /Produto digital/); assert.match(list.text, /Curso comum/);
   // editar mantém o tipo e o nível
+  const noFiles = await admin.post(`/admin/cursos/${pid}`, form({ publish: '1', title: 'E-book Calma 2' }), `/admin/cursos/${pid}`);
+  assert.equal(noFiles.status, 422); assert.match(noFiles.text, /ainda não tem arquivos/);
+  assert.equal((await q('SELECT status FROM courses WHERE id=$1', [pid])).rows[0].status, 'draft');
   const ed = await admin.post(`/admin/cursos/${pid}`, form({ level: 'avancado', title: 'E-book Calma 2' }), `/admin/cursos/${pid}`);
   assert.equal(ed.status, 303); const r2 = (await q('SELECT * FROM courses WHERE id=$1', [pid])).rows[0]; assert.equal(r2.product_type, 'download'); assert.equal(r2.level, 'nao_se_aplica'); assert.equal(r2.title, 'E-book Calma 2');
 });
@@ -64,6 +70,9 @@ test('envio: banco ou volume, tipo real conferido, arquivo no volume vai para o 
   for (const r of rows.slice(1)) { assert.equal(r.storage, 'volume'); assert.equal(r.data, null); assert.ok(fs.existsSync(path.join(dir, 'files', r.path)), 'arquivo está no volume'); }
   assert.equal(fs.statSync(path.join(dir, 'files', rows[1].path)).size, ZIP.length);
   assert.equal(fs.readdirSync(path.join(dir, 'tmp')).length, 0, 'sem sobra de arquivo temporário');
+  // com arquivos, pode publicar
+  const pubr = await admin.post(`/admin/cursos/${pid}`, form({ publish: '1', title: 'E-book Calma 2' }), `/admin/cursos/${pid}`);
+  assert.equal(pubr.status, 303); assert.equal((await q('SELECT status FROM courses WHERE id=$1', [pid])).rows[0].status, 'published');
   // recusas
   const bad = [['virus.exe', Buffer.from('MZ')], ['falso.mp3', Buffer.from('não sou áudio de verdade')], ['falso.pdf', ZIP]];
   for (const [name, buffer] of bad) {
@@ -136,22 +145,28 @@ test('arquivo de apostila de curso também pode ir para o volume', async () => {
   assert.equal((await q("SELECT storage FROM files f JOIN lesson_files lf ON lf.file_id=f.id WHERE lf.label='Pequena'")).rows[0].storage, 'db');
 });
 
-test('atualização: avisa compradores no sino e por e-mail, uma vez por alteração', async () => {
+test('aviso de novidade: campainha por padrão, e-mail só se marcar, sem envio duplo', async () => {
   mailer.memory.length = 0;
-  const to = `/admin/cursos/${pid}/avisar-atualizacao`;
-  const r = await admin.post(to, {}, `/admin/cursos/${pid}/arquivos`); assert.equal(r.status, 303);
+  const to = `/admin/cursos/${pid}/avisar`; const tk = 'aa11bb22cc33dd44';
+  const curta = await admin.post(to, { message: 'oi', token: tk }, `/admin/cursos/${pid}/arquivos`); assert.equal(curta.status, 303);
+  assert.equal((await q("SELECT count(*)::int n FROM notifications WHERE kind='update'")).rows[0].n, 0, 'texto curto não envia');
+  const r = await admin.post(to, { message: 'Nova versão do e-book com o capítulo 7.', token: tk }, `/admin/cursos/${pid}/arquivos`); assert.equal(r.status, 303);
   await t.app.locals.idle();
   const feed = JSON.parse((await anaB.get('/notificacoes.json')).text);
-  assert.ok(feed.items.find((x) => /Atualização: E-book Calma 2/.test(x.title)), 'sino da compradora');
-  assert.ok(mailer.memory.find((m) => m.to === 'ana@example.com' && /Atualização disponível/.test(m.subject)), 'e-mail');
-  const again = await admin.post(to, {}, `/admin/cursos/${pid}/arquivos`); assert.equal(again.status, 303); await t.app.locals.idle();
-  assert.equal(mailer.memory.filter((m) => /Atualização disponível/.test(m.subject)).length, 1, 'não repete');
-  assert.equal((await q("SELECT count(*)::int n FROM notifications WHERE user_id=$1 AND kind='update'", [ana.id])).rows[0].n, 1);
+  const item = feed.items.find((x) => /Novidade: E-book Calma 2/.test(x.title)); assert.ok(item, 'sino da compradora'); assert.match(item.body, /capítulo 7/);
+  assert.equal(mailer.memory.filter((m) => /Novidade/.test(m.subject)).length, 0, 'sem e-mail por padrão');
+  const dup = await admin.post(to, { message: 'Nova versão do e-book com o capítulo 7.', token: tk }, `/admin/cursos/${pid}/arquivos`); assert.equal(dup.status, 303);
+  assert.equal((await q("SELECT count(*)::int n FROM notifications WHERE user_id=$1 AND kind='update'", [ana.id])).rows[0].n, 1, 'mesmo token não repete');
   assert.equal(JSON.parse((await outB.get('/notificacoes.json')).text).items.length, 0, 'quem não comprou não é avisado');
-  // nova alteração libera novo aviso
-  await q('UPDATE courses SET files_updated_at = now() + interval \'5 seconds\' WHERE id=$1', [pid]);
-  await admin.post(to, {}, `/admin/cursos/${pid}/arquivos`);
+  // com e-mail marcado
+  await admin.post(to, { message: 'Áudio novo na pasta.', token: 'ee55ff66aa77bb88', email: '1' }, `/admin/cursos/${pid}/arquivos`); await t.app.locals.idle();
+  assert.ok(mailer.memory.find((m) => m.to === 'ana@example.com' && /Novidade: E-book Calma 2/.test(m.subject)), 'e-mail quando marcado');
   assert.equal((await q("SELECT count(*)::int n FROM notifications WHERE user_id=$1 AND kind='update'", [ana.id])).rows[0].n, 2);
+  // token inválido não envia
+  const badT = await admin.post(to, { message: 'Algo novo aqui.', token: 'x' }, `/admin/cursos/${pid}/arquivos`); assert.equal(badT.status, 303);
+  assert.equal((await q("SELECT count(*)::int n FROM notifications WHERE user_id=$1 AND kind='update'", [ana.id])).rows[0].n, 2);
+  // a aba de compradores também traz o aviso
+  assert.match((await admin.get(`/admin/cursos/${pid}/matriculas`)).text, /Enviar aviso/);
 });
 
 test('lembretes de estudo ignoram produto digital; cockpit filtra por tipo', async () => {

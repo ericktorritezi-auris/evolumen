@@ -121,7 +121,7 @@ function build(cfg, h) {
     const going = [];
     if (req.user.role === 'student') {
       for (const c of await C.myCourses(req.user.id)) {
-        if (have.has(String(c.id))) continue;
+        if (c.product_type === 'download' || have.has(String(c.id))) continue; // produto digital não tem certificado
         going.push({ ...c, cert: (await A.overview(req.user.id, c)).cert });
       }
     }

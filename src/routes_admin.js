@@ -69,6 +69,7 @@ function build(cfg, h) {
     const tipo = req.body.product_type === 'download' ? 'download' : 'course';
     const { errors, values } = C.parseCourse(req.body, tipo);
     if (!errors.slug && await slugTaken(values.slug)) errors.slug = 'Já existe um curso com este endereço.';
+    if (tipo === 'download' && values.publish) errors.publish = 'Um produto novo ainda não tem arquivos. Salve como rascunho, envie os arquivos e depois publique.';
     if (Object.keys(errors).length) return res.status(422).send(views.cursoForm(ctx(req, res, { raw: req.body, tipo }), { values, errors }));
     const v = saveValues(values);
     const cols = [...COLS, 'product_type'];
@@ -87,6 +88,7 @@ function build(cfg, h) {
     const course = await courseOr404(req, next); if (!course) return;
     const { errors, values } = C.parseCourse(req.body, C.typeOf(course));
     if (!errors.slug && await slugTaken(values.slug, course.id)) errors.slug = 'Já existe um curso com este endereço.';
+    if (C.typeOf(course) === 'download' && values.publish && !(await C.productFiles(course.id)).length) errors.publish = 'Este produto ainda não tem arquivos. Envie ao menos um na aba Arquivos antes de publicar.';
     if (Object.keys(errors).length) return res.status(422).send(views.cursoForm(ctx(req, res, { raw: req.body }), { course, values, errors }));
     const v = saveValues(values, course);
     await db.q(`UPDATE courses SET ${COLS.map((c, i) => `${c} = $${i + 2}`).join(', ')}, updated_at = now() WHERE id = $1`, [course.id, ...COLS.map((c) => colVal(v, c))]);
@@ -186,21 +188,25 @@ function build(cfg, h) {
       });
     });
   });
-  // Avisa quem já comprou que há arquivos novos ou trocados (sino e e-mail). Uma vez por alteração.
-  r.post('/admin/cursos/:id/avisar-atualizacao', async (req, res, next) => {
-    const course = await downloadOr404(req, res, next); if (!course) return;
-    const to = `/admin/cursos/${course.id}/arquivos`;
-    if (!course.files_updated_at) return flashBack(req, res, 'info', 'Envie ou troque um arquivo antes de avisar os compradores.', to);
-    const key = `upd:${course.id}:${Math.floor(new Date(course.files_updated_at).getTime() / 1000)}`;
+  // Aviso de novidade para quem tem acesso (curso ou produto). Campainha sempre; e-mail só se marcado. O token do formulário impede envio duplo.
+  r.post('/admin/cursos/:id/avisar', async (req, res, next) => {
+    const course = await courseOr404(req, next); if (!course) return;
+    const isDl = C.typeOf(course) === 'download';
+    const to = req.body.to === 'arquivos' && isDl ? `/admin/cursos/${course.id}/arquivos` : `/admin/cursos/${course.id}/matriculas`;
+    const message = String(req.body.message || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+    if (message.length < 5) return flashBack(req, res, 'error', 'Escreva em uma frase o que há de novo (pelo menos 5 letras).', to);
+    if (!/^[a-f0-9]{8,32}$/.test(String(req.body.token || ''))) return flashBack(req, res, 'error', 'O formulário expirou. Tente de novo.', to);
+    const key = `news:${course.id}:${req.body.token}`;
+    const withEmail = req.body.email === '1';
     const people = (await db.q(`SELECT u.id, u.name, u.email FROM enrollments e JOIN users u ON u.id = e.user_id
-      WHERE e.course_id = $1 AND e.status = 'active' AND (e.expires_at IS NULL OR e.expires_at > now()) AND u.status = 'active' AND u.role = 'student'`, [course.id])).rows;
+      WHERE e.course_id = $1 AND e.status = 'active' AND e.starts_at <= now() AND (e.expires_at IS NULL OR e.expires_at > now()) AND u.status = 'active' AND u.role = 'student'`, [course.id])).rows;
     let n = 0;
     for (const u of people) {
-      const id = await notify.add(u.id, { kind: 'update', title: `Atualização: ${course.title}`, body: 'Há arquivos novos ou atualizados para baixar.', link: `/curso/${course.slug}`, key });
-      if (id) { n++; h.background(mailer.send(cfg, { to: u.email, ...emails.productUpdated(cfg, { name: u.name, product: course }) })); }
+      const id = await notify.add(u.id, { kind: 'update', title: `Novidade: ${course.title}`, body: message, link: `/curso/${course.slug}`, key });
+      if (id) { n++; if (withEmail) h.background(mailer.send(cfg, { to: u.email, ...emails.courseNews(cfg, { name: u.name, course, message }) })); }
     }
-    await audit(req, 'product_update_announced', { entity: 'course', entityId: course.id, meta: { avisados: n } });
-    flashBack(req, res, 'success', n ? `${n} ${n === 1 ? 'comprador avisado' : 'compradores avisados'} no sino e por e-mail.` : 'Todos já foram avisados desta atualização.', to);
+    await audit(req, 'course_news_announced', { entity: 'course', entityId: course.id, meta: { avisados: n, email: withEmail } });
+    flashBack(req, res, n ? 'success' : 'info', n ? `${n} ${n === 1 ? 'pessoa avisada' : 'pessoas avisadas'} na campainha${withEmail ? ' e por e-mail' : ''}.` : 'Ninguém foi avisado: não há pessoas com acesso, ou este aviso já foi enviado.', to);
   });
 
   // ---- módulos e aulas ----
@@ -375,7 +381,17 @@ function build(cfg, h) {
     if (prod) await db.q('UPDATE courses SET files_updated_at = now() WHERE id = $1', [prod.product_id]);
     files.sweepVolume().catch(() => {});
     await audit(req, 'file_deleted', { entity: 'file', entityId: req.params.id });
-    flashBack(req, res, 'info', 'Arquivo removido.', prod ? `/admin/cursos/${prod.product_id}/arquivos` : back(row.course_id));
+    let note = 'Arquivo removido.';
+    if (prod) {
+      const left = (await db.q('SELECT count(*)::int AS n FROM product_files WHERE product_id = $1', [prod.product_id])).rows[0].n;
+      const buyers = (await db.q("SELECT count(*)::int AS n FROM enrollments WHERE course_id = $1 AND status = 'active' AND (expires_at IS NULL OR expires_at > now())", [prod.product_id])).rows[0].n;
+      if (!left) {
+        // sem arquivos, o produto não pode continuar à venda
+        const was = await db.q("UPDATE courses SET status = 'draft', updated_at = now() WHERE id = $1 AND status = 'published' RETURNING id", [prod.product_id]);
+        note = `Arquivo removido.${was.rowCount ? ' O produto ficou sem arquivos e voltou para rascunho (saiu da vitrine).' : ''}${buyers ? ` Atenção: ${buyers} ${buyers === 1 ? 'pessoa tem' : 'pessoas têm'} acesso e não verá arquivos. Envie um novo arquivo.` : ''}`;
+      }
+    }
+    flashBack(req, res, 'info', note, prod ? `/admin/cursos/${prod.product_id}/arquivos` : back(row.course_id));
   });
 
   // ---- matrículas (liberação manual) ----
@@ -411,7 +427,10 @@ function build(cfg, h) {
   };
   r.post('/admin/matriculas/:id/cancelar', async (req, res, next) => {
     const e = await enrollment(req, next); if (!e) return;
-    await db.q("UPDATE enrollments SET status = 'cancelled', cancelled_at = now() WHERE id = $1", [e.id]);
+    await db.tx(async (c) => {
+      await c.query("UPDATE enrollments SET status = 'cancelled', cancelled_at = now() WHERE id = $1", [e.id]);
+      await require('./downloads').resetFor(c, e.user_id, e.course_id);
+    });
     await audit(req, 'enrollment_cancelled', { entity: 'course', entityId: e.course_id, meta: { user: e.user_id } });
     // Reembolso/estorno/fraude: o certificado deixa de valer (a página pública passa a mostrar "cancelado").
     const revoked = await certs.revokeFor(e.user_id, e.course_id, 'Matrícula cancelada');

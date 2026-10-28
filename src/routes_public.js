@@ -6,6 +6,7 @@ const C = require('./courses');
 const files = require('./files');
 const pub = require('./views/public');
 const K = require('./coupons');
+const Co = require('./community');
 const rateLimit = require('express-rate-limit');
 
 function build(cfg, h) {
@@ -16,6 +17,8 @@ function build(cfg, h) {
 
   r.get('/', whenCoupon, async (req, res) => {
     const courses = await C.listPublic();
+    const ratings = await Co.ratingFor(courses.map((c) => c.id));
+    for (const c of courses) c.rating = ratings[c.id] || null;
     const code = String(req.query.cupom || '').slice(0, 30);
     const coupon = code ? await K.publicView(code) : null;
     res.send(pub.landing({ cfg, user: req.user, courses, coupon }));
@@ -48,7 +51,9 @@ function build(cfg, h) {
     const buy = { open: !!cfg.paymentsEnabled && course.price_cents > 0 && !isAdmin && visible, renew: false };
     if (buy.open && state === 'enrolled' && req.user) buy.renew = (await require('./sales').buyState(req.user.id, course)).state === 'renew';
     const items = C.typeOf(course) === 'download' ? await C.productFiles(course.id) : [];
-    res.send(pub.coursePage({ cfg, user: req.user, course, cur, state, preview: !visible, coupon, buy, items }));
+    const rating = (await Co.ratingFor([course.id]))[course.id] || null;
+    const testimonials = await Co.testimonials(course.id);
+    res.send(pub.coursePage({ cfg, user: req.user, course, cur, state, preview: !visible, coupon, buy, items, rating, testimonials }));
   });
 
   // Capa: pública para curso publicado; rascunho só para o administrador.

@@ -209,6 +209,18 @@ function accessExpiring(cfg, { name, course, days, whenLabel }) {
   };
 }
 
+function courseNews(cfg, { name, course, message }) {
+  const first = esc(String(name).split(' ')[0]);
+  const url = `${cfg.baseUrl}/curso/${course.slug}`;
+  const noun = course.product_type === 'download' ? 'produto' : 'curso';
+  return {
+    subject: `Novidade: ${course.title}`, template: 'novidade',
+    html: layout({ cfg, title: 'Tem novidade para você', intro: `Olá, ${first}. O ${noun} <b>${esc(course.title)}</b> tem uma novidade.`,
+      bodyHtml: `<p style="margin:12px 0;font-size:14px;line-height:1.6">${esc(message)}</p>`, cta: { url, label: `Abrir o ${noun}` } }),
+    text: `Olá, ${name}. O ${noun} "${course.title}" tem uma novidade: ${message}. Veja em ${url}`,
+  };
+}
+
 function productUpdated(cfg, { name, product }) {
   const first = esc(String(name).split(' ')[0]);
   const url = `${cfg.baseUrl}/curso/${product.slug}`;
@@ -231,4 +243,4 @@ function dataRequestDone(cfg, { name, kind, ok, note }) {
   };
 }
 
-module.exports = { productUpdated, accessExpiring, forumQuestion, forumAnswer, dataRequestDone, purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };
+module.exports = { courseNews, productUpdated, accessExpiring, forumQuestion, forumAnswer, dataRequestDone, purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };

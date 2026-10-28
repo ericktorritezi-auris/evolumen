@@ -381,3 +381,12 @@ img{max-width:100%;height:auto}
 .typecard:hover{border-color:var(--ambar)}
 @media (max-width:640px){.typegrid{grid-template-columns:1fr}}
 .pill--prod{border-color:var(--ambar);color:var(--ambar)}
+
+/* 0.8.0 · downloads limitados e avaliações */
+.dl__act { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.rating { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: var(--ambar, #ffb255); }
+.rating small { font-weight: 400; opacity: .75; }
+.testi { display: grid; gap: 12px; }
+.testi__i { margin: 0; padding: 14px 16px; border-radius: 14px; background: var(--panel, rgba(255,255,255,.04)); border: 1px solid var(--line, rgba(255,255,255,.1)); }
+.testi__i p { margin: 0 0 8px; }
+.testi__by { display: block; font-style: normal; font-size: .9em; opacity: .8; }

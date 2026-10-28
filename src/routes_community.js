@@ -78,12 +78,19 @@ function build(cfg, h) {
     if (req.user.role !== 'student') return flashBack(req, res, 'info', 'A avaliação é feita pelos alunos.', back);
     const access = await C.accessFor(req.user, course.id);
     if (!access.ok) throw Object.assign(new Error('Você não tem acesso a este curso.'), { status: 403, expose: true });
-    const ov = await A.overview(req.user.id, course);
-    if (!(ov && ov.cert && ov.cert.issued)) return flashBack(req, res, 'info', 'A avaliação abre quando você concluir o curso e receber o certificado.', `/curso/${course.slug}`);
+    const product = C.typeOf(course) === 'download';
+    if (product) {
+      if (!(await require('./downloads').hasDownloaded(req.user.id, course.id))) return flashBack(req, res, 'info', 'A avaliação abre depois que você baixar o primeiro arquivo.', `/curso/${course.slug}`);
+    } else {
+      const ov = await A.overview(req.user.id, course);
+      if (!(ov && ov.cert && ov.cert.issued)) return flashBack(req, res, 'info', 'A avaliação abre quando você concluir o curso e receber o certificado.', `/curso/${course.slug}`);
+    }
     try {
-      await Co.saveReview({ userId: req.user.id, courseId: course.id, stars: req.body.stars, nps: req.body.nps, comment: req.body.comment });
-      await audit(req, 'course_reviewed', { entity: 'course', entityId: course.id });
-      await notify.toAdmins({ kind: 'review', title: req.user.name + ' avaliou o curso', body: `${course.title} — ${Number(req.body.stars) || ''} estrelas`, link: '/admin/forum', key: `review:${req.user.id}:${course.id}`, subject: req.user.id });
+      await Co.saveReview({ userId: req.user.id, courseId: course.id, stars: req.body.stars, nps: req.body.nps, comment: req.body.comment, consent: req.body.consent === '1' });
+      await audit(req, 'course_reviewed', { entity: 'course', entityId: course.id, meta: { consent_publish: req.body.consent === '1' && !!String(req.body.comment || '').trim() } });
+      await notify.toAdmins({ kind: 'review', title: req.user.name + (product ? ' avaliou o produto' : ' avaliou o curso'), body: `${course.title} — ${Number(req.body.stars) || ''} estrelas`, link: '/admin/forum', key: `review:${req.user.id}:${course.id}`, subject: req.user.id });
+      const txt = String(req.body.comment || '').trim();
+      if (req.body.consent === '1' && txt) await notify.toAdmins({ kind: 'review', title: req.user.name + ' autorizou publicar o depoimento', body: course.title, link: '/admin/forum#depoimentos', key: `reviewc:${req.user.id}:${course.id}:${require('crypto').createHash('md5').update(txt).digest('hex').slice(0, 10)}`, subject: req.user.id });
       flashBack(req, res, 'success', 'Obrigado pela sua avaliação!', back);
     } catch (e) { if (e.expose) return flashBack(req, res, 'error', e.message, back); throw e; }
   });
@@ -97,6 +104,20 @@ function build(cfg, h) {
       Co.queue({ filter, courseId: curso || null }), db.q('SELECT id, title FROM courses ORDER BY title').then((x) => x.rows), Co.reviewSummary(), Co.latestReviews(), Co.openCount()]);
     res.send(views.adminForum({ ...h.appCtx(req, res) }, { rows, filter, courses, curso, reviews, comments, openN }));
   });
+  // Depoimentos: o administrador escolhe o que vai a público (só com o aceite do aluno).
+  for (const [path, on] of [['publicar', true], ['despublicar', false]]) {
+    r.post(`/admin/forum/avaliacao/:id/${path}`, async (req, res, next) => {
+      if (!ID.test(req.params.id)) return next();
+      const rv = await Co.setPublished(req.params.id, on, req.body.ver);
+      if (!rv) return flashBack(req, res, 'error', on ? 'Não foi possível publicar: o aluno não deu o aceite, não escreveu texto ou alterou o texto depois que você abriu a lista. Revise e tente de novo.' : 'Avaliação não encontrada.', '/admin/forum#depoimentos');
+      await audit(req, on ? 'testimonial_published' : 'testimonial_unpublished', { entity: 'course', entityId: rv.course_id, meta: { review: rv.id } });
+      if (on) {
+        const c = await C.byId(rv.course_id);
+        await notify.add(rv.user_id, { kind: 'testi', title: 'Seu depoimento foi publicado', body: `${c ? c.title + ' — ' : ''}aparece com seu primeiro nome e a inicial do sobrenome.`.slice(0, 230), link: c ? '/curso/' + c.slug : '', key: 'testi:' + rv.id });
+      }
+      flashBack(req, res, 'success', on ? 'Depoimento publicado na página pública. O aluno foi avisado na campainha.' : 'Depoimento retirado da página pública.', '/admin/forum#depoimentos');
+    });
+  }
   for (const [path, hidden] of [['ocultar', true], ['mostrar', false]]) {
     r.post(`/admin/forum/:id/${path}`, async (req, res, next) => {
       const p = await Co.setHidden(req.params.id, hidden); if (!p) return next();

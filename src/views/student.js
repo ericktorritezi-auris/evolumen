@@ -89,15 +89,22 @@ function examCard(course, ov) {
 }
 
 // Produto digital: sem aulas nem progresso, só os arquivos para baixar.
-function produtoHome({ cfg, user, csrf, flash, course, items, access }) {
+function produtoHome({ cfg, user, csrf, flash, course, items, access, quota = {}, review = null }) {
   const content = html`<a class="back" href="${navPath(user)}">← ${user.role === 'admin' ? 'Cursos e produtos' : 'Meus produtos'}</a>
   ${user.role === 'admin' ? html`<div class="alert alert--info">Você está vendo como administrador.</div>` : ''}
   ${titleRow(course.title, course.summary)}
   <section class="card"><span class="eyebrow">${course.category || 'Produto digital'}</span>
     <p class="muted small">${access.expires_at ? 'Acesso até ' + fmtDate(access.expires_at) : 'Acesso vitalício'}${course.files_updated_at ? ' · atualizado em ' + fmtDate(course.files_updated_at) : ''}</p></section>
   ${items.length ? html`<h2 class="t-card">Seus arquivos</h2><ul class="dl dl--card">${items.map((f) => html`<li>${icon('file', 20)}<div><b>${f.label}</b><span class="muted small">${f.filename} · ${files.humanSize(f.size_bytes)}</span></div>
-      <a class="btn btn--primary btn--sm" href="/arquivos/${f.file_id}">Baixar</a></li>`)}</ul>`
-    : html`<section class="card empty">${lumen('pensa', 90)}<p class="muted">Os arquivos deste produto estão sendo preparados.</p></section>`}`;
+      ${(() => {
+        const q = quota[f.file_id];
+        if (!q) return html`<a class="btn btn--primary btn--sm" href="/arquivos/${f.file_id}">Baixar</a>`;
+        if (q.left > 0) return html`<div class="dl__act"><a class="btn btn--primary btn--sm" href="/arquivos/${f.file_id}">Baixar</a><span class="muted small">${q.left} de ${q.allowed} ${q.allowed === 1 ? 'download restante' : 'downloads restantes'}</span></div>`;
+        if (q.pending) return html`<span class="pill">Pedido em análise</span>`;
+        return html`<div class="dl__act"><a class="btn btn--outline btn--sm" href="/arquivos/${f.file_id}/solicitar">Pedir novo download</a><span class="muted small">Você usou os ${q.allowed} downloads</span></div>`;
+      })()}</li>`)}</ul>`
+    : html`<section class="card empty">${lumen('pensa', 90)}<p class="muted">Os arquivos deste produto estão sendo preparados.</p></section>`}
+  ${review ? reviewCard({ csrf, course, review: review.id ? review : null, kind: 'download' }) : ''}`;
   return shellApp({ cfg, user, csrf, flash, path: navPath(user), title: course.title, content });
 }
 

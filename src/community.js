@@ -69,12 +69,17 @@ async function openCount() {
 // ---- avaliação do curso ----
 const reviewOf = async (userId, courseId) => (await db.q('SELECT * FROM course_reviews WHERE user_id = $1 AND course_id = $2', [userId, courseId])).rows[0] || null;
 
-async function saveReview({ userId, courseId, stars, nps, comment }) {
+async function saveReview({ userId, courseId, stars, nps, comment, consent }) {
   const s = Number(stars); const n = Number(nps); const c = clean(comment).slice(0, 1000);
   if (!Number.isInteger(s) || s < 1 || s > 5) throw Object.assign(new Error('Escolha de 1 a 5 estrelas.'), { expose: true, status: 400 });
   if (!/^\d{1,2}$/.test(String(nps)) || n < 0 || n > 10) throw Object.assign(new Error('Escolha uma nota de 0 a 10 para a pergunta de indicação.'), { expose: true, status: 400 });
-  await db.q(`INSERT INTO course_reviews (course_id, user_id, stars, nps, comment) VALUES ($1,$2,$3,$4,$5)
-    ON CONFLICT (user_id, course_id) DO UPDATE SET stars = EXCLUDED.stars, nps = EXCLUDED.nps, comment = EXCLUDED.comment, updated_at = now()`, [courseId, userId, s, n, c]);
+  const ok = !!consent && c.length > 0; // o aceite só vale quando há texto
+  // mudou o texto (ou tirou o aceite): o depoimento sai do ar e o administrador decide de novo
+  await db.q(`INSERT INTO course_reviews (course_id, user_id, stars, nps, comment, consent_publish) VALUES ($1,$2,$3,$4,$5,$6)
+    ON CONFLICT (user_id, course_id) DO UPDATE SET stars = EXCLUDED.stars, nps = EXCLUDED.nps, consent_publish = EXCLUDED.consent_publish,
+      published = CASE WHEN course_reviews.comment = EXCLUDED.comment AND EXCLUDED.consent_publish THEN course_reviews.published ELSE false END,
+      published_at = CASE WHEN course_reviews.comment = EXCLUDED.comment AND EXCLUDED.consent_publish THEN course_reviews.published_at ELSE NULL END,
+      comment = EXCLUDED.comment, updated_at = now()`, [courseId, userId, s, n, c, ok]);
 }
 
 // Resumo por curso: média de estrelas e NPS (% promotores 9–10 menos % detratores 0–6).
@@ -83,7 +88,32 @@ async function reviewSummary() {
       CASE WHEN count(r.id) = 0 THEN NULL ELSE round(100.0 * (count(*) FILTER (WHERE r.nps >= 9) - count(*) FILTER (WHERE r.nps <= 6)) / count(r.id))::int END AS nps
     FROM courses c LEFT JOIN course_reviews r ON r.course_id = c.id GROUP BY c.id, c.title HAVING count(r.id) > 0 ORDER BY c.title`)).rows;
 }
-const latestReviews = async (limit = 30) => (await db.q(`SELECT r.*, u.name AS author, c.title AS course_title FROM course_reviews r JOIN users u ON u.id = r.user_id JOIN courses c ON c.id = r.course_id
+// Avaliações de quem teve o acesso cancelado (reembolso, estorno) não contam na média nem aparecem em público.
+const NOT_CANCELLED = "NOT EXISTS (SELECT 1 FROM enrollments e WHERE e.user_id = r.user_id AND e.course_id = r.course_id AND e.status = 'cancelled')";
+const MIN_FOR_RATING = 3;
+// Média pública de estrelas por curso/produto (só a partir de 3 avaliações): { [id]: { avg, n } }
+async function ratingFor(courseIds) {
+  const ids = courseIds.map(Number).filter(Number.isInteger);
+  const out = {};
+  if (!ids.length) return out;
+  const rows = (await db.q(`SELECT r.course_id, count(*)::int AS n, round(avg(r.stars)::numeric, 1)::float AS avg FROM course_reviews r
+    WHERE r.course_id = ANY($1::bigint[]) AND ${NOT_CANCELLED} GROUP BY r.course_id HAVING count(*) >= ${MIN_FOR_RATING}`, [ids])).rows;
+  for (const x of rows) out[x.course_id] = { avg: x.avg, n: x.n };
+  return out;
+}
+// Depoimentos publicados (com aceite do aluno e aprovação do administrador).
+const testimonials = async (courseId, limit = 12) => (await db.q(`SELECT r.id, r.stars, r.comment, u.name AS author FROM course_reviews r JOIN users u ON u.id = r.user_id
+  WHERE r.course_id = $1 AND r.published AND r.consent_publish AND r.comment <> '' AND ${NOT_CANCELLED} ORDER BY r.published_at DESC NULLS LAST, r.id DESC LIMIT $2`, [courseId, limit])).rows;
+// Publicar exige aceite e texto. Devolve a avaliação, ou null.
+async function setPublished(id, on, ver) {
+  if (!/^\d{1,12}$/.test(String(id))) return null;
+  if (on && !/^[a-f0-9]{32}$/.test(String(ver || ''))) return null; // só publica o texto que o administrador viu
+  const r = await db.q(on
+    ? "UPDATE course_reviews SET published = true, published_at = now() WHERE id = $1 AND consent_publish AND comment <> '' AND md5(comment) = $2 RETURNING *"
+    : 'UPDATE course_reviews SET published = false, published_at = NULL WHERE id = $1 RETURNING *', on ? [id, ver] : [id]);
+  return r.rows[0] || null;
+}
+const latestReviews = async (limit = 60) => (await db.q(`SELECT r.*, md5(r.comment) AS ver, u.name AS author, c.title AS course_title FROM course_reviews r JOIN users u ON u.id = r.user_id JOIN courses c ON c.id = r.course_id
   WHERE r.comment <> '' ORDER BY r.updated_at DESC LIMIT $1`, [limit])).rows;
 
-module.exports = { clean, listLesson, create, setHidden, removeOwn, queue, openCount, reviewOf, saveReview, reviewSummary, latestReviews, MAX };
+module.exports = { clean, listLesson, create, setHidden, removeOwn, queue, openCount, reviewOf, saveReview, reviewSummary, latestReviews, ratingFor, testimonials, setPublished, MIN_FOR_RATING, MAX };

@@ -25,6 +25,7 @@ const NAV = {
     { href: '/admin/financeiro', icon: 'chart', label: 'Cockpit financeiro', fase: 4 },
     { href: '/admin/vendas', icon: 'cash', label: 'Vendas e renovações', fase: 4 },
     { href: '/admin/forum', icon: 'chat', label: 'Fórum e avaliações', fase: 5 },
+    { href: '/admin/downloads', icon: 'file', label: 'Pedidos de download', fase: 6 },
     { href: '/admin/certificados', icon: 'cert', label: 'Certificados', fase: 3 },
     { href: '/admin/textos', icon: 'file', label: 'Textos legais', fase: 4 },
     { href: '/admin/lgpd', icon: 'shield', label: 'LGPD e aceites', fase: 5 },

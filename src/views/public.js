@@ -1,5 +1,6 @@
 'use strict';
 const { html, raw } = require('../html');
+const { shortName } = require('./ui');
 const { shellPublic, lumen } = require('../layout');
 const { icon } = require('../header');
 const C = require('../courses');
@@ -29,12 +30,15 @@ function couponBanner(coupon) {
     ${coupon.promoCheaper ? html`<b>Atenção:</b> a promoção atual deste curso está igual ou mais barata que o cupom.` : ''}</div>`;
 }
 
+const starLine = (r) => (r ? html`<span class="rating" title="${r.n} avaliações">★ ${String(r.avg).replace('.', ',')} <small>(${r.n})</small></span>` : '');
+
 function courseCard(c) {
   return html`<article class="ccard">
     <a class="ccard__cover" href="/cursos/${c.slug}" tabindex="-1" aria-hidden="true">${coverBox(c)}</a>
     <div class="ccard__body">
       <div class="ccard__tags">${c.featured ? html`<span class="pill pill--star">Destaque</span>` : ''}${c.product_type === 'download' ? html`<span class="pill pill--prod">${c.category || 'Produto digital'}</span>` : (c.category ? html`<span class="pill">${c.category}</span>` : '')}</div>
       <h3 class="ccard__title"><a href="/cursos/${c.slug}">${c.title}</a></h3>
+      ${starLine(c.rating)}
       ${c.summary ? html`<p class="muted">${c.summary}</p>` : ''}
       <ul class="chips">${c.product_type === 'download' ? html`<li>${plural(c.n_files, 'arquivo', 'arquivos')}</li>` : ''}${c.workload_hours ? html`<li>${c.workload_hours} h</li>` : ''}${c.videos ? html`<li>${plural(c.videos, 'vídeo', 'vídeos')}</li>` : ''}${c.level !== 'nao_se_aplica' ? html`<li>${C.LEVELS[c.level]}</li>` : ''}</ul>
       <div class="ccard__foot">${priceBlock(c)}<a class="btn btn--outline btn--sm" href="/cursos/${c.slug}">${c.product_type === 'download' ? 'Ver produto →' : 'Ver curso →'}</a></div>
@@ -124,7 +128,7 @@ ${couponBanner(coupon)}
   return shellPublic({ cfg, user, title: 'Cursos de saúde emocional', description: 'EvoLumen Academy: cursos online de autoconhecimento e saúde emocional, com videoaulas e material de apoio.', content });
 }
 
-function coursePage({ cfg, user, course: c, cur, state, preview, coupon, buy = {}, items = [] }) {
+function coursePage({ cfg, user, course: c, cur, state, preview, coupon, buy = {}, items = [], rating = null, testimonials = [] }) {
   const dl = c.product_type === 'download';
   const lessons = cur.flatMap((m) => m.lessons);
   const videos = lessons.filter((l) => l.has_video).length;
@@ -149,6 +153,7 @@ ${preview ? html`<div class="alert alert--info">Pré-visualização: ${dl ? 'est
     <a class="back" href="/#cursos">← Todos os cursos e produtos</a>
     <div class="ccard__tags">${c.category ? html`<span class="pill${dl ? ' pill--prod' : ''}">${c.category}</span>` : (dl ? html`<span class="pill pill--prod">Produto digital</span>` : '')}${c.level !== 'nao_se_aplica' ? html`<span class="pill">${C.LEVELS[c.level]}</span>` : ''}</div>
     <h1 class="t-display">${c.title}</h1>
+    ${starLine(rating)}
     ${c.summary ? html`<p class="lead">${c.summary}</p>` : ''}
     ${c.intro_youtube_id
       ? html`<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/${c.intro_youtube_id}?rel=0" title="Apresentação do curso" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`
@@ -169,6 +174,7 @@ ${preview ? html`<div class="alert alert--info">Pré-visualização: ${dl ? 'est
       <p class="muted small">${plural(cur.length, 'módulo', 'módulos')} · ${plural(lessons.length, 'aula', 'aulas')}${total ? ' · ' + dur(total) : ''}</p>
       <div class="syl">${cur.map((m, i) => html`<details ${i === 0 ? raw('open') : ''}><summary><span>Módulo ${i + 1} · ${m.title}</span><span class="muted small">${plural(m.lessons.length, 'aula', 'aulas')}</span></summary>
         <ul>${m.lessons.map((l) => html`<li>${icon('video', 16)}<span>${l.title}</span>${l.duration_min ? html`<span class="muted small">${dur(l.duration_min)}</span>` : ''}</li>`)}</ul></details>`)}</div></section>` : ''}
+    ${testimonials.length ? html`<section class="blk" id="depoimentos"><h2 class="t-card">Depoimentos</h2><div class="testi">${testimonials.map((t) => html`<blockquote class="testi__i"><p>${t.comment}</p><cite class="testi__by"><span class="rating">${'★'.repeat(t.stars)}</span> · ${shortName(t.author)}</cite></blockquote>`)}</div></section>` : ''}
     ${c.faq.length ? html`<section class="blk"><h2 class="t-card">Perguntas frequentes</h2><div class="faq">${c.faq.map((f) => html`<details><summary>${f.q}</summary><p>${f.a}</p></details>`)}</div></section>` : ''}
   </div>
   <aside class="cpage__side"><div class="buy card">
