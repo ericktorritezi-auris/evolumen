@@ -25,7 +25,7 @@ try {
   const user = { id: 1, name: 'Teste Silva', email: 't@x.com', role: 'student', mascot_enabled: true, cpf: '1' };
   const pages = { login: au.login({ cfg, csrf: 'c' }), primeiro: au.firstAccess({ cfg, csrf: 'c' }), esqueci: au.forgot({ cfg, csrf: 'c' }),
     reset: au.reset({ cfg, csrf: 'c', token: 't' }), perfil: ap.perfil({ cfg, user, csrf: 'c' }), email: ap.perfilEmail({ cfg, user, csrf: 'c' }),
-    adminHome: ap.adminHome({ cfg, user: { ...user, role: 'admin' }, csrf: 'c', status: { db: true, migrations: 1, legalPublished: 0, mail: true, mailFrom: 'x' } }) };
+    adminHome: ap.adminHome({ cfg, user: { ...user, role: 'admin' }, csrf: 'c', status: { db: true, migrations: 1, legalPublished: 0, mail: true, mailFrom: 'x' }, health: { level: 'ok', items: [{ key: 'banco', label: 'Banco de dados', level: 'ok', text: 'Conectado' }] }, dash: { month: { n: 0, gross: 0, refunds: 0, net: 0 }, students: 0, pubs: { cursos: 0, produtos: 0 }, pending: [{ n: 1, label: 'Pedidos', href: '/admin' }] } }) };
   const dup = [];
   for (const [n, h] of Object.entries(pages)) { const ids = [...h.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]); const d = ids.filter((x, i) => ids.indexOf(x) !== i); if (d.length) dup.push(`${n}: ${[...new Set(d)].join(',')}`); }
   add('IDs HTML únicos por tela', !dup.length, `${Object.keys(pages).length} telas${dup.length ? '; repetidos: ' + dup.join(' | ') : ''}`);

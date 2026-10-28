@@ -17,6 +17,7 @@ function createApp(cfg) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
+  app.use(require('./health').track);
 
   app.use(helmet({
     contentSecurityPolicy: {

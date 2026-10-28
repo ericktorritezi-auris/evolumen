@@ -3,6 +3,7 @@ const { html, raw } = require('../html');
 const { shellApp, lumen } = require('../layout');
 const { field, csrfInput } = require('./ui');
 const { UFS } = require('../validation');
+const { brl } = require('../courses');
 
 const fmtDate = (d) => new Date(d).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 const fmtTime = (d) => new Date(d).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
@@ -12,21 +13,39 @@ function titleRow(title, sub) {
   return html`<div class="title-row"><h1 class="t-display">${title}</h1>${sub ? html`<p class="muted">${sub}</p>` : ''}</div>`;
 }
 
-function adminHome({ cfg, user, csrf, flash, status }) {
+function adminHome({ cfg, user, csrf, flash, status, health, dash }) {
   const row = (k, v, ok) => html`<div class="kv"><span>${k}</span><span class="${ok === false ? 'bad' : ok ? 'good' : ''}">${v}</span></div>`;
+  const LV = { ok: ['ok', 'Tudo funcionando'], warn: ['warn', 'Atenção'], bad: ['bad', 'Há um problema'] };
+  const [cls, headline] = LV[health.level];
+  const pend = dash.pending.filter((x) => x.n > 0);
+  const stat = (k, v, sub) => html`<div class="stat"><span class="muted">${k}</span><b class="t-card">${v}</b>${sub ? html`<span class="muted small">${sub}</span>` : ''}</div>`;
   return shellApp({
     cfg, user, csrf, flash, path: '/admin', title: 'Dashboard',
     content: html`${titleRow('Dashboard', 'Visão geral da EvoLumen Academy.')}
+      <section class="card health health--${health.level}" aria-live="polite">
+        <h2 class="t-card"><span class="health__dot health__dot--${health.level}" aria-hidden="true"></span> Saúde do sistema <span class="pill pill--${cls}">${headline}</span></h2>
+        <div class="kvs">${health.items.map((i) => html`<div class="kv"><span>${i.label}</span><span class="health__txt health__txt--${i.level}"><span class="health__dot health__dot--${i.level}" aria-hidden="true"></span>${i.text}</span></div>`)}</div>
+        <p class="muted small">Tempo de resposta e tarefas automáticas são medidos desde o último reinício do sistema.</p>
+      </section>
+      ${dash.error ? html`<div class="alert alert--error" role="alert">Não foi possível carregar os números agora. Veja a saúde do sistema acima.</div>` : ''}
+      <div class="stats">
+        ${stat('Vendas no mês', dash.month.n, brl(dash.month.gross))}
+        ${stat('Líquido no mês', brl(dash.month.net), dash.month.refunds ? `${dash.month.refunds} ${dash.month.refunds === 1 ? 'reembolso' : 'reembolsos'}` : 'sem reembolsos')}
+        ${stat('Alunos com acesso', dash.students)}
+        ${stat('Na vitrine', `${dash.pubs.cursos} ${dash.pubs.cursos === 1 ? 'curso' : 'cursos'}`, `${dash.pubs.produtos} ${dash.pubs.produtos === 1 ? 'produto digital' : 'produtos digitais'}`)}
+      </div>
+      <section class="card"><h2 class="t-card">Pendências</h2>
+        ${pend.length ? html`<ul class="pend">${pend.map((x) => html`<li><a href="${x.href}"><b>${x.n}</b> ${x.label}</a></li>`)}</ul>` : html`<p class="muted">Nada esperando por você. 🎉</p>`}
+      </section>
+      <section class="card"><h2 class="t-card">Atalhos</h2>
+        <div class="row"><a class="btn btn--outline btn--sm" href="/admin/cursos/novo">Novo curso ou produto</a><a class="btn btn--outline btn--sm" href="/admin/cursos">Cursos e produtos</a><a class="btn btn--outline btn--sm" href="/admin/cupons">Cupons</a><a class="btn btn--outline btn--sm" href="/admin/financeiro">Cockpit financeiro</a><a class="btn btn--outline btn--sm" href="/admin/textos">Textos legais</a><a class="btn btn--outline btn--sm" href="/admin/configuracoes">Configurações</a></div>
+      </section>
       <section class="card">
-        <h2 class="t-card">Verificação do ambiente</h2>
-        <p class="muted">O painel completo chega na Fase 5. Por enquanto, esta página confirma que a base está de pé.</p>
+        <h2 class="t-card">Ambiente</h2>
         <div class="kvs">
           ${row('Ambiente', cfg.appEnv)}
           ${row('Versão do sistema', cfg.version.display)}
-          ${row('Fase entregue', String(cfg.version.phase))}
-          ${row('Banco de dados', status.db ? 'Conectado' : 'Sem conexão', status.db)}
           ${row('Migrações aplicadas', String(status.migrations), status.migrations > 0)}
-          ${row('E-mail (Resend)', status.mail ? `Configurado (${status.mailFrom})` : 'Não configurado', status.mail)}
           ${row('Endereço do sistema', cfg.baseUrl)}
           ${row('Conexão segura (HTTPS)', cfg.secureCookies ? 'Sim' : 'Não', cfg.secureCookies || !cfg.isProd)}
           ${row('Textos legais publicados', status.legalPublished > 0 ? `${status.legalPublished} de 2` : 'Nenhum ainda (rascunho)')}
@@ -52,7 +71,7 @@ function perfil({ cfg, user, csrf, flash, errors = {}, values = null, acceptance
         ${isStudent
           ? field({ id: 'cpf', label: 'CPF', value: user.cpf || '', readonly: true, note: 'O CPF só pode ser alterado pelo administrador.' })
           : field({ id: 'cpf', name: 'cpf', label: 'CPF', value: v.cpf || '', error: errors.cpf, inputmode: 'numeric', maxlength: 14, note: 'Aparece nos recibos e certificados.' })}
-        ${field({ id: 'birth_date', label: 'Data de nascimento', type: 'date', value: v.birth_date || '', error: errors.birth_date, autocomplete: 'bday', note: 'Opcional. Usada só para o professor lembrar do seu aniversário.' })}
+        ${field({ id: 'birth_date', label: 'Data de nascimento', type: 'date', value: v.birth_date || '', error: errors.birth_date, autocomplete: 'bday', note: 'Opcional.' })}
         ${field({ id: 'cep', label: 'CEP', value: v.cep || '', error: errors.cep, autocomplete: 'postal-code', inputmode: 'numeric' })}
         ${field({ id: 'street', label: 'Endereço', value: v.street || '', autocomplete: 'address-line1' })}
         ${field({ id: 'street_number', label: 'Número', value: v.street_number || '' })}

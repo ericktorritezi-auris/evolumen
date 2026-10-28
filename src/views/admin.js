@@ -78,7 +78,7 @@ function cursosList(ctx, { courses }) {
       <td data-l="Tipo"><span class="pill${c.product_type === 'download' ? ' pill--draft' : ''}">${c.product_type === 'download' ? 'Produto digital' : 'Curso'}</span></td>
       <td data-l="Status">${c.visible ? html`<span class="pill pill--ok">Publicado</span>` : (c.status === 'published' ? html`<span class="pill">Agendado ${fmtDate(c.published_at)}</span>` : html`<span class="pill pill--draft">Rascunho</span>`)}</td>
       <td data-l="Alunos">${c.students}</td><td data-l="Valor">${C.brl(c.price_cents)}</td>
-      <td class="tbl__act"><a class="btn btn--outline btn--sm" href="/admin/cursos/${c.id}">Editar</a></td></tr>`)}</tbody></table></div>`
+      <td class="tbl__act"><a class="btn btn--outline btn--sm" href="/admin/cursos/${c.id}">Editar</a> <a class="btn btn--ghost btn--sm" href="/admin/cursos/${c.id}/duplicar">Duplicar</a></td></tr>`)}</tbody></table></div>`
     : html`<section class="card empty">${lumen('pensa', 96)}<div><h2 class="t-card">Nada cadastrado ainda</h2><p class="muted">Crie o primeiro curso ou produto para ele aparecer aqui.</p></div></section>`}`;
   return shell(ctx, 'Cursos e produtos', content);
 }
@@ -86,6 +86,19 @@ function cursosList(ctx, { courses }) {
 const sel = (name, value, opts) => html`<select id="${name}" name="${name}">${opts.map(([v, l]) => html`<option value="${v}"${String(value) === String(v) ? raw(' selected') : ''}>${l}</option>`)}</select>`;
 const area = (id, label, value, { rows = 4, note = '', error = '', placeholder = '', name = id } = {}) => html`<div class="field${error ? ' field--err' : ''}"><label for="${id}">${label}</label>
   <textarea id="${id}" name="${name}" rows="${rows}" placeholder="${placeholder}">${value || ''}</textarea>${error ? html`<div class="field__msg field__msg--err">${error}</div>` : (note ? html`<div class="field__msg">${note}</div>` : '')}</div>`;
+
+// O que a duplicação leva e o que não leva (fica claro antes de salvar).
+function copyCard(c, filesOn = true) {
+  const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+  const dl = c.type === 'download';
+  return html`<section class="card"><h2 class="t-card">O que esta cópia leva</h2>
+    <ul class="tick">
+      <li>${icon('check', 18)}<span>Todos os dados do cadastro (descrição, preço, regras de acesso, textos e perguntas frequentes)${c.hasCover ? ' e a capa' : ''}.</span></li>
+      ${dl ? '' : html`<li>${icon('check', 18)}<span>${n(c.modules, 'módulo', 'módulos')} e ${n(c.lessons, 'aula', 'aulas')}, com vídeos e textos.</span></li>`}
+    </ul>
+    <label class="check"><input type="checkbox" name="copy_files" value="1"${filesOn === false ? '' : raw(' checked')}><span>${dl ? html`Copiar também os ${n(c.nFiles, 'arquivo', 'arquivos')} do produto` : html`Copiar também os ${n(c.attachments, 'anexo', 'anexos')} das aulas`}<small>Cada arquivo é copiado de verdade, então ocupa espaço de novo (arquivos no volume contam em dobro).</small></span></label>
+    <p class="muted small">Não leva: vendas, matrículas, avaliações, cupons, contadores de download${dl ? '' : ', provas e certificados'}. A cópia nasce como rascunho. Preencha o endereço (slug), que precisa ser único.</p></section>`;
+}
 
 function cursoForm(ctx, { course, values, errors = {} }) {
   const isNew = !course;
@@ -99,11 +112,12 @@ function cursoForm(ctx, { course, values, errors = {} }) {
   const published = v.publish !== undefined ? v.publish : v.status === 'published';
   const pubDate = raw_.published_at !== undefined ? raw_.published_at : (v.published_at ? isoDate(v.published_at) : '');
   const content = html`<a class="back" href="/admin/cursos">← Cursos e produtos</a>
-  ${titleRow(isNew ? (dl ? 'Novo produto digital' : 'Novo curso') : v.title, isNew ? 'Preencha o essencial agora. O resto você ajusta depois.' : '')}
+  ${titleRow(isNew ? (ctx.copy ? (dl ? 'Duplicar produto digital' : 'Duplicar curso') : dl ? 'Novo produto digital' : 'Novo curso') : v.title, isNew ? (ctx.copy ? 'Revise os dados. Nada é criado até você salvar.' : 'Preencha o essencial agora. O resto você ajusta depois.') : '')}
   ${isNew ? '' : tabs(course, 'dados')}
-  ${Object.keys(errors).length ? html`<div class="alert alert--error" role="alert">Confira os campos destacados.</div>` : ''}
+  ${errors.general ? html`<div class="alert alert--error" role="alert">${errors.general}</div>` : (Object.keys(errors).length ? html`<div class="alert alert--error" role="alert">Confira os campos destacados.</div>` : '')}
   <form method="post" action="${isNew ? '/admin/cursos' : '/admin/cursos/' + course.id}" class="form" novalidate>
-    ${csrfInput(ctx.csrf)}${isNew ? html`<input type="hidden" name="product_type" value="${dl ? 'download' : 'course'}">` : ''}
+    ${csrfInput(ctx.csrf)}${isNew ? html`<input type="hidden" name="product_type" value="${dl ? 'download' : 'course'}">` : ''}${ctx.copy ? html`<input type="hidden" name="copy_from" value="${ctx.copy.id}">` : ''}
+    ${ctx.copy ? copyCard(ctx.copy, ctx.copyFiles) : ''}
     <section class="card"><h2 class="t-card">Dados do ${noun}</h2><div class="form form--grid">
       <div class="span2">${field({ id: 'title', label: `Nome do ${noun}`, value: v.title || '', error: errors.title, required: true })}</div>
       ${field({ id: 'slug', label: 'Endereço (slug)', value: v.slug || '', error: errors.slug, note: 'Vira /cursos/<slug>. Se deixar vazio, é criado pelo nome. Evite mudar depois de publicar.' })}

@@ -72,10 +72,11 @@ async function nudges(now) {
 }
 
 async function run(cfg, bg, now = new Date()) {
-  const out = {};
+  const out = {}; let failed = false;
   for (const [k, fn] of [['aniversarios', () => birthdays(now)], ['vencendo', () => expiring(cfg, bg, now)], ['lembretes', () => nudges(now)], ['limpeza', () => notify.cleanup()], ['arquivos', () => require('./files').sweepVolume()]]) {
-    try { out[k] = await fn(); } catch (e) { log.warn('varredura_diaria_falhou', { etapa: k, error: e.message }); }
+    try { out[k] = await fn(); } catch (e) { failed = true; log.warn('varredura_diaria_falhou', { etapa: k, error: e.message }); }
   }
+  require('./health').mark('tarefas', !failed);
   return out;
 }
 

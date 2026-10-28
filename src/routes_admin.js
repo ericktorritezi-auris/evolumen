@@ -9,6 +9,7 @@ const access = require('./access');
 const certs = require('./certificates');
 const V = require('./validation');
 const { audit } = require('./audit');
+const Dup = require('./duplicate');
 const views = require('./views/admin');
 const notify = require('./notify');
 const mailer = require('./mailer');
@@ -45,6 +46,14 @@ function build(cfg, h) {
     res.send(views.cursoForm(ctx(req, res, { tipo }), {}));
   });
 
+  // Duplicar: abre o formulário de cadastro já preenchido, sem o endereço (slug). Nada é criado até salvar.
+  r.get('/admin/cursos/:id/duplicar', async (req, res, next) => {
+    const course = await courseOr404(req, next); if (!course) return;
+    const copy = await Dup.info(course.id);
+    const values = { ...course, slug: '', title: `Cópia de ${course.title}`.slice(0, 120), status: 'draft', published_at: null, featured: false };
+    res.send(views.cursoForm(ctx(req, res, { tipo: copy.type, copy }), { values }));
+  });
+
   // Produto digital não tem módulos, aulas, avaliações nem certificado: essas telas levam aos arquivos.
   r.use('/admin/cursos/:id', async (req, res, next) => {
     if (!ID.test(req.params.id) || !/^\/(conteudo|avaliacoes|certificado|modulos)/.test(req.path)) return next();
@@ -65,18 +74,37 @@ function build(cfg, h) {
   const colVal = (v, c) => (['learn_items', 'able_items', 'faq'].includes(c) ? JSON.stringify(v[c]) : v[c]);
   const slugTaken = async (slug, exceptId) => (await db.q('SELECT 1 FROM courses WHERE slug = $1 AND id <> $2', [slug, exceptId || 0])).rowCount > 0;
 
-  r.post('/admin/cursos', async (req, res) => {
-    const tipo = req.body.product_type === 'download' ? 'download' : 'course';
+  r.post('/admin/cursos', async (req, res, next) => {
+    // Duplicação: o tipo vem do original; os dados vêm do formulário (já editados), o conteúdo vem do original.
+    const copy = ID.test(String(req.body.copy_from || '')) ? await Dup.info(req.body.copy_from) : null;
+    if (req.body.copy_from && !copy) return flashBack(req, res, 'error', 'O curso ou produto original não existe mais. Nada foi criado.', '/admin/cursos');
+    const tipo = copy ? copy.type : (req.body.product_type === 'download' ? 'download' : 'course');
     const { errors, values } = C.parseCourse(req.body, tipo);
     if (!errors.slug && await slugTaken(values.slug)) errors.slug = 'Já existe um curso com este endereço.';
     if (tipo === 'download' && values.publish) errors.publish = 'Um produto novo ainda não tem arquivos. Salve como rascunho, envie os arquivos e depois publique.';
-    if (Object.keys(errors).length) return res.status(422).send(views.cursoForm(ctx(req, res, { raw: req.body, tipo }), { values, errors }));
+    if (Object.keys(errors).length) return res.status(422).send(views.cursoForm(ctx(req, res, { raw: req.body, tipo, copy, copyFiles: req.body.copy_files === '1' }), { values, errors }));
     const v = saveValues(values);
+    if (copy) { v.status = 'draft'; v.published_at = null; } // a cópia sempre nasce como rascunho
     const cols = [...COLS, 'product_type'];
-    const ins = await db.q(`INSERT INTO courses (${cols.join(',')}) VALUES (${cols.map((_, i) => '$' + (i + 1)).join(',')}) RETURNING id`, [...COLS.map((c) => colVal(v, c)), tipo]);
-    await audit(req, 'course_created', { entity: 'course', entityId: ins.rows[0].id, meta: { slug: v.slug, tipo } });
-    if (tipo === 'download') return flashBack(req, res, 'success', 'Produto criado. Agora envie os arquivos que o comprador vai baixar.', `/admin/cursos/${ins.rows[0].id}/arquivos`);
-    flashBack(req, res, 'success', 'Curso criado. Agora adicione os módulos e as aulas.', `/admin/cursos/${ins.rows[0].id}/conteudo`);
+    let id; let done = null; const created = [];
+    try {
+      await db.tx(async (c) => {
+        id = (await c.query(`INSERT INTO courses (${cols.join(',')}) VALUES (${cols.map((_, i) => '$' + (i + 1)).join(',')}) RETURNING id`, [...COLS.map((k) => colVal(v, k)), tipo])).rows[0].id;
+        if (copy) done = await Dup.copyInto(c, copy.id, id, req.user.id, { withFiles: req.body.copy_files === '1', created });
+      });
+    } catch (e) {
+      files.dropVolumeFiles(created); // cópia desfeita: apaga na hora os arquivos já copiados no volume
+      if (e.code === '23505') { errors.slug = 'Já existe um curso com este endereço.'; return res.status(422).send(views.cursoForm(ctx(req, res, { raw: req.body, tipo, copy, copyFiles: req.body.copy_files === '1' }), { values, errors })); }
+      if (e instanceof files.UploadError || e.expose) { errors.general = e.message; return res.status(422).send(views.cursoForm(ctx(req, res, { raw: req.body, tipo, copy, copyFiles: req.body.copy_files === '1' }), { values, errors })); }
+      throw e;
+    } finally { if (copy) files.sweepVolume().catch(() => {}); }
+    await audit(req, copy ? 'course_duplicated' : 'course_created', { entity: 'course', entityId: id, meta: { slug: v.slug, tipo, ...(copy ? { from: copy.id, ...done } : {}) } });
+    if (copy) {
+      const bits = tipo === 'download' ? [`${done.files} ${done.files === 1 ? 'arquivo' : 'arquivos'}`] : [`${done.modules} ${done.modules === 1 ? 'módulo' : 'módulos'}`, `${done.lessons} ${done.lessons === 1 ? 'aula' : 'aulas'}`, `${done.attachments} ${done.attachments === 1 ? 'anexo' : 'anexos'}`];
+      return flashBack(req, res, 'success', `Cópia criada como rascunho, com ${bits.join(', ')}. Revise e publique quando estiver pronto.`, tipo === 'download' ? `/admin/cursos/${id}/arquivos` : `/admin/cursos/${id}/conteudo`);
+    }
+    if (tipo === 'download') return flashBack(req, res, 'success', 'Produto criado. Agora envie os arquivos que o comprador vai baixar.', `/admin/cursos/${id}/arquivos`);
+    flashBack(req, res, 'success', 'Curso criado. Agora adicione os módulos e as aulas.', `/admin/cursos/${id}/conteudo`);
   });
 
   r.get('/admin/cursos/:id', async (req, res, next) => {
