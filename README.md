@@ -7,6 +7,7 @@ Mais um produto Belle Planner.
 
 | Versão | Fase | Data | O que mudou |
 |---|---|---|---|
+| 0.7.0 | 6 · Produtos digitais e volume | 2026-10-28 | **Novo cadastro com escolha do tipo**: Curso ou **Produto digital** (e-book, ferramenta, áudio guiado, pacote). Produto digital tem descrição, capa, vídeo de apresentação opcional, etiqueta e **arquivos para baixar**, sem módulos, aulas, quiz, prova nem certificado. Checkout, Mercado Pago, cupons, reembolso, cortesia e cockpit funcionam igual (o cockpit ganhou o filtro **Tipo**). **Onde guardar cada arquivo**: ao enviar (produto ou apostila de aula) você escolhe **Banco de dados (até 20 MB)** ou **Volume do Railway (até 350 MB)**; o sistema sugere pelo tamanho. Arquivos antigos continuam no banco. Envio direto para o disco (não ocupa memória). Tipos aceitos nos produtos: PDF, EPUB, ZIP, MP3, M4A, WAV, MP4, DOCX, XLSX, PPTX, PNG e JPG, conferidos pelo conteúdo real. Download só para quem tem acesso vigente. Botão **Avisar sobre a atualização** (sino e e-mail, uma vez por alteração). Limpeza automática de arquivos órfãos do volume. E-mails e telas de compra falam "produto" quando for o caso. Migração 010. Inclui tudo da 0.6.1. |
 | 0.6.1 | 5 · Campainha | 2026-10-28 | **Campainha de avisos** para o professor e para o aluno (sino ao lado do **?**, com contador). Amarelo = novo; ao abrir ou responder fica cinza e some em 7 dias. Professor: pergunta no fórum, venda, pedido de reembolso, chargeback, pedido de exclusão ou troca de e-mail, aluno com 50% do curso, aulas todas vistas, certificado emitido, avaliação nova e aniversários da semana. Aluno: professor respondeu, pagamento confirmado, certificado pronto, reembolso, resposta ao pedido de dados, prazo do acesso acabando (30, 7 e 1 dias, agora **também por e-mail**), lembretes de estudo e feliz aniversário. O que já estava pendente aparece no sino na primeira subida. Novo campo opcional **Data de nascimento** no perfil. Exclusão de dados apaga os avisos da pessoa. Migração 009. Inclui tudo da 0.6.0. |
 | 0.6.0 | 5 · Comunidade, ajuda e LGPD | 2026-10-28 | **Fórum por aula** (só alunos com acesso; o professor responde pelo painel e o aluno é avisado por e-mail; ocultar mensagens; o aluno apaga a própria se ainda não tiver respostas). **Avaliação do curso** (1 a 5 estrelas e NPS) para quem recebeu o certificado, com média e NPS em **Fórum e avaliações**. **Ajuda da Lumen**: botão **?** em cada tela com o passo a passo dela e página **Ajuda** com perguntas frequentes. **LGPD e aceites** no painel: fila de pedidos do titular (prazo de 15 dias, cópia dos dados em JSON, exclusão com anonimização; pedidos com os dados da compra, aceites e certificados ficam guardados por obrigação legal) e consulta e exportação (CSV) dos aceites com data, hora e IP. **Configurações**: contato de suporte, fórum ligado ou desligado, aviso de nova dúvida e situação do sistema. Receita e valor recebido passam a usar o preço do curso (sem juros do parcelamento). Limite de requisições no acompanhamento do pedido. Tag "Sociedade Brasileira de Coaching" removida da landing. Migração 008. |
 | 0.5.2 | 4 · Pagamentos (cockpit) | 2026-10-27 | **Cockpit financeiro** em `/admin/financeiro` (receita bruta, devolvido, receita líquida, ticket médio, novas e renovações, conclusões, churn e efetividade; gráfico por dia ou mês; tabelas por curso e por forma de pagamento; filtros de período e curso). Aula: mensagem passa a "Assista sua aula!". Webhook com assinatura inválida agora registra no log um diagnóstico seguro (sem segredos). Sem migração nova. |
@@ -46,6 +47,20 @@ Endereço de produção: https://evolumen.ericktorritezi.com.br
 1. Envie o conteúdo do ZIP para a branch `staging` do GitHub.
 2. O Railway faz o deploy; migrações e seeds rodam sozinhos ao iniciar.
 3. Confira `/health` e entre com ADMIN_EMAIL e ADMIN_INITIAL_PASSWORD.
+
+## Como testar produtos digitais e o volume (0.7.0)
+
+Antes: crie o volume no Railway do ambiente (serviço do site, caminho `/data`). O sistema lê o caminho sozinho; nenhuma variável nova é necessária. Suba por cima da 0.6.1. A migração 010 roda na subida.
+
+1. **Cursos e produtos** → **Novo cadastro**: aparecem as duas opções. Escolha **Produto digital**. O formulário não pede nível, carga horária nem pré-requisitos. Preencha nome, etiqueta (ex.: E-book), resumo, preço e publique.
+2. Na aba **Arquivos** do produto, envie um PDF pequeno e escolha **Banco de dados**. Envie um ZIP ou MP3 e escolha **Volume do Railway**. Ao escolher um arquivo maior que 20 MB, o sistema sugere o volume.
+3. Em **Configurações** > situação do sistema nada muda; o volume vale quando a opção **Volume do Railway** aparece habilitada. Se aparecer "indisponível neste ambiente", o volume não está montado.
+4. Faça uma **cortesia** do produto para um aluno de teste (ou uma compra pelo simulador). Entre como o aluno: em **Meus cursos** o produto aparece com **Baixar arquivos**. Baixe os dois arquivos e confira que abrem.
+5. Teste com a conta de outro aluno sem acesso: não baixa. Teste enviar um arquivo com extensão trocada (ex.: .exe renomeado): é recusado.
+6. **Avisar sobre a atualização**: o aluno recebe o aviso no sino e por e-mail, uma vez.
+7. Apostila de aula de um **curso** também tem a escolha banco ou volume.
+8. **Cockpit financeiro**: o filtro **Tipo** separa cursos e produtos digitais.
+9. Teste um arquivo grande (ex.: 100 MB) no volume para conferir o tempo de envio no seu celular ou computador.
 
 ## Como testar a campainha (0.6.1)
 
@@ -124,3 +139,8 @@ Lembrete da regra central: login e senha não liberam curso. O acesso nasce de u
 ## Testes e QA
 
 `TEST_DATABASE_URL=postgres://... npm run qa` gera o `QA-RELATORIO.md`.
+
+### Notas da 0.7.0
+- **Não volte para a 0.6.x depois de subir esta versão**: o código antigo não entende arquivos no volume nem produtos digitais. Só avance.
+- Arquivos do volume sem registro no banco vão para `/data/trash` e são apagados após 7 dias (protege contra restauração de um backup antigo do banco).
+- Envios grandes dependem da velocidade de upload: 350 MB em 20 min exigem ~2,5 Mbps. O volume não entra no backup do banco.

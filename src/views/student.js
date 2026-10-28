@@ -13,19 +13,22 @@ const titleRow = (title, sub) => html`<div class="title-row"><h1 class="t-displa
 const navPath = (user) => (user.role === 'admin' ? '/admin/cursos' : '/meus-cursos');
 
 function meusCursos({ cfg, user, csrf, flash, courses, resume }) {
-  const content = html`${titleRow(html`Olá, ${user.name.split(' ')[0]}.`, 'Seus cursos e o seu avanço.')}
+  const content = html`${titleRow(html`Olá, ${user.name.split(' ')[0]}.`, 'Seus cursos, produtos e o seu avanço.')}
   ${resume ? html`<section class="card card--hero resume"><div><span class="eyebrow">Continue de onde parou</span><h2 class="t-card">${resume.course.title}</h2>
       <p class="muted">${resume.lesson.module_title} · ${resume.lesson.title}</p></div>
       <a class="btn btn--primary" href="/curso/${resume.course.slug}/aula/${resume.lesson.id}">Continuar aula</a></section>` : ''}
   ${courses.length
-    ? html`<h2 class="t-card">Meus cursos</h2><div class="mgrid">${courses.map((c) => html`<article class="card mcard">
+    ? html`<h2 class="t-card">Meus cursos e produtos</h2><div class="mgrid">${courses.map((c) => html`<article class="card mcard">
         <a class="mcard__cover" href="/curso/${c.slug}" tabindex="-1" aria-hidden="true">${coverBox(c)}</a>
         <h3 class="t-card"><a href="/curso/${c.slug}">${c.title}</a></h3>
-        ${bar(c.pct)}
-        <p class="muted small">${c.pct}% concluído · ${c.expires_at ? 'acesso até ' + fmtDate(c.expires_at) : 'acesso vitalício'}</p>
-        <a class="btn btn--outline btn--sm" href="/curso/${c.slug}">${c.pct > 0 ? 'Continuar' : 'Começar'}</a></article>`)}</div>`
-    : html`<section class="card card--hero"><div class="empty">${lumen('pensa', 120)}<div><h2 class="t-card">Você ainda não tem cursos</h2>
-        <p class="muted">Quando você se matricular em um curso, ele aparece aqui, com o seu progresso.</p>
+        ${c.product_type === 'download'
+          ? html`<p class="muted small">${c.category || 'Produto digital'} · ${plural(c.n_files, 'arquivo', 'arquivos')} · ${c.expires_at ? 'acesso até ' + fmtDate(c.expires_at) : 'acesso vitalício'}</p>
+            <a class="btn btn--outline btn--sm" href="/curso/${c.slug}">Baixar arquivos</a>`
+          : html`${bar(c.pct)}
+            <p class="muted small">${c.pct}% concluído · ${c.expires_at ? 'acesso até ' + fmtDate(c.expires_at) : 'acesso vitalício'}</p>
+            <a class="btn btn--outline btn--sm" href="/curso/${c.slug}">${c.pct > 0 ? 'Continuar' : 'Começar'}</a>`}</article>`)}</div>`
+    : html`<section class="card card--hero"><div class="empty">${lumen('pensa', 120)}<div><h2 class="t-card">Você ainda não tem cursos nem produtos</h2>
+        <p class="muted">Quando você comprar ou receber um acesso, ele aparece aqui.</p>
         <a class="btn btn--outline btn--sm" href="/#cursos">Ver os cursos</a></div></div></section>`}`;
   return shellApp({ cfg, user, csrf, flash, path: '/meus-cursos', title: 'Meus cursos', content });
 }
@@ -83,6 +86,19 @@ function examCard(course, ov) {
     ${c.eligible ? html`<a class="btn btn--primary" href="/certificados">${icon('cert', 18)} Ver meu certificado</a>`
       : (f && f.passed && !c.pctOk ? html`<p class="muted small">Você já passou na prova. O certificado sai assim que você concluir 95% do curso.</p>` : '')}
   </section>`;
+}
+
+// Produto digital: sem aulas nem progresso, só os arquivos para baixar.
+function produtoHome({ cfg, user, csrf, flash, course, items, access }) {
+  const content = html`<a class="back" href="${navPath(user)}">← ${user.role === 'admin' ? 'Cursos e produtos' : 'Meus produtos'}</a>
+  ${user.role === 'admin' ? html`<div class="alert alert--info">Você está vendo como administrador.</div>` : ''}
+  ${titleRow(course.title, course.summary)}
+  <section class="card"><span class="eyebrow">${course.category || 'Produto digital'}</span>
+    <p class="muted small">${access.expires_at ? 'Acesso até ' + fmtDate(access.expires_at) : 'Acesso vitalício'}${course.files_updated_at ? ' · atualizado em ' + fmtDate(course.files_updated_at) : ''}</p></section>
+  ${items.length ? html`<h2 class="t-card">Seus arquivos</h2><ul class="dl dl--card">${items.map((f) => html`<li>${icon('file', 20)}<div><b>${f.label}</b><span class="muted small">${f.filename} · ${files.humanSize(f.size_bytes)}</span></div>
+      <a class="btn btn--primary btn--sm" href="/arquivos/${f.file_id}">Baixar</a></li>`)}</ul>`
+    : html`<section class="card empty">${lumen('pensa', 90)}<p class="muted">Os arquivos deste produto estão sendo preparados.</p></section>`}`;
+  return shellApp({ cfg, user, csrf, flash, path: navPath(user), title: course.title, content });
 }
 
 function cursoHome({ cfg, user, csrf, flash, course, cur, progress, next, access, ov, review }) {
@@ -146,4 +162,4 @@ function aula({ cfg, user, csrf, flash, course, cur, lesson, flat, progress, acc
   return shellApp({ cfg, user, csrf, flash, path: navPath(user), title: lesson.title, content });
 }
 
-module.exports = { meusCursos, cursoHome, aula, bar, titleRow };
+module.exports = { meusCursos, produtoHome, cursoHome, aula, bar, titleRow };

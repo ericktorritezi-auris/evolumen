@@ -145,14 +145,15 @@ function chart(series, unit) {
     <line class="ch-ax" x1="${padL}" y1="${H - padB}" x2="${W - padL}" y2="${H - padB}"/>${raw(bars)}${raw(ticks)}<text class="ch-t" x="${padL}" y="${padT + 6}">${brl(max)}</text></svg>`;
 }
 
-function financeiro(ctx, { per, curso, courses, data: d }) {
+function financeiro(ctx, { per, curso, tipo = '', courses, data: d }) {
   const custom = per.key === 'custom';
   const content = html`${titleRow('Cockpit financeiro', 'Receita, devoluções e retenção. A venda conta no dia da aprovação do pagamento.')}
   <form method="get" action="/admin/financeiro" class="form form--grid filters">
     <div class="field"><label for="periodo">Período</label>${sel('periodo', 'periodo', per.key, Object.entries(F.PRESETS))}</div>
     <div class="field"><label for="de">De</label><input id="de" type="date" name="de" value="${per.from}"></div>
     <div class="field"><label for="ate">Até</label><input id="ate" type="date" name="ate" value="${per.to}"></div>
-    <div class="field"><label for="curso">Curso</label>${sel('curso', 'curso', curso || '', [['', 'Todos'], ...courses.map((c) => [c.id, c.title])])}</div>
+    <div class="field"><label for="tipo">Tipo</label>${sel('tipo', 'tipo', tipo, [['', 'Todos'], ['course', 'Cursos'], ['download', 'Produtos digitais']])}</div>
+    <div class="field"><label for="curso">Curso ou produto</label>${sel('curso', 'curso', curso || '', [['', 'Todos'], ...courses.map((c) => [c.id, c.title])])}</div>
     <div class="row"><button class="btn btn--outline" type="submit">Atualizar</button></div></form>
   <p class="muted small">${per.label}: ${dBR(per.from)} a ${dBR(per.to)}. ${custom ? '' : 'As datas "De" e "Até" só valem em "Período livre".'}</p>
   <div class="stats stats--6">
@@ -169,9 +170,9 @@ function financeiro(ctx, { per, curso, courses, data: d }) {
     <div class="chart-wrap">${chart(d.series, d.unit)}</div>
     <details class="chart-data"><summary class="small">Ver os valores do gráfico</summary><div class="tbl-wrap"><table class="tbl"><thead><tr><th>${d.unit === 'month' ? 'Mês' : 'Dia'}</th><th>Receita bruta</th><th>Devolvido</th></tr></thead><tbody>
     ${d.series.filter((x) => x.gross || x.refunds).map((x) => html`<tr><td data-l="${d.unit === 'month' ? 'Mês' : 'Dia'}">${label(x.key, d.unit)}</td><td data-l="Receita bruta">${brl(x.gross)}</td><td data-l="Devolvido">${brl(x.refunds)}</td></tr>`)}</tbody></table></div></details></section>
-  <section class="card"><h2 class="t-card">Por curso</h2>
-    ${d.byCourse.length ? html`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Curso</th><th>Vendas</th><th>Bruta</th><th>Devoluções</th><th>Devolvido</th><th>Líquida</th></tr></thead><tbody>
-    ${d.byCourse.map((c) => html`<tr><td data-l="Curso">${c.title}</td><td data-l="Vendas">${c.sales}</td><td data-l="Bruta">${brl(c.gross)}</td><td data-l="Devoluções">${c.refunds}</td><td data-l="Devolvido">${brl(c.refunded_value)}</td><td data-l="Líquida">${brl(c.net)}</td></tr>`)}</tbody></table></div>` : html`<p class="muted">Nenhuma venda nem devolução neste período.</p>`}</section>
+  <section class="card"><h2 class="t-card">Por curso e produto</h2>
+    ${d.byCourse.length ? html`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nome</th><th>Tipo</th><th>Vendas</th><th>Bruta</th><th>Devoluções</th><th>Devolvido</th><th>Líquida</th></tr></thead><tbody>
+    ${d.byCourse.map((c) => html`<tr><td data-l="Nome">${c.title}</td><td data-l="Tipo">${c.product_type === 'download' ? 'Produto' : 'Curso'}</td><td data-l="Vendas">${c.sales}</td><td data-l="Bruta">${brl(c.gross)}</td><td data-l="Devoluções">${c.refunds}</td><td data-l="Devolvido">${brl(c.refunded_value)}</td><td data-l="Líquida">${brl(c.net)}</td></tr>`)}</tbody></table></div>` : html`<p class="muted">Nenhuma venda nem devolução neste período.</p>`}</section>
   <section class="card"><h2 class="t-card">Por forma de pagamento</h2>
     ${d.byMethod.length ? html`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Forma</th><th>Vendas</th><th>Bruta</th></tr></thead><tbody>
     ${d.byMethod.map((m) => html`<tr><td data-l="Forma">${METHOD[m.method] || m.method}</td><td data-l="Vendas">${m.n}</td><td data-l="Bruta">${brl(m.gross)}</td></tr>`)}</tbody></table></div>` : html`<p class="muted">Sem vendas neste período.</p>`}</section>

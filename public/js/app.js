@@ -25,6 +25,18 @@
       t.setAttribute('aria-label', show ? 'Ocultar senha' : 'Mostrar senha');
     }
   });
+  // Sugestão de onde guardar o arquivo (quem decide é o administrador)
+  document.addEventListener('change', function (e) {
+    var inp = e.target.closest ? e.target.closest('[data-suggest-storage]') : null;
+    if (!inp || !inp.files || !inp.files[0]) return;
+    var form = inp.form, sel = form && form.querySelector('[data-storage]'), msg = form && form.querySelector('[data-storage-msg]');
+    if (!sel) return;
+    var mb = inp.files[0].size / 1048576, vol = sel.querySelector('option[value="volume"]'), size = mb.toFixed(1).replace('.', ',') + ' MB';
+    var volOn = !!(vol && !vol.disabled), lim = volOn ? 350 : 20;
+    if (mb > lim) { inp.value = ''; if (msg) msg.textContent = 'Este arquivo tem ' + size + ' e passa do limite de ' + lim + ' MB' + (volOn ? '.' : ' (o volume não está ligado neste ambiente).'); return; }
+    if (mb > 20) { if (sel.value === 'db') sel.value = 'volume'; if (msg) msg.textContent = 'Este arquivo tem ' + size + ': não cabe no banco, então vai para o volume.'; }
+    else if (msg) msg.textContent = 'Este arquivo tem ' + size + ': cabe no banco. Se preferir, escolha o volume.';
+  });
   // Campainha de avisos (texto sempre inserido como texto, nunca como HTML)
   var bellEl = $('#bell-panel'), bellFrom = null, bellCsrf = '';
   function ago(iso) {

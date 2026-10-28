@@ -56,30 +56,30 @@ function emailChangeCode(cfg, name, code, kind, newEmail) {
   };
 }
 
-function accessGranted(cfg, name, email, tempPassword, courseTitle, { gift = false } = {}) {
+function accessGranted(cfg, name, email, tempPassword, courseTitle, { gift = false, noun = 'curso' } = {}) {
   const first = esc(String(name).split(' ')[0]);
   const url = `${cfg.baseUrl}/entrar`;
   return {
     subject: gift ? `Um presente para você: ${courseTitle}` : 'Seu acesso à EvoLumen Academy',
     template: gift ? 'cortesia_acesso' : 'acesso_liberado',
-    html: layout({ cfg, title: gift ? 'Você ganhou um curso' : 'Seu acesso está liberado',
-      intro: gift ? `Olá, ${first}. O curso <b>${esc(courseTitle)}</b> foi concedido a você como cortesia, sem nenhum custo.` : `Olá, ${first}. Você agora tem acesso ao curso <b>${esc(courseTitle)}</b>.`,
+    html: layout({ cfg, title: gift ? `Você ganhou um ${noun}` : 'Seu acesso está liberado',
+      intro: gift ? `Olá, ${first}. O ${noun} <b>${esc(courseTitle)}</b> foi concedido a você como cortesia, sem nenhum custo.` : `Olá, ${first}. Você agora tem acesso ao ${noun} <b>${esc(courseTitle)}</b>.`,
       bodyHtml: `<p style="margin:14px 0 4px;font-size:14px">Login: <b>${esc(email)}</b></p><p style="margin:0 0 14px;font-size:14px">Senha provisória: <b style="letter-spacing:1px">${esc(tempPassword)}</b></p>`,
       cta: { url, label: 'Entrar na área de membros' }, outro: 'No primeiro acesso você escolhe sua própria senha. Guarde este e-mail só até lá.' }),
-    text: `Olá, ${name}. ${gift ? `O curso ${courseTitle} foi concedido a você como cortesia, sem custo.` : `Seu acesso ao curso ${courseTitle} está liberado.`}\nLogin: ${email}\nSenha provisória: ${tempPassword}\nEntre em: ${url}\nNo primeiro acesso você escolhe sua própria senha.`,
+    text: `Olá, ${name}. ${gift ? `O ${noun} ${courseTitle} foi concedido a você como cortesia, sem custo.` : `Seu acesso ao ${noun} ${courseTitle} está liberado.`}\nLogin: ${email}\nSenha provisória: ${tempPassword}\nEntre em: ${url}\nNo primeiro acesso você escolhe sua própria senha.`,
   };
 }
 
-function courseGranted(cfg, name, courseTitle, slug, { gift = false } = {}) {
+function courseGranted(cfg, name, courseTitle, slug, { gift = false, noun = 'curso' } = {}) {
   const first = esc(String(name).split(' ')[0]);
   const url = `${cfg.baseUrl}/curso/${slug}`;
   return {
     subject: gift ? `Um presente para você: ${courseTitle}` : `Acesso liberado: ${courseTitle}`,
     template: gift ? 'cortesia_curso' : 'curso_liberado',
-    html: layout({ cfg, title: gift ? 'Você ganhou um curso' : 'Novo curso liberado',
-      intro: gift ? `Olá, ${first}. O curso <b>${esc(courseTitle)}</b> foi concedido a você como cortesia, sem nenhum custo. Ele já está na sua área de membros.` : `Olá, ${first}. Você agora tem acesso ao curso <b>${esc(courseTitle)}</b>.`,
-      cta: { url, label: 'Abrir o curso' } }),
-    text: gift ? `Olá, ${name}. O curso ${courseTitle} foi concedido a você como cortesia, sem custo: ${url}` : `Olá, ${name}. Você agora tem acesso ao curso ${courseTitle}: ${url}`,
+    html: layout({ cfg, title: gift ? `Você ganhou um ${noun}` : `Novo ${noun} liberado`,
+      intro: gift ? `Olá, ${first}. O ${noun} <b>${esc(courseTitle)}</b> foi concedido a você como cortesia, sem nenhum custo. Ele já está na sua área de membros.` : `Olá, ${first}. Você agora tem acesso ao ${noun} <b>${esc(courseTitle)}</b>.`,
+      cta: { url, label: `Abrir o ${noun}` } }),
+    text: gift ? `Olá, ${name}. O ${noun} ${courseTitle} foi concedido a você como cortesia, sem custo: ${url}` : `Olá, ${name}. Você agora tem acesso ao ${noun} ${courseTitle}: ${url}`,
   };
 }
 
@@ -119,19 +119,20 @@ function adminEmailRequest(cfg, student, newEmail) {
 }
 
 const brl = (c) => (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const nn = (c) => (c && c.product_type === 'download' ? 'produto' : 'curso');
 const first = (n) => esc(String(n).split(' ')[0]);
 
 // Compra aprovada. Conta nova: leva login e senha provisória. Conta existente: só avisa do curso.
 function purchaseApproved(cfg, { name, email, password, course, order, renewal, expiresLabel }) {
   const url = password ? `${cfg.baseUrl}/entrar` : `${cfg.baseUrl}/curso/${course.slug}`;
-  const intro = renewal ? `Olá, ${first(name)}. Sua renovação do curso <b>${esc(course.title)}</b> foi confirmada.` : `Olá, ${first(name)}. Seu pagamento foi aprovado e o curso <b>${esc(course.title)}</b> já está liberado para você.`;
+  const intro = renewal ? `Olá, ${first(name)}. Sua renovação do ${nn(course)} <b>${esc(course.title)}</b> foi confirmada.` : `Olá, ${first(name)}. Seu pagamento foi aprovado e o ${nn(course)} <b>${esc(course.title)}</b> já está liberado para você.`;
   const resumo = `<p style="margin:14px 0 4px;font-size:14px">Valor pago: <b>${brl(order.paid_cents || order.price_cents)}</b></p>${expiresLabel ? `<p style="margin:0 0 4px;font-size:14px">Acesso até: <b>${esc(expiresLabel)}</b></p>` : '<p style="margin:0 0 4px;font-size:14px">Acesso: <b>vitalício</b></p>'}`;
   const cred = password ? `<p style="margin:14px 0 4px;font-size:14px">Login: <b>${esc(email)}</b></p><p style="margin:0 0 14px;font-size:14px">Senha provisória: <b style="letter-spacing:1px">${esc(password)}</b></p>` : '';
   return {
     subject: renewal ? `Renovação confirmada: ${course.title}` : `Pagamento aprovado: ${course.title}`,
     template: renewal ? 'compra_renovacao' : (password ? 'compra_acesso' : 'compra_curso'),
     html: layout({ cfg, title: renewal ? 'Renovação confirmada' : 'Pagamento aprovado', intro, bodyHtml: resumo + cred,
-      cta: { url, label: password ? 'Entrar na área de membros' : 'Abrir o curso' },
+      cta: { url, label: password ? 'Entrar na área de membros' : (nn(course) === 'produto' ? 'Abrir o produto' : 'Abrir o curso') },
       outro: `Você pode pedir reembolso em até ${cfg.refundDays} dias após a compra, em Pagamentos e acessos.${password ? ' No primeiro acesso você escolhe sua própria senha.' : ''}` }),
     text: `Olá, ${name}. ${renewal ? 'Renovação confirmada' : 'Pagamento aprovado'}: ${course.title}.\nValor: ${brl(order.paid_cents || order.price_cents)}\n${password ? `Login: ${email}\nSenha provisória: ${password}\n` : ''}Acesse: ${url}\nReembolso em até ${cfg.refundDays} dias, em Pagamentos e acessos.`,
   };
@@ -141,27 +142,27 @@ function purchaseApproved(cfg, { name, email, password, course, order, renewal, 
 function pixExpired(cfg, { name, course, retryUrl }) {
   return {
     subject: `Seu Pix venceu: ${course.title}`, template: 'pix_vencido',
-    html: layout({ cfg, title: 'Seu Pix venceu', intro: `Olá, ${first(name)}. O Pix do curso <b>${esc(course.title)}</b> venceu antes de ser pago. Nada foi cobrado.`,
+    html: layout({ cfg, title: 'Seu Pix venceu', intro: `Olá, ${first(name)}. O Pix do ${nn(course)} <b>${esc(course.title)}</b> venceu antes de ser pago. Nada foi cobrado.`,
       cta: { url: retryUrl, label: 'Tentar de novo' }, outro: 'Se você já pagou, não se preocupe: a confirmação pode levar alguns minutos e o acesso chega por e-mail.' }),
-    text: `Olá, ${name}. O Pix do curso ${course.title} venceu sem pagamento. Nada foi cobrado. Tente de novo: ${retryUrl}`,
+    text: `Olá, ${name}. O Pix do ${nn(course)} ${course.title} venceu sem pagamento. Nada foi cobrado. Tente de novo: ${retryUrl}`,
   };
 }
 
 function refundDone(cfg, { name, course, amountCents }) {
   return {
     subject: `Reembolso realizado: ${course.title}`, template: 'reembolso_feito',
-    html: layout({ cfg, title: 'Reembolso realizado', intro: `Olá, ${first(name)}. Devolvemos <b>${brl(amountCents)}</b> do curso <b>${esc(course.title)}</b> e o acesso foi encerrado.`,
+    html: layout({ cfg, title: 'Reembolso realizado', intro: `Olá, ${first(name)}. Devolvemos <b>${brl(amountCents)}</b> do ${nn(course)} <b>${esc(course.title)}</b> e o acesso foi encerrado.`,
       outro: 'O valor volta pela mesma forma de pagamento. O prazo para aparecer na fatura ou na conta depende do banco ou do cartão.' }),
-    text: `Olá, ${name}. Devolvemos ${brl(amountCents)} do curso ${course.title} e o acesso foi encerrado. O prazo para o valor aparecer depende do seu banco ou cartão.`,
+    text: `Olá, ${name}. Devolvemos ${brl(amountCents)} do ${nn(course)} ${course.title} e o acesso foi encerrado. O prazo para o valor aparecer depende do seu banco ou cartão.`,
   };
 }
 
 function refundRejected(cfg, { name, course, note }) {
   return {
     subject: `Sobre o seu pedido de reembolso: ${course.title}`, template: 'reembolso_recusado',
-    html: layout({ cfg, title: 'Pedido de reembolso analisado', intro: `Olá, ${first(name)}. Analisamos o pedido de reembolso do curso <b>${esc(course.title)}</b> e, desta vez, não foi aprovado.`,
-      bodyHtml: note ? `<p style="margin:12px 0;font-size:14px;line-height:1.6">${esc(note)}</p>` : '', outro: 'Seu acesso ao curso continua normal.' }),
-    text: `Olá, ${name}. O pedido de reembolso do curso ${course.title} não foi aprovado.${note ? ' ' + note : ''} Seu acesso continua normal.`,
+    html: layout({ cfg, title: 'Pedido de reembolso analisado', intro: `Olá, ${first(name)}. Analisamos o pedido de reembolso do ${nn(course)} <b>${esc(course.title)}</b> e, desta vez, não foi aprovado.`,
+      bodyHtml: note ? `<p style="margin:12px 0;font-size:14px;line-height:1.6">${esc(note)}</p>` : '', outro: 'Seu acesso ao ${nn(course)} continua normal.' }),
+    text: `Olá, ${name}. O pedido de reembolso do ${nn(course)} ${course.title} não foi aprovado.${note ? ' ' + note : ''} Seu acesso continua normal.`,
   };
 }
 
@@ -169,9 +170,9 @@ function refundRequested(cfg, { student, course, reason, orderId }) {
   const url = `${cfg.baseUrl}/admin/vendas/${orderId}`;
   return {
     subject: `Pedido de reembolso: ${course.title}`, template: 'reembolso_pedido_admin',
-    html: layout({ cfg, title: 'Novo pedido de reembolso', intro: `<b>${esc(student.name)}</b> (${esc(student.email)}) pediu reembolso do curso <b>${esc(course.title)}</b>.`,
+    html: layout({ cfg, title: 'Novo pedido de reembolso', intro: `<b>${esc(student.name)}</b> (${esc(student.email)}) pediu reembolso do ${nn(course)} <b>${esc(course.title)}</b>.`,
       bodyHtml: reason ? `<p style="margin:12px 0;font-size:14px;line-height:1.6">Motivo informado: ${esc(reason)}</p>` : '', cta: { url, label: 'Analisar o pedido' } }),
-    text: `${student.name} (${student.email}) pediu reembolso do curso ${course.title}. ${reason || ''}\nAnalisar: ${url}`,
+    text: `${student.name} (${student.email}) pediu reembolso do ${nn(course)} ${course.title}. ${reason || ''}\nAnalisar: ${url}`,
   };
 }
 
@@ -202,9 +203,20 @@ function accessExpiring(cfg, { name, course, days, whenLabel }) {
   const left = days <= 0 ? 'vence hoje' : days === 1 ? 'vence amanhã' : `vence em ${days} dias`;
   return {
     subject: `Seu acesso a "${course.title}" ${left}`, template: 'acesso_vencendo',
-    html: layout({ cfg, title: 'Seu acesso está perto de vencer', intro: `Olá, ${first}. Seu acesso ao curso <b>${esc(course.title)}</b> ${left} (${esc(whenLabel)}).`,
-      bodyHtml: '<p style="margin:12px 0;font-size:14px;line-height:1.6">Aproveite para terminar as aulas e emitir o certificado. Se precisar de mais tempo, você pode renovar o acesso.</p>', cta: { url, label: 'Continuar o curso' } }),
+    html: layout({ cfg, title: 'Seu acesso está perto de vencer', intro: `Olá, ${first}. Seu acesso ao ${nn(course)} <b>${esc(course.title)}</b> ${left} (${esc(whenLabel)}).`,
+      bodyHtml: `<p style="margin:12px 0;font-size:14px;line-height:1.6">${nn(course) === 'produto' ? 'Baixe os arquivos que ainda precisar enquanto o acesso está ativo.' : 'Aproveite para terminar as aulas e emitir o certificado.'} Se precisar de mais tempo, você pode renovar o acesso.</p>`, cta: { url, label: nn(course) === 'produto' ? 'Abrir o produto' : 'Continuar o curso' } }),
     text: `Olá, ${name}. Seu acesso a "${course.title}" ${left} (${whenLabel}). Continue em ${url}`,
+  };
+}
+
+function productUpdated(cfg, { name, product }) {
+  const first = esc(String(name).split(' ')[0]);
+  const url = `${cfg.baseUrl}/curso/${product.slug}`;
+  return {
+    subject: `Atualização disponível: ${product.title}`, template: 'produto_atualizado',
+    html: layout({ cfg, title: 'Tem novidade para você', intro: `Olá, ${first}. O produto <b>${esc(product.title)}</b> recebeu arquivos novos ou atualizados.`,
+      bodyHtml: '<p style="margin:12px 0;font-size:14px;line-height:1.6">Entre na sua conta para baixar a versão mais recente.</p>', cta: { url, label: 'Baixar agora' } }),
+    text: `Olá, ${name}. "${product.title}" recebeu arquivos novos ou atualizados. Baixe em ${url}`,
   };
 }
 
@@ -219,4 +231,4 @@ function dataRequestDone(cfg, { name, kind, ok, note }) {
   };
 }
 
-module.exports = { accessExpiring, forumQuestion, forumAnswer, dataRequestDone, purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };
+module.exports = { productUpdated, accessExpiring, forumQuestion, forumAnswer, dataRequestDone, purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };

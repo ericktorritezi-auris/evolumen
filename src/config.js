@@ -47,6 +47,8 @@ function load(env = process.env) {
     paymentProvider: ((env.PAYMENT_PROVIDER || '').trim().toLowerCase()) || (appEnv === 'production' || env.MP_ACCESS_TOKEN || !(envExplicit || appEnv === 'test') ? 'mercadopago' : 'simulated'),
     // Sem credencial do Mercado Pago em produção, o checkout fica fechado ("em breve"), sem derrubar o site.
     paymentsEnabled: ((env.PAYMENT_PROVIDER || '').trim().toLowerCase() === 'simulated' && appEnv !== 'production' && (envExplicit || appEnv === 'test')) || !!(env.MP_ACCESS_TOKEN && (env.PAYMENT_PROVIDER || 'mercadopago').toLowerCase() === 'mercadopago') || (appEnv !== 'production' && (envExplicit || appEnv === 'test') && !env.MP_ACCESS_TOKEN && !env.PAYMENT_PROVIDER),
+    // Pasta de arquivos grandes: o volume do Railway (caminho vem sozinho) ou FILES_DIR (testes e desenvolvimento).
+    filesDir: (env.FILES_DIR || env.RAILWAY_VOLUME_MOUNT_PATH || '').trim(),
     pixMinutes: 30,
     refundDays: 7,
     sessionDays: 30,

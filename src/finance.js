@@ -34,14 +34,15 @@ function period(q, now = new Date()) {
   return { key, from, to, label: PRESETS[key] };
 }
 
-async function summary({ from, to }, courseId, now = new Date()) {
+async function summary({ from, to }, courseId, now = new Date(), tipo = null) {
   const cid = courseId || null;
-  const base = [from, to, cid];
+  const kind = tipo === 'course' || tipo === 'download' ? tipo : null;
+  const base = [from, to, cid, kind];
   // início e fim (exclusivo) em horário de Brasília
   const S = "($1::date)::timestamp AT TIME ZONE 'America/Sao_Paulo'";
   const E = "(($2::date) + 1)::timestamp AT TIME ZONE 'America/Sao_Paulo'";
   const money = 'o.price_cents'; // preço do curso: os juros do parcelamento são do aluno e não são receita
-  const crs = 'AND ($3::bigint IS NULL OR o.course_id = $3::bigint)';
+  const crs = 'AND ($3::bigint IS NULL OR o.course_id = $3::bigint) AND ($4::text IS NULL OR o.course_id IN (SELECT x.id FROM courses x WHERE x.product_type = $4::text))';
 
   const sales = (await db.q(`SELECT count(*)::int AS n, COALESCE(sum(${money}),0)::bigint AS gross,
       count(*) FILTER (WHERE o.kind = 'purchase')::int AS news, count(*) FILTER (WHERE o.kind = 'renewal')::int AS renewals,
@@ -54,20 +55,20 @@ async function summary({ from, to }, courseId, now = new Date()) {
 
   // Matrículas compradas que venceram no período e continuam com a mesma data (não foram renovadas). Só até agora.
   const non = (await db.q(`SELECT count(*)::int AS n FROM enrollments e
-    WHERE e.origin = 'purchase' AND e.status = 'active' AND e.expires_at IS NOT NULL AND e.expires_at >= ${S} AND e.expires_at < LEAST(${E}, $4::timestamptz)
-      AND ($3::bigint IS NULL OR e.course_id = $3::bigint)`, [...base, now.toISOString()])).rows[0].n;
+    WHERE e.origin = 'purchase' AND e.status = 'active' AND e.expires_at IS NOT NULL AND e.expires_at >= ${S} AND e.expires_at < LEAST(${E}, $5::timestamptz)
+      AND ($3::bigint IS NULL OR e.course_id = $3::bigint) AND ($4::text IS NULL OR e.course_id IN (SELECT x.id FROM courses x WHERE x.product_type = $4::text))`, [...base, now.toISOString()])).rows[0].n;
 
   const certs = (await db.q(`SELECT count(*)::int AS n FROM certificates ce
-    WHERE ce.issued_at >= ${S} AND ce.issued_at < ${E} AND ($3::bigint IS NULL OR ce.course_id = $3::bigint)`, base)).rows[0].n;
+    WHERE ce.issued_at >= ${S} AND ce.issued_at < ${E} AND ($3::bigint IS NULL OR ce.course_id = $3::bigint) AND ($4::text IS NULL OR ce.course_id IN (SELECT x.id FROM courses x WHERE x.product_type = $4::text))`, base)).rows[0].n;
 
-  const byCourse = (await db.q(`SELECT c.id, c.title,
+  const byCourse = (await db.q(`SELECT c.id, c.title, c.product_type,
       count(*) FILTER (WHERE o.approved_at >= ${S} AND o.approved_at < ${E})::int AS sales,
       COALESCE(sum(${money}) FILTER (WHERE o.approved_at >= ${S} AND o.approved_at < ${E}),0)::bigint AS gross,
       count(*) FILTER (WHERE o.status IN ('refunded','charged_back') AND o.refunded_at >= ${S} AND o.refunded_at < ${E})::int AS refunds,
       COALESCE(sum(${money}) FILTER (WHERE o.status IN ('refunded','charged_back') AND o.refunded_at >= ${S} AND o.refunded_at < ${E}),0)::bigint AS refunded_value
     FROM orders o JOIN courses c ON c.id = o.course_id
     WHERE ((o.approved_at >= ${S} AND o.approved_at < ${E}) OR (o.refunded_at >= ${S} AND o.refunded_at < ${E})) ${crs}
-    GROUP BY c.id, c.title ORDER BY gross DESC, c.title`, base)).rows;
+    GROUP BY c.id, c.title, c.product_type ORDER BY gross DESC, c.title`, base)).rows;
 
   const byMethod = (await db.q(`SELECT o.method, count(*)::int AS n, COALESCE(sum(${money}),0)::bigint AS gross
     FROM orders o WHERE o.approved_at >= ${S} AND o.approved_at < ${E} ${crs} GROUP BY o.method ORDER BY o.method`, base)).rows;

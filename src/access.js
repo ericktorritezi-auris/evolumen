@@ -72,7 +72,7 @@ async function grant(cfg, h, req, { course, checked, origin }) {
   if (password) await audit(req, 'student_created', { entity: 'user', entityId: user.id });
   await audit(req, origin === 'gift' ? 'gift_granted' : 'enrollment_granted', { entity: 'course', entityId: course.id, meta: { user: user.id, ...(already ? { ja_tinha_acesso: true } : {}) } });
   const gift = origin === 'gift';
-  if (!already) h.background(mailer.send(cfg, { to: user.email, ...(password ? emails.accessGranted(cfg, user.name, user.email, password, course.title, { gift }) : emails.courseGranted(cfg, user.name, course.title, course.slug, { gift })) }));
+  if (!already) h.background(mailer.send(cfg, { to: user.email, ...(password ? emails.accessGranted(cfg, user.name, user.email, password, course.title, { gift, noun: course.product_type === 'download' ? 'produto' : 'curso' }) : emails.courseGranted(cfg, user.name, course.title, course.slug, { gift, noun: course.product_type === 'download' ? 'produto' : 'curso' })) }));
   return { user, password, newUser: !!password, already };
 }
 

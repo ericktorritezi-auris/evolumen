@@ -10,6 +10,9 @@ const certs = require('./certificates');
 const V = require('./validation');
 const { audit } = require('./audit');
 const views = require('./views/admin');
+const notify = require('./notify');
+const mailer = require('./mailer');
+const emails = require('./emails');
 
 const ID = /^\d{1,12}$/;
 
@@ -29,12 +32,26 @@ function build(cfg, h) {
       SELECT c.*, (${C.VISIBLE}) AS visible,
         (SELECT count(*)::int FROM modules m WHERE m.course_id = c.id) AS modules,
         (SELECT count(*)::int FROM lessons l WHERE l.course_id = c.id) AS lessons,
+        (SELECT count(*)::int FROM product_files pf WHERE pf.product_id = c.id) AS n_files,
         (SELECT count(*)::int FROM enrollments e WHERE e.course_id = c.id) AS students
       FROM courses c ORDER BY c.sort_order, c.id`)).rows;
     res.send(views.cursosList(ctx(req, res), { courses }));
   });
 
-  r.get('/admin/cursos/novo', (req, res) => res.send(views.cursoForm(ctx(req, res), {})));
+  // Primeiro o tipo: curso ou produto digital. Só depois o cadastro.
+  r.get('/admin/cursos/novo', (req, res) => {
+    const tipo = req.query.tipo === 'arquivos' ? 'download' : req.query.tipo === 'curso' ? 'course' : null;
+    if (!tipo) return res.send(views.escolherTipo(ctx(req, res)));
+    res.send(views.cursoForm(ctx(req, res, { tipo }), {}));
+  });
+
+  // Produto digital não tem módulos, aulas, avaliações nem certificado: essas telas levam aos arquivos.
+  r.use('/admin/cursos/:id', async (req, res, next) => {
+    if (!ID.test(req.params.id) || !/^\/(conteudo|avaliacoes|certificado|modulos)/.test(req.path)) return next();
+    const c = (await db.q('SELECT product_type FROM courses WHERE id = $1', [req.params.id])).rows[0];
+    if (!c || c.product_type !== 'download') return next();
+    flashBack(req, res, 'info', 'Produto digital não tem módulos, aulas nem certificado. Gerencie os arquivos aqui.', `/admin/cursos/${req.params.id}/arquivos`);
+  });
 
   const saveValues = (v, existing) => {
     const now = new Date();
@@ -49,12 +66,15 @@ function build(cfg, h) {
   const slugTaken = async (slug, exceptId) => (await db.q('SELECT 1 FROM courses WHERE slug = $1 AND id <> $2', [slug, exceptId || 0])).rowCount > 0;
 
   r.post('/admin/cursos', async (req, res) => {
-    const { errors, values } = C.parseCourse(req.body);
+    const tipo = req.body.product_type === 'download' ? 'download' : 'course';
+    const { errors, values } = C.parseCourse(req.body, tipo);
     if (!errors.slug && await slugTaken(values.slug)) errors.slug = 'Já existe um curso com este endereço.';
-    if (Object.keys(errors).length) return res.status(422).send(views.cursoForm(ctx(req, res, { raw: req.body }), { values, errors }));
+    if (Object.keys(errors).length) return res.status(422).send(views.cursoForm(ctx(req, res, { raw: req.body, tipo }), { values, errors }));
     const v = saveValues(values);
-    const ins = await db.q(`INSERT INTO courses (${COLS.join(',')}) VALUES (${COLS.map((_, i) => '$' + (i + 1)).join(',')}) RETURNING id`, COLS.map((c) => colVal(v, c)));
-    await audit(req, 'course_created', { entity: 'course', entityId: ins.rows[0].id, meta: { slug: v.slug } });
+    const cols = [...COLS, 'product_type'];
+    const ins = await db.q(`INSERT INTO courses (${cols.join(',')}) VALUES (${cols.map((_, i) => '$' + (i + 1)).join(',')}) RETURNING id`, [...COLS.map((c) => colVal(v, c)), tipo]);
+    await audit(req, 'course_created', { entity: 'course', entityId: ins.rows[0].id, meta: { slug: v.slug, tipo } });
+    if (tipo === 'download') return flashBack(req, res, 'success', 'Produto criado. Agora envie os arquivos que o comprador vai baixar.', `/admin/cursos/${ins.rows[0].id}/arquivos`);
     flashBack(req, res, 'success', 'Curso criado. Agora adicione os módulos e as aulas.', `/admin/cursos/${ins.rows[0].id}/conteudo`);
   });
 
@@ -65,26 +85,26 @@ function build(cfg, h) {
 
   r.post('/admin/cursos/:id', async (req, res, next) => {
     const course = await courseOr404(req, next); if (!course) return;
-    const { errors, values } = C.parseCourse(req.body);
+    const { errors, values } = C.parseCourse(req.body, C.typeOf(course));
     if (!errors.slug && await slugTaken(values.slug, course.id)) errors.slug = 'Já existe um curso com este endereço.';
     if (Object.keys(errors).length) return res.status(422).send(views.cursoForm(ctx(req, res, { raw: req.body }), { course, values, errors }));
     const v = saveValues(values, course);
     await db.q(`UPDATE courses SET ${COLS.map((c, i) => `${c} = $${i + 2}`).join(', ')}, updated_at = now() WHERE id = $1`, [course.id, ...COLS.map((c) => colVal(v, c))]);
     const wasPublished = course.status === 'published';
     await audit(req, wasPublished !== (v.status === 'published') ? (v.status === 'published' ? 'course_published' : 'course_unpublished') : 'course_updated', { entity: 'course', entityId: course.id, meta: { slug: v.slug } });
-    flashBack(req, res, 'success', 'Curso salvo.', `/admin/cursos/${course.id}`);
+    flashBack(req, res, 'success', C.typeOf(course) === 'download' ? 'Produto salvo.' : 'Curso salvo.', `/admin/cursos/${course.id}`);
   });
 
   r.post('/admin/cursos/:id/capa', (req, res, next) => files.receive(req, res, (err) => {
     if (err) return flashBack(req, res, 'error', err.message, `/admin/cursos/${req.params.id}`);
     next();
-  }), sec.requireCsrf, async (req, res, next) => {
-    const course = await courseOr404(req, next); if (!course) return;
+  }, 'cover'), (req, res, next) => sec.requireCsrf(req, res, (e) => { if (e) { files.discard(req.file); return next(e); } next(); }), async (req, res, next) => {
+    const course = await courseOr404(req, next); if (!course) { files.discard(req.file); return; }
     try {
       const f = files.validate(req.file, 'cover');
       const id = await db.tx(async (c) => {
         const old = (await c.query('SELECT cover_file_id FROM courses WHERE id = $1 FOR UPDATE', [course.id])).rows[0];
-        const fid = await files.store(c, { kind: 'cover', ...f, userId: req.user.id });
+        const fid = await files.store(c, { kind: 'cover', ...f, storage: 'db', userId: req.user.id });
         await c.query('UPDATE courses SET cover_file_id = $2, updated_at = now() WHERE id = $1', [course.id, fid]);
         if (old && old.cover_file_id) await c.query('DELETE FROM files WHERE id = $1', [old.cover_file_id]);
         return fid;
@@ -113,6 +133,7 @@ function build(cfg, h) {
     try {
       await db.tx(async (c) => {
         await c.query('DELETE FROM files WHERE id IN (SELECT lf.file_id FROM lesson_files lf JOIN lessons l ON l.id = lf.lesson_id WHERE l.course_id = $1)', [course.id]);
+        await c.query('DELETE FROM files WHERE id IN (SELECT file_id FROM product_files WHERE product_id = $1)', [course.id]);
         await c.query('DELETE FROM courses WHERE id = $1', [course.id]);
         if (course.cover_file_id) await c.query('DELETE FROM files WHERE id = $1', [course.cover_file_id]);
       });
@@ -120,8 +141,66 @@ function build(cfg, h) {
       if (e.code === '23503') return flashBack(req, res, 'error', 'Este curso acabou de ganhar um vínculo (aluno ou cupom) e não pode ser excluído.', `/admin/cursos/${course.id}`);
       throw e;
     }
+    files.sweepVolume().catch(() => {});
     await audit(req, 'course_deleted', { entity: 'course', entityId: course.id, meta: { slug: course.slug } });
-    flashBack(req, res, 'info', 'Curso excluído.', '/admin/cursos');
+    flashBack(req, res, 'info', C.typeOf(course) === 'download' ? 'Produto excluído.' : 'Curso excluído.', '/admin/cursos');
+  });
+
+  // ---- produto digital: arquivos para baixar ----
+  const downloadOr404 = async (req, res, next) => {
+    const c = await courseOr404(req, next); if (!c) return null;
+    if (C.typeOf(c) !== 'download') { flashBack(req, res, 'info', 'Este cadastro é um curso. Os arquivos ficam dentro das aulas.', `/admin/cursos/${c.id}/conteudo`); return null; }
+    return c;
+  };
+  r.get('/admin/cursos/:id/arquivos', async (req, res, next) => {
+    const course = await downloadOr404(req, res, next); if (!course) return;
+    const items = await C.productFiles(course.id);
+    const buyers = (await db.q("SELECT count(*)::int n FROM enrollments WHERE course_id = $1 AND status = 'active' AND (expires_at IS NULL OR expires_at > now())", [course.id])).rows[0].n;
+    res.send(views.produtoArquivos(ctx(req, res), { course, items, buyers }));
+  });
+  r.post('/admin/cursos/:id/arquivos', async (req, res, next) => {
+    if (!ID.test(req.params.id)) return next();
+    const p0 = (await db.q("SELECT id FROM courses WHERE id = $1 AND product_type = 'download'", [req.params.id])).rows[0];
+    if (!p0) return next();
+    const to = `/admin/cursos/${p0.id}/arquivos`;
+    files.receive(req, res, (err) => {
+      if (err) return flashBack(req, res, 'error', err.message, to);
+      sec.requireCsrf(req, res, async (e2) => {
+        if (e2) { files.discard(req.file); return next(e2); }
+        try {
+          const f = files.validate(req.file, 'product');
+          const storage = files.chooseStorage(req.body.armazenamento, f.size, 'product');
+          const label = title(req.body.label) || f.filename.replace(/\.[^.]+$/, '');
+          await db.tx(async (c) => {
+            const fid = await files.store(c, { kind: 'product', ...f, storage, userId: req.user.id });
+            await c.query('INSERT INTO product_files (product_id, file_id, label, position) VALUES ($1,$2,$3,(SELECT COALESCE(max(position),0)+1 FROM product_files WHERE product_id = $1))', [p0.id, fid, label]);
+            await c.query('UPDATE courses SET files_updated_at = now(), updated_at = now() WHERE id = $1', [p0.id]);
+          });
+          await audit(req, 'file_uploaded', { entity: 'course', entityId: p0.id, meta: { filename: f.filename, storage, bytes: f.size } });
+          flashBack(req, res, 'success', storage === 'volume' ? 'Arquivo enviado para o volume.' : 'Arquivo enviado para o banco de dados.', to);
+        } catch (e) {
+          files.discard(req.file);
+          if (e instanceof files.UploadError) return flashBack(req, res, 'error', e.message, to);
+          next(e);
+        }
+      });
+    });
+  });
+  // Avisa quem já comprou que há arquivos novos ou trocados (sino e e-mail). Uma vez por alteração.
+  r.post('/admin/cursos/:id/avisar-atualizacao', async (req, res, next) => {
+    const course = await downloadOr404(req, res, next); if (!course) return;
+    const to = `/admin/cursos/${course.id}/arquivos`;
+    if (!course.files_updated_at) return flashBack(req, res, 'info', 'Envie ou troque um arquivo antes de avisar os compradores.', to);
+    const key = `upd:${course.id}:${Math.floor(new Date(course.files_updated_at).getTime() / 1000)}`;
+    const people = (await db.q(`SELECT u.id, u.name, u.email FROM enrollments e JOIN users u ON u.id = e.user_id
+      WHERE e.course_id = $1 AND e.status = 'active' AND (e.expires_at IS NULL OR e.expires_at > now()) AND u.status = 'active' AND u.role = 'student'`, [course.id])).rows;
+    let n = 0;
+    for (const u of people) {
+      const id = await notify.add(u.id, { kind: 'update', title: `Atualização: ${course.title}`, body: 'Há arquivos novos ou atualizados para baixar.', link: `/curso/${course.slug}`, key });
+      if (id) { n++; h.background(mailer.send(cfg, { to: u.email, ...emails.productUpdated(cfg, { name: u.name, product: course }) })); }
+    }
+    await audit(req, 'product_update_announced', { entity: 'course', entityId: course.id, meta: { avisados: n } });
+    flashBack(req, res, 'success', n ? `${n} ${n === 1 ? 'comprador avisado' : 'compradores avisados'} no sino e por e-mail.` : 'Todos já foram avisados desta atualização.', to);
   });
 
   // ---- módulos e aulas ----
@@ -268,17 +347,19 @@ function build(cfg, h) {
     files.receive(req, res, (err) => {
       if (err) return flashBack(req, res, 'error', err.message, back(l0.course_id));
       sec.requireCsrf(req, res, async (e2) => {
-        if (e2) return next(e2);
+        if (e2) { files.discard(req.file); return next(e2); }
         try {
           const f = files.validate(req.file, 'doc');
+          const storage = files.chooseStorage(req.body.armazenamento, f.size, 'doc');
           const label = title(req.body.label) || f.filename.replace(/\.[^.]+$/, '');
           await db.tx(async (c) => {
-            const fid = await files.store(c, { kind: 'doc', ...f, userId: req.user.id });
+            const fid = await files.store(c, { kind: 'doc', ...f, storage, userId: req.user.id });
             await c.query('INSERT INTO lesson_files (lesson_id, file_id, label, position) VALUES ($1,$2,$3,(SELECT COALESCE(max(position),0)+1 FROM lesson_files WHERE lesson_id = $1))', [req.params.id, fid, label]);
           });
           await audit(req, 'file_uploaded', { entity: 'lesson', entityId: req.params.id, meta: { filename: f.filename } });
-          flashBack(req, res, 'success', 'Arquivo enviado.', back(l0.course_id));
+          flashBack(req, res, 'success', storage === 'volume' ? 'Arquivo enviado para o volume.' : 'Arquivo enviado.', back(l0.course_id));
         } catch (e) {
+          files.discard(req.file);
           if (e instanceof files.UploadError) return flashBack(req, res, 'error', e.message, back(l0.course_id));
           next(e);
         }
@@ -288,10 +369,13 @@ function build(cfg, h) {
   r.post('/admin/arquivos/:id/excluir', async (req, res, next) => {
     if (!ID.test(req.params.id)) return next();
     const row = (await db.q('SELECT l.course_id FROM lesson_files lf JOIN lessons l ON l.id = lf.lesson_id WHERE lf.file_id = $1', [req.params.id])).rows[0];
-    if (!row) return next();
+    const prod = row ? null : (await db.q('SELECT product_id FROM product_files WHERE file_id = $1', [req.params.id])).rows[0];
+    if (!row && !prod) return next();
     await db.q('DELETE FROM files WHERE id = $1', [req.params.id]);
+    if (prod) await db.q('UPDATE courses SET files_updated_at = now() WHERE id = $1', [prod.product_id]);
+    files.sweepVolume().catch(() => {});
     await audit(req, 'file_deleted', { entity: 'file', entityId: req.params.id });
-    flashBack(req, res, 'info', 'Arquivo removido.', back(row.course_id));
+    flashBack(req, res, 'info', 'Arquivo removido.', prod ? `/admin/cursos/${prod.product_id}/arquivos` : back(row.course_id));
   });
 
   // ---- matrículas (liberação manual) ----

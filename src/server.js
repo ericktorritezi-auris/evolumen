@@ -13,6 +13,7 @@ const authViews = require('./views/auth');
 const PUBLIC = path.join(__dirname, '..', 'public');
 
 function createApp(cfg) {
+  require('./files').configure(cfg);
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
@@ -122,7 +123,7 @@ async function start() {
   const cleanup = () => db.q(`DELETE FROM sessions WHERE expires_at < now();
     DELETE FROM password_resets WHERE expires_at < now() - interval '7 days';
     DELETE FROM email_changes WHERE expires_at < now() - interval '7 days';
-    DELETE FROM audit_log WHERE at < now() - interval '30 days' AND action !~ '^(order_|refund_|payment_|legal_|checkout_|data_|acceptance_)';
+    DELETE FROM audit_log WHERE at < now() - interval '30 days' AND action !~ '^(order_|refund_|file_|payment_|legal_|checkout_|data_|acceptance_)';
     DELETE FROM audit_log WHERE at < now() - interval '5 years'`).catch((e) => log.warn('limpeza_falhou', { error: e.message }));
   cleanup(); setInterval(cleanup, 6 * 3600 * 1000).unref();
   const sweep = () => require('./sales').sweepExpired(cfg, (pr) => Promise.resolve(pr).catch((e) => log.warn('email_falhou', { error: e.message }))).catch((e) => log.warn('varredura_pix_falhou', { error: e.message }));
@@ -131,7 +132,9 @@ async function start() {
   const daily = () => require('./reminders').run(cfg, (pr) => Promise.resolve(pr).catch((e) => log.warn('email_falhou', { error: e.message })));
   setTimeout(daily, 60 * 1000).unref(); setInterval(daily, 3600 * 1000).unref();
   const app = createApp(cfg);
-  const server = app.listen(cfg.port, () => log.info('servidor_no_ar', { porta: cfg.port, ambiente: cfg.appEnv, versao: cfg.version.version }));
+  const server = app.listen(cfg.port, () => log.info('servidor_no_ar', { porta: cfg.port, ambiente: cfg.appEnv, versao: cfg.version.version, volume: require('./files').volumeOn() }));
+  server.requestTimeout = 20 * 60 * 1000; // envio de arquivo grande em conexão lenta
+  server.timeout = 0;
   const stop = () => server.close(async () => { await db.close(); process.exit(0); });
   process.on('SIGTERM', stop); process.on('SIGINT', stop);
 }
