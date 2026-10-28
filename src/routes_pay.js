@@ -15,6 +15,9 @@ function build(cfg, h) {
   const r = express.Router();
   const limit = cfg.isTest ? (req, res, next) => next() : rateLimit({ windowMs: 15 * 60 * 1000, limit: 40, standardHeaders: 'draft-7', legacyHeaders: false,
     handler: (req, res, next) => { const e = new Error('Muitas tentativas. Aguarde alguns minutos e tente de novo.'); e.status = 429; e.expose = true; next(e); } });
+  // Acompanhamento do pedido: a tela consulta de poucos em poucos segundos, então o limite é folgado (só barra abuso).
+  const pedLimit = cfg.isTest ? (req, res, next) => next() : rateLimit({ windowMs: 15 * 60 * 1000, limit: 400, standardHeaders: 'draft-7', legacyHeaders: false,
+    handler: (req, res) => res.status(429).type('text/plain').send('Muitas consultas. Aguarde alguns minutos.') });
   const bad = (status, message) => Object.assign(new Error(message), { status, expose: true });
 
   async function loadCourse(req, res, next) {
@@ -105,7 +108,7 @@ function build(cfg, h) {
     return o || null;
   }
 
-  r.get('/pedido/:publicId', async (req, res, next) => {
+  r.get('/pedido/:publicId', pedLimit, async (req, res, next) => {
     let o = await loadOrder(req); if (!o) return next();
     const course = await C.byId(o.course_id);
     // Volta do Mercado Pago: confirma direto no gateway, sem esperar o webhook.
@@ -119,7 +122,7 @@ function build(cfg, h) {
     res.send(views.orderPage({ ...h.appCtx(req, res), order: o, course, newUser, simulated: cfg.paymentProvider === 'simulated' }));
   });
 
-  r.get('/pedido/:publicId/status', async (req, res, next) => {
+  r.get('/pedido/:publicId/status', pedLimit, async (req, res, next) => {
     const o = await loadOrder(req); if (!o) return next();
     // Rede de segurança: se o webhook se perder, a própria tela consulta o gateway enquanto o comprador espera.
     if (o.status === 'pending' && o.provider === 'mercadopago' && cfg.paymentProvider === 'mercadopago' && o.provider_payment_id) {

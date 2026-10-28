@@ -7,6 +7,7 @@ Mais um produto Belle Planner.
 
 | Versão | Fase | Data | O que mudou |
 |---|---|---|---|
+| 0.6.0 | 5 · Comunidade, ajuda e LGPD | 2026-10-28 | **Fórum por aula** (só alunos com acesso; o professor responde pelo painel e o aluno é avisado por e-mail; ocultar mensagens; o aluno apaga a própria se ainda não tiver respostas). **Avaliação do curso** (1 a 5 estrelas e NPS) para quem recebeu o certificado, com média e NPS em **Fórum e avaliações**. **Ajuda da Lumen**: botão **?** em cada tela com o passo a passo dela e página **Ajuda** com perguntas frequentes. **LGPD e aceites** no painel: fila de pedidos do titular (prazo de 15 dias, cópia dos dados em JSON, exclusão com anonimização; pedidos com os dados da compra, aceites e certificados ficam guardados por obrigação legal) e consulta e exportação (CSV) dos aceites com data, hora e IP. **Configurações**: contato de suporte, fórum ligado ou desligado, aviso de nova dúvida e situação do sistema. Receita e valor recebido passam a usar o preço do curso (sem juros do parcelamento). Limite de requisições no acompanhamento do pedido. Tag "Sociedade Brasileira de Coaching" removida da landing. Migração 008. |
 | 0.5.2 | 4 · Pagamentos (cockpit) | 2026-10-27 | **Cockpit financeiro** em `/admin/financeiro` (receita bruta, devolvido, receita líquida, ticket médio, novas e renovações, conclusões, churn e efetividade; gráfico por dia ou mês; tabelas por curso e por forma de pagamento; filtros de período e curso). Aula: mensagem passa a "Assista sua aula!". Webhook com assinatura inválida agora registra no log um diagnóstico seguro (sem segredos). Sem migração nova. |
 | 0.5.1 | 4 · Pagamentos (correções) | 2026-10-20 | Editor visual completo para Termos e Política (títulos, negrito, itálico, sublinhado, listas, citação, link, colagem limpa do Word, sem código; o servidor limpa o HTML). Cupom limitado agora fica reservado enquanto há compra pendente e não vale em dois pedidos ao mesmo tempo. Correção do título "vv1.0". Inclui tudo da 0.5.0. |
 | 0.5.0 | 4 · Pagamentos | 2026-10-20 | Checkout com Pix e cartão (Mercado Pago), matrícula automática só após o pagamento aprovado (webhook com assinatura), conta criada na compra com senha provisória por e-mail, cupom reconferido no servidor, renovação por nova compra, reembolso em até 7 dias (aluno pede, administrador aprova, sistema devolve e cancela acesso e certificado), Pix de 30 minutos com e-mail de lembrete, telas Vendas e renovações, Pagamentos e acessos, Textos legais editáveis e simulador de pagamento (só teste/staging). Tabelas passam a usar fonte menor em todas as telas. Migração 007. Guia do Mercado Pago em `docs/GUIA-MERCADO-PAGO.md`. |
@@ -44,6 +45,19 @@ Endereço de produção: https://evolumen.ericktorritezi.com.br
 1. Envie o conteúdo do ZIP para a branch `staging` do GitHub.
 2. O Railway faz o deploy; migrações e seeds rodam sozinhos ao iniciar.
 3. Confira `/health` e entre com ADMIN_EMAIL e ADMIN_INITIAL_PASSWORD.
+
+## Como testar a Fase 5 (0.6.0)
+
+Suba por cima da 0.5.2. A migração 008 roda na subida.
+
+1. **Fórum**: como aluno com acesso, abra uma aula e escreva em **Dúvidas da aula**. Como administrador você recebe um e-mail e vê a dúvida em **Fórum e avaliações**. Abra a aula e responda; o aluno recebe um e-mail. Teste **Ocultar** e **Mostrar**. O aluno só apaga a própria mensagem se ela ainda não tiver respostas.
+2. **Fórum desligado**: em **Configurações**, desmarque o fórum. As aulas passam a mostrar "O fórum está desativado".
+3. **Avaliação do curso**: o aluno que recebeu o certificado vê, na página do curso, **Como foi o curso?** (estrelas, nota de 0 a 10 e comentário). Pode mudar depois. A média e o NPS aparecem em **Fórum e avaliações**.
+4. **Ajuda**: em qualquer tela toque no **?** ao lado de "Olá, ..." (no celular, ao lado do menu). Abra também **Ajuda** no menu do aluno. O contato de suporte vem de **Configurações**.
+5. **LGPD, pedidos**: como aluno, em **Perfil**, peça a exclusão dos dados. Em **LGPD e aceites** o pedido aparece com prazo de 15 dias. **Baixar dados** entrega a cópia em JSON. **Atender** em uma exclusão anonimiza a conta e cancela os acessos (pedidos, aceites e certificados ficam guardados por obrigação legal). Use uma conta de teste.
+6. **LGPD, aceites**: na aba **Aceites dos textos**, filtre por aluno ou documento e use **Exportar CSV**.
+7. **Configurações**: salve e-mail e WhatsApp de suporte e confira em **Ajuda**. O quadro **Situação do sistema** mostra versão, e-mail, pagamentos e textos publicados.
+8. **Landing**: na seção do idealizador restam as tags ABRAPH e ATH.
 
 ## Como testar a Fase 4 (0.5.0, 0.5.1 e 0.5.2)
 

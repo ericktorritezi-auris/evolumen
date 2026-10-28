@@ -25,8 +25,23 @@
       t.setAttribute('aria-label', show ? 'Ocultar senha' : 'Mostrar senha');
     }
   });
+  // Ajuda da Lumen
+  var helpEl = $('#help-panel'), helpFrom = null;
+  function helpOpen(from) { if (!helpEl) return; helpFrom = from; helpEl.hidden = false; document.body.classList.add('menu-open'); var b = helpEl.querySelector('.help__x'); if (b) b.focus(); }
+  function helpClose() { if (!helpEl || helpEl.hidden) return; helpEl.hidden = true; document.body.classList.remove('menu-open'); if (helpFrom) helpFrom.focus(); }
+  document.addEventListener('click', function (e) {
+    var o = e.target.closest('[data-help-open]'); if (o) helpOpen(o);
+    if (e.target.closest('[data-help-close]')) helpClose();
+  });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') closeMenu();
+    if (e.key === 'Escape') { closeMenu(); helpClose(); }
+    if (e.key === 'Tab' && helpEl && !helpEl.hidden) {
+      var hf = helpEl.querySelectorAll('a, button'); if (!hf.length) return;
+      var h1 = hf[0], h2 = hf[hf.length - 1];
+      if (e.shiftKey && document.activeElement === h1) { e.preventDefault(); h2.focus(); }
+      else if (!e.shiftKey && document.activeElement === h2) { e.preventDefault(); h1.focus(); }
+      else if (!helpEl.contains(document.activeElement)) { e.preventDefault(); h1.focus(); }
+    }
     if (e.key === 'Tab' && overlay && !overlay.hidden) {
       var f = overlay.querySelectorAll('a, button'); if (!f.length) return;
       var first = f[0], last = f[f.length - 1];
@@ -50,8 +65,10 @@
     }
   });
   document.addEventListener('submit', function (e) {
-    var m = e.target.getAttribute && e.target.getAttribute('data-confirm');
-    if (m && !window.confirm(m)) e.preventDefault();
+    var m = (e.submitter && e.submitter.getAttribute('data-confirm')) || (e.target.getAttribute && e.target.getAttribute('data-confirm'));
+    if (m && !window.confirm(m)) { e.preventDefault(); return; }
+    // Duplo clique: o botão que enviou o formulário fica desligado até a página responder.
+    if (e.submitter && !e.defaultPrevented && e.target.matches && e.target.matches('.forum form, .review form')) setTimeout(function () { e.submitter.disabled = true; }, 0);
   });
 
   // Editor visual dos textos legais (sem código): barra de botões, colagem limpa e envio do HTML ao salvar.

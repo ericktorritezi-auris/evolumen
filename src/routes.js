@@ -346,21 +346,14 @@ function build(cfg, app) {
 
   // ---- LGPD: exportar dados e pedir exclusão ----
   r.get('/perfil/meus-dados.json', needUser, gate, async (req, res) => {
-    const u = req.user;
-    const [acc, reqs, au] = await Promise.all([
-      acceptance.listFor(u.id),
-      db.q('SELECT type, status, created_at, resolved_at FROM data_requests WHERE user_id = $1 ORDER BY id', [u.id]),
-      db.q('SELECT at, action, ip FROM audit_log WHERE actor_user_id = $1 ORDER BY id', [u.id]),
-    ]);
-    const { password_hash, failed_logins, locked_until, id_hash, last_seen_at, ...safe } = u; // nunca exportar o hash da senha
-    await audit(req, 'data_export', { entity: 'user', entityId: u.id });
+    const data = await require('./lgpd').exportFor(req.user.id);
+    await audit(req, 'data_export', { entity: 'user', entityId: req.user.id });
     res.set('Content-Disposition', 'attachment; filename="meus-dados-evolumen.json"');
-    res.json({ gerado_em: new Date().toISOString(), usuario: safe, aceites: acc, pedidos: reqs.rows, registro_de_atividade: au.rows });
+    res.json(data);
   });
   r.post('/perfil/exclusao', needUser, gate, async (req, res) => {
-    const open = await db.q("SELECT 1 FROM data_requests WHERE user_id = $1 AND type = 'delete' AND status = 'open'", [req.user.id]);
-    if (!open.rowCount) {
-      await db.q("INSERT INTO data_requests (user_id, type) VALUES ($1,'delete')", [req.user.id]);
+    const ins = await db.q("INSERT INTO data_requests (user_id, type) VALUES ($1,'delete') ON CONFLICT DO NOTHING RETURNING id", [req.user.id]);
+    if (ins.rowCount) {
       await audit(req, 'data_deletion_requested', { entity: 'user', entityId: req.user.id });
     }
     setFlash(res, 'info', 'Pedido de exclusão registrado. O administrador analisa e responde por e-mail.');

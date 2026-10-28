@@ -347,3 +347,19 @@ img{max-width:100%;height:auto}
 .chart-key{display:flex;gap:14px;align-items:center;flex-wrap:wrap;color:var(--bruma)}.key{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}.key--g{background:var(--aurora)}.key--r{background:var(--bad)}
 @media (min-width:900px){.stats--6{grid-template-columns:repeat(4,1fr)}}
 .chart-wrap{overflow-x:auto}.chart-wrap .chart{min-width:560px}.chart-data{margin-top:10px}.chart-data summary{cursor:pointer;color:var(--aurora)}
+
+/* 0.6.0: fórum, avaliação, ajuda */
+.forum .form{margin-top:10px}.fthread{border-top:1px solid var(--line);padding:12px 0}.fpost{padding:8px 0}.fpost--reply{margin-left:18px;padding-left:12px;border-left:2px solid var(--line)}
+.fpost--prof{border-left:2px solid var(--ambar);padding-left:12px}.fpost.is-hidden{opacity:.6}
+.fpost__head{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.fpost__body{white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0}.fpost__act{display:flex;gap:8px;flex-wrap:wrap}
+.freply summary{cursor:pointer;color:var(--aurora);margin-top:6px}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.starpick{display:flex;gap:8px;flex-wrap:wrap}.starpick__o{display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px 12px;min-height:44px;cursor:pointer}
+.help-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--ambar);font:700 18px Quicksand,sans-serif;cursor:pointer;margin-left:10px}
+.m-header__actions{display:flex;align-items:center}
+.help{position:fixed;inset:0;z-index:60}.help__scrim{position:absolute;inset:0;background:rgba(5,8,25,.6)}
+.help__panel{position:absolute;right:0;top:0;bottom:0;width:min(420px,100%);background:var(--profundo);border-left:1px solid var(--line);padding:20px;overflow:auto}
+.help__x{position:absolute;right:12px;top:12px}.help__who{display:flex;gap:12px;align-items:center;margin:8px 36px 12px 0}
+.help__steps{padding-left:22px;display:grid;gap:10px;color:var(--light)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.tab{padding:8px 16px;border-radius:999px;border:1px solid var(--line);text-decoration:none;color:var(--light)}.tab.is-on{background:var(--panel);color:var(--ambar);border-color:var(--ambar)}
+.chk{display:flex;gap:10px;align-items:flex-start;font-weight:600;cursor:pointer}.chk input{width:20px;height:20px;margin-top:2px}
+.help-hero{display:flex;gap:14px;align-items:center}.faq-i{border-top:1px solid var(--line);padding:8px 0}.faq-i summary{cursor:pointer;font-weight:600}.faq-i ol{padding-left:22px;color:var(--light)}

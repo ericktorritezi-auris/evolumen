@@ -18,8 +18,8 @@ function menuButton() {
   return html`<button type="button" class="icon-btn" id="menu-open" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu-overlay">${icon('menu', 22)}</button>`;
 }
 
-function mobileHeader({ area }) {
-  return html`<header class="m-header">${brand({ size: 30 })}<div class="m-header__actions">${menuButton()}</div></header>`;
+function mobileHeader({ area, help = false }) {
+  return html`<header class="m-header">${brand({ size: 30 })}<div class="m-header__actions">${help ? html`<button type="button" class="help-btn" data-help-open aria-haspopup="dialog" aria-label="Ajuda desta tela">?</button>` : ''}${menuButton()}</div></header>`;
 }
 
 module.exports = { brand, icon, menuButton, mobileHeader };

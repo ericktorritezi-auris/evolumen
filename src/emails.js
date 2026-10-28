@@ -175,4 +175,36 @@ function refundRequested(cfg, { student, course, reason, orderId }) {
   };
 }
 
-module.exports = { purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };
+function forumQuestion(cfg, { student, course, lesson, body, postId }) {
+  const url = `${cfg.baseUrl}/curso/${course.slug}/aula/${lesson.id}#post-${postId}`;
+  return {
+    subject: `Nova dúvida no fórum: ${lesson.title}`, template: 'forum_pergunta_admin',
+    html: layout({ cfg, title: 'Nova dúvida no fórum', intro: `<b>${esc(student.name)}</b> escreveu na aula <b>${esc(lesson.title)}</b> do curso <b>${esc(course.title)}</b>.`,
+      bodyHtml: `<p style="margin:12px 0;font-size:14px;line-height:1.6;white-space:pre-wrap">${esc(String(body).slice(0, 600))}</p>`, cta: { url, label: 'Responder' } }),
+    text: `${student.name} escreveu na aula "${lesson.title}" (${course.title}):\n${String(body).slice(0, 600)}\nResponder: ${url}`,
+  };
+}
+
+function forumAnswer(cfg, { name, course, lesson, body, postId }) {
+  const url = `${cfg.baseUrl}/curso/${course.slug}/aula/${lesson.id}#post-${postId}`;
+  const first = esc(String(name).split(' ')[0]);
+  return {
+    subject: `O professor respondeu a sua dúvida: ${lesson.title}`, template: 'forum_resposta_aluno',
+    html: layout({ cfg, title: 'Sua dúvida foi respondida', intro: `Olá, ${first}. O professor respondeu na aula <b>${esc(lesson.title)}</b> do curso <b>${esc(course.title)}</b>.`,
+      bodyHtml: `<p style="margin:12px 0;font-size:14px;line-height:1.6;white-space:pre-wrap">${esc(String(body).slice(0, 600))}</p>`, cta: { url, label: 'Ver no fórum' } }),
+    text: `Olá, ${name}. O professor respondeu na aula "${lesson.title}":\n${String(body).slice(0, 600)}\nVer: ${url}`,
+  };
+}
+
+function dataRequestDone(cfg, { name, kind, ok, note }) {
+  const first = esc(String(name).split(' ')[0]);
+  const what = kind === 'delete' ? 'exclusão dos seus dados' : kind === 'export' ? 'cópia dos seus dados' : 'pedido sobre os seus dados';
+  return {
+    subject: ok ? `Seu pedido de ${what} foi atendido` : `Sobre o seu pedido de ${what}`, template: 'lgpd_resposta',
+    html: layout({ cfg, title: ok ? 'Pedido atendido' : 'Resposta ao seu pedido', intro: `Olá, ${first}. ${ok ? `Seu pedido de ${what} foi atendido.` : `Analisamos seu pedido de ${what}.`}`,
+      bodyHtml: note ? `<p style="margin:12px 0;font-size:14px;line-height:1.6">${esc(note)}</p>` : '' }),
+    text: `Olá, ${name}. ${ok ? `Seu pedido de ${what} foi atendido.` : `Analisamos seu pedido de ${what}.`} ${note || ''}`,
+  };
+}
+
+module.exports = { forumQuestion, forumAnswer, dataRequestDone, purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };
