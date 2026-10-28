@@ -162,6 +162,7 @@ function conteudo(ctx, { course, cur, errors = {} }) {
       <form method="post" action="/admin/aulas/${l.id}/arquivos" enctype="multipart/form-data" class="form form--grid">${csrfInput(ctx.csrf)}
         ${field({ id: `fl${l.id}`, name: 'label', label: 'Nome para o aluno', placeholder: 'Ex.: Apostila do módulo 1' })}
         <div class="field"><label for="fa${l.id}">Arquivo (PDF, DOC, DOCX, XLS ou XLSX)</label><input id="fa${l.id}" type="file" name="arquivo" accept=".pdf,.doc,.docx,.xls,.xlsx" data-suggest-storage required></div>
+        ${storageField(`st${l.id}`)}
         <div class="span2 row"><button class="btn btn--outline btn--sm" type="submit">Enviar arquivo</button></div></form>
       <div class="row">
         <form method="post" action="/admin/aulas/${l.id}/${l.active ? 'inativar' : 'reativar'}" class="inline"${l.active ? raw(' data-confirm="Inativar esta aula? Os alunos deixam de vê-la, mas o histórico fica guardado."') : ''}>${csrfInput(ctx.csrf)}<button class="btn btn--ghost btn--sm" type="submit">${l.active ? 'Inativar aula' : 'Reativar aula'}</button></form>
