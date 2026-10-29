@@ -1,6 +1,8 @@
 'use strict';
 // Regras de cursos: validação do cadastro, formatação e consultas usadas pelas telas.
 const db = require('./db');
+const { sanitizeHtml, htmlToText } = require('./legal');
+const { esc } = require('./html');
 
 const LEVELS = { iniciante: 'Iniciante', intermediario: 'Intermediário', avancado: 'Avançado', nao_se_aplica: 'Não se aplica' };
 
@@ -93,6 +95,16 @@ function parseCourse(b, type = 'course') {
     if (q && a) faq.push({ q, a });
     else if (q || a) errors[`faq${i}`] = 'Preencha a pergunta e a resposta, ou deixe as duas vazias.';
   }
+  // Descrição completa: o editor envia HTML (limpo aqui); sem editor (testes e integrações) vale o texto simples, em parágrafos.
+  // Sem JavaScript o editor não existe: nesse caso (nenhum dos dois campos e sem o aviso desc_js) a descrição que já está salva é mantida.
+  let descHtml = ''; let descText = ''; let keepDesc = false;
+  if (b.description_html !== undefined && String(b.description_html).trim() !== '') {
+    descHtml = sanitizeHtml(b.description_html); descText = htmlToText(descHtml);
+  } else if (b.description !== undefined) descText = String(b.description).replace(/\r\n?/g, '\n').trim();
+  else if (b.desc_js !== '1') keepDesc = true;
+  const visible = descText.replace(/^(#{1,3} |- )/gm, '');
+  if (visible.length > 6000) errors.description = `A descrição passou de 6.000 letras (tem ${visible.length}). Reduza um pouco.`;
+  if (descHtml.length > 40000) errors.description = 'A descrição ficou longa demais. Reduza um pouco.';
   const publish = b.publish === '1';
   const pubDate = clip(b.published_at, 10) ? dateOnly(b.published_at) : null;
   if (clip(b.published_at, 10) && !pubDate) errors.published_at = 'Data inválida.';
@@ -100,7 +112,7 @@ function parseCourse(b, type = 'course') {
   return {
     errors,
     values: {
-      slug, title, summary: clip(b.summary, 240), description: clip(b.description, 6000),
+      slug, title, summary: clip(b.summary, 240), description: descText.slice(0, 6000), description_html: descHtml, keepDesc,
       target_audience: dl ? '' : clip(b.target_audience, 600), prerequisites: dl ? '' : clip(b.prerequisites, 600), level, category: clip(b.category, 60),
       workload_hours: workload, learn_items: lines(b.learn_items, 12, 200), able_items: dl ? [] : lines(b.able_items, 12, 200), faq,
       intro_youtube_id: intro.id || null,
@@ -195,4 +207,7 @@ async function productFiles(productId) {
   return (await db.q(`SELECT pf.id AS link_id, pf.label, pf.created_at, f.id AS file_id, f.filename, f.size_bytes, f.storage FROM product_files pf JOIN files f ON f.id = pf.file_id WHERE pf.product_id = $1 ORDER BY pf.position, pf.id`, [productId])).rows;
 }
 
-module.exports = { productFiles, TYPES, typeOf, LIVE, dateOnly, LEVELS, brl, brlInput, parseMoney, slugify, SLUG_RE, youtubeId, parseCourse, effectivePrice, accessLabel, listPublic, bySlug, byId, curriculum, flatLessons, accessFor, enrollmentState, progressFor, myCourses, VISIBLE };
+// Texto simples (descrições antigas) para o editor: parágrafos por linha em branco, quebra simples vira <br>.
+const plainToHtml = (t) => String(t || '').replace(/\r\n?/g, '\n').trim().split(/\n{2,}/).filter(Boolean).map((p) => `<p>${esc(p.trim()).replace(/\n/g, '<br>')}</p>`).join('');
+
+module.exports = { plainToHtml, productFiles, TYPES, typeOf, LIVE, dateOnly, LEVELS, brl, brlInput, parseMoney, slugify, SLUG_RE, youtubeId, parseCourse, effectivePrice, accessLabel, listPublic, bySlug, byId, curriculum, flatLessons, accessFor, enrollmentState, progressFor, myCourses, VISIBLE };

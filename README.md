@@ -7,6 +7,7 @@ Mais um produto Belle Planner.
 
 | Versão | Fase | Data | O que mudou |
 |---|---|---|---|
+| 1.1.0 | 6 · Lançamento | 2026-10-29 | **Descrição completa com editor**: no cadastro de curso e de produto, o campo *Descrição completa* ganha o mesmo editor dos Textos legais (título, subtítulo, parágrafo, negrito, itálico, listas, link; a formatação do Word é limpa). O que você escrever aparece igual na página do produto. O HTML é limpo ao salvar (sem script, estilo ou imagem). As descrições antigas continuam como estão até você editá-las. Duplicar leva a descrição formatada. Migração 013 (coluna nova). |
 | 1.0.0 | 6 · Lançamento | 2026-10-29 | **Primeira versão em produção.** É a 0.9.0 validada em staging e produção (compra por Pix e cartão, reembolso, estorno, e-mails e campainhas), sem mudança de funcionalidade: só versão e nota. Para abrir ao público: reset dos testes feito, `ALLOW_LAUNCH_RESET` removida e preço real no produto. |
 | 0.9.0 | 6 · Lançamento | 2026-10-29 | **Reset de lançamento** em *Lançamento* (menu do administrador): você informa os e-mails das contas de aluno de teste, vê a **prévia** com as contagens, confirma digitando a frase e a sua senha, e só então apaga (pedidos, reembolsos, matrículas, progresso, provas, certificados, aceites, fórum, avaliações, cupons usados, pedidos LGPD, notificações e registros de e-mail dessas contas). Produtos, textos legais, configurações, o administrador e o registro de atividades ficam; o registro guarda só as contagens. Só funciona com `ALLOW_LAUNCH_RESET=1` no Railway (remova depois). **Checklist de go-live** com verificação automática (HTTPS, e-mail, Mercado Pago e webhook, volume, textos legais, produto e preço, compra e reembolso de teste). Textos da landing, perguntas frequentes, ajuda, menus e e-mails agora falam em **produtos** (curso é um tipo de produto). Migração 012 libera a exclusão dos aceites só dentro do reset. Inclui tudo da 0.8.1. |
 | 0.8.1 | 6 · Painel e acabamento | 2026-10-28 | **Duplicar** cursos e produtos (botão na lista): abre o cadastro preenchido, sem o endereço (slug); nada é criado até salvar. Leva dados, capa e, no curso, módulos, aulas e anexos; no produto, os arquivos (caixa para desmarcar). Não leva vendas, matrículas, avaliações, cupons nem provas; nasce como rascunho. **Dashboard renovado**: vendas e líquido do mês, alunos com acesso, pendências com atalho, atalhos e o cartão **Saúde do sistema** (servidor, banco e tempo de resposta, e-mail, pagamento, tarefas automáticas, volume e memória). Sai a linha "Fase entregue" e o texto antigo. **Caixas de seleção e opções** alinhadas com o texto em todo o sistema. Aniversário: só "Opcional.". Sem migração nova. Inclui tudo da 0.8.0. |
@@ -158,6 +159,13 @@ Lembrete da regra central: login e senha não liberam curso. O acesso nasce de u
 4. **Média de estrelas**: com 3 avaliações, aparece "★ 4,7" na vitrine e na página. Com menos de 3, não aparece.
 5. **Aviso de novidade**: em *Compradores* (ou *Arquivos*) do produto, e em *Matrículas* do curso, escreva uma frase e envie. Vai para a campainha; só vai por e-mail se marcar a caixa.
 6. **Certificados**: a tela do aluno não lista produtos digitais.
+
+## Como testar a 1.1.0
+1. **Descrição antiga**: abra um curso ou produto já cadastrado na vitrine: a descrição aparece como antes. No cadastro, o editor abre com o mesmo texto em parágrafos.
+2. **Formatar**: em *Cursos e produtos*, edite um item. Na *Descrição completa* use *Título*, *Subtítulo*, *• Lista*, *N* (negrito) e *Link*. Salve e abra a página pública do produto: deve aparecer igual.
+3. **Colar do Word ou Google Docs**: cole um texto com títulos e listas: a formatação vem limpa (sem cores nem fontes estranhas).
+4. **Duplicar**: duplique o item: a cópia vem com a descrição formatada.
+5. **Textos legais**: abra um rascunho em *Textos legais*: o editor continua igual.
 
 ## Como testar a 1.0.0
 1. **Versão**: no rodapé e em *Dashboard* aparece 1.0.

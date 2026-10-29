@@ -6,6 +6,7 @@ const { field, csrfInput } = require('./ui');
 const { titleRow } = require('./student');
 const C = require('../courses');
 const files = require('../files');
+const { sanitizeHtml } = require('../legal');
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '');
 const isoDate = (d) => (d ? new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : '');
@@ -87,6 +88,30 @@ const sel = (name, value, opts) => html`<select id="${name}" name="${name}">${op
 const area = (id, label, value, { rows = 4, note = '', error = '', placeholder = '', name = id } = {}) => html`<div class="field${error ? ' field--err' : ''}"><label for="${id}">${label}</label>
   <textarea id="${id}" name="${name}" rows="${rows}" placeholder="${placeholder}">${value || ''}</textarea>${error ? html`<div class="field__msg field__msg--err">${error}</div>` : (note ? html`<div class="field__msg">${note}</div>` : '')}</div>`;
 
+// Descrição completa com editor visual (o mesmo dos Textos legais): título, subtítulo, parágrafos, negrito, listas e link.
+function descEditor(v, error = '') {
+  const btn = (cmd, label, title, extra = '') => html`<button type="button" class="editor__btn${extra}" data-cmd="${cmd}" title="${title}" aria-label="${title}">${label}</button>`;
+  const start = sanitizeHtml(v.description_html || C.plainToHtml(v.description));
+  return html`<div class="field${error ? ' field--err' : ''}"><label id="ed-desc">Descrição completa</label>
+    <div class="editor editor--desc" data-editor>
+      <div class="editor__bar" role="toolbar" aria-label="Formatação da descrição">
+        ${btn('formatBlock:h2', 'Título', 'Título')}${btn('formatBlock:h3', 'Subtítulo', 'Subtítulo')}${btn('formatBlock:p', 'Parágrafo', 'Parágrafo normal')}
+        <span class="editor__sep"></span>
+        ${btn('bold', 'N', 'Negrito', ' editor__btn--b')}${btn('italic', 'I', 'Itálico', ' editor__btn--i')}
+        <span class="editor__sep"></span>
+        ${btn('insertUnorderedList', '• Lista', 'Lista com marcadores')}${btn('insertOrderedList', '1. Lista', 'Lista numerada')}
+        <span class="editor__sep"></span>
+        ${btn('link', 'Link', 'Inserir link')}${btn('unlink', 'Tirar link', 'Remover link')}${btn('removeFormat', 'Limpar', 'Limpar formatação')}
+        <span class="editor__sep"></span>
+        ${btn('undo', 'Desfazer', 'Desfazer')}${btn('redo', 'Refazer', 'Refazer')}
+      </div>
+      <div class="editor__area desc" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="ed-desc" aria-describedby="desc-msg"${error ? raw(' aria-invalid="true"') : ''} spellcheck="true">${raw(start)}</div>
+      <input type="hidden" name="description_html" value=""><input type="hidden" name="desc_js" value="">
+    </div>
+    <noscript><p class="muted small">Sem JavaScript não há editor: a descrição atual fica como está.</p></noscript>
+    ${error ? html`<div class="field__msg field__msg--err" id="desc-msg" role="alert">${error}</div>` : html`<div class="field__msg" id="desc-msg">Para quem é, qual a transformação e como funciona. Use os botões para título, subtítulo, listas e negrito. O que você escrever aqui aparece na página do produto do mesmo jeito. A formatação colada do Word é limpa sozinha.</div>`}</div>`;
+}
+
 // O que a duplicação leva e o que não leva (fica claro antes de salvar).
 function copyCard(c, filesOn = true) {
   const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
@@ -123,7 +148,7 @@ function cursoForm(ctx, { course, values, errors = {} }) {
       ${field({ id: 'slug', label: 'Endereço (slug)', value: v.slug || '', error: errors.slug, note: 'Vira /cursos/<slug>. Se deixar vazio, é criado pelo nome. Evite mudar depois de publicar.' })}
       ${dl ? field({ id: 'category', label: 'Etiqueta', value: v.category || '', note: 'Ex.: E-book, Ferramenta, Áudio guiado. Aparece na vitrine.' }) : field({ id: 'category', label: 'Categoria', value: v.category || '', note: 'Ex.: Autoconhecimento, Hipnose.' })}
       <div class="span2">${field({ id: 'summary', label: 'Resumo (aparece na vitrine)', value: v.summary || '', note: 'Até 240 letras.' })}</div>
-      <div class="span2">${area('description', 'Descrição completa', v.description, { rows: 6, note: 'Para quem é, qual a transformação e como funciona. Linha em branco separa parágrafos.' })}</div>
+      <div class="span2">${descEditor(v, errors.description)}</div>
       ${dl ? '' : html`<div class="span2">${area('target_audience', 'Público-alvo', v.target_audience, { rows: 2 })}</div>
       <div class="span2">${area('prerequisites', 'Pré-requisitos', v.prerequisites, { rows: 2, note: 'Se não houver, escreva "Nenhum pré-requisito".' })}</div>
       <div class="field"><label for="level">Nível</label>${sel('level', v.level, Object.entries(C.LEVELS))}</div>

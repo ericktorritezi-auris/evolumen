@@ -27,7 +27,9 @@ function htmlToText(h) {
     .replace(/<h([1-6])[^>]*>(.*?)<\/h\1>/gis, (_, n, t) => `\n\n${'#'.repeat(Math.min(3, Math.max(1, n - 1)))} ${t}\n\n`)
     .replace(/<li[^>]*>(.*?)<\/li>/gis, '\n- $1')
     .replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n\n').replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+    .replace(/&nbsp;|&#160;|&#xa0;/gi, ' ').replace(/&ndash;/g, '–').replace(/&mdash;/g, '—')
+    .replace(/&#(\d{1,6});/g, (_, n) => { const c = Number(n); return c > 31 && c < 0x10ffff ? String.fromCodePoint(c) : ''; })
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&amp;/g, '&')
     .replace(/\n{3,}/g, '\n\n').trim();
 }
 
@@ -72,7 +74,8 @@ function sanitizeHtml(src) {
     stack.push(tag); out.push(`<${tag}>`);
   }
   while (stack.length) out.push(`</${stack.pop()}>`);
-  return out.join('').replace(/<(p|h2|h3|h4|li|strong|em|u|blockquote)>(\s|<br>|&nbsp;)*<\/\1>/g, '').trim();
+  const res = out.join('').replace(/<(p|h2|h3|h4|li|strong|em|u|blockquote)>(\s|<br>|&nbsp;)*<\/\1>/g, '').trim();
+  return /^(\s|<br>|&nbsp;)*$/.test(res) ? '' : res;
 }
 
 module.exports = { textToHtml, htmlToText, sanitizeHtml };

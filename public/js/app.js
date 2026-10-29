@@ -141,7 +141,7 @@
   (function () {
     var box = document.querySelector('[data-editor]');
     if (!box) return;
-    var area = box.querySelector('.editor__area'), hidden = box.querySelector('input[name=body_html]'), form = box.closest('form');
+    var area = box.querySelector('.editor__area'), hidden = box.querySelector('input[type=hidden]'), form = box.closest('form');
     var OK = { P: 'p', H2: 'h2', H3: 'h3', H4: 'h4', UL: 'ul', OL: 'ol', LI: 'li', STRONG: 'strong', B: 'strong', EM: 'em', I: 'em', U: 'u', BR: 'br', A: 'a', BLOCKQUOTE: 'blockquote', H1: 'h2', H5: 'h4', H6: 'h4', DIV: 'p' };
     var esc = function (t) { return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
     function clean(node) {
@@ -182,7 +182,7 @@
       else document.execCommand('insertText', false, cd.getData('text/plain'));
     });
     if (!area.innerHTML.trim()) area.innerHTML = '<p><br></p>';
-    if (form) form.addEventListener('submit', function () { hidden.value = area.innerHTML; });
+    if (form) form.addEventListener('submit', function () { hidden.value = area.innerHTML; var f = box.querySelector('input[name=desc_js]'); if (f) f.value = '1'; });
   })();
 
   // Fase 4: página do pedido (consulta o andamento, contagem do Pix e ida ao checkout do cartão).

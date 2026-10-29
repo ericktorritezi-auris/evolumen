@@ -4,6 +4,7 @@ const { shortName } = require('./ui');
 const { shellPublic, lumen } = require('../layout');
 const { icon } = require('../header');
 const C = require('../courses');
+const { sanitizeHtml } = require('../legal');
 
 const dur = (min) => (!min ? '' : min >= 60 ? `${Math.floor(min / 60)} h${min % 60 ? ' ' + (min % 60) + ' min' : ''}` : `${min} min`);
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -164,7 +165,7 @@ ${preview ? html`<div class="alert alert--info">Pré-visualização: ${dl ? 'est
       ${!dl && materials ? stat('Apostilas', plural(materials, 'material', 'materiais')) : ''}
       ${stat('Acesso', C.accessLabel(c))}
     </div>
-    ${c.description ? html`<section class="blk"><h2 class="t-card">${dl ? 'Sobre o produto' : 'Sobre o curso'}</h2>${para(c.description)}</section>` : ''}
+    ${c.description || c.description_html ? html`<section class="blk"><h2 class="t-card">${dl ? 'Sobre o produto' : 'Sobre o curso'}</h2>${c.description_html ? html`<div class="desc">${raw(sanitizeHtml(c.description_html))}</div>` : para(c.description)}</section>` : ''}
     ${c.target_audience ? html`<section class="blk"><h2 class="t-card">Para quem é</h2>${para(c.target_audience)}</section>` : ''}
     ${c.prerequisites ? html`<section class="blk"><h2 class="t-card">Pré-requisitos</h2>${para(c.prerequisites)}</section>` : ''}
     ${c.learn_items.length ? html`<section class="blk"><h2 class="t-card">${dl ? 'O que você recebe' : 'O que você vai aprender'}</h2>${list(c.learn_items)}</section>` : ''}
