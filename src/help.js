@@ -48,7 +48,8 @@ const ADMIN = [
     'Trocou ou acrescentou arquivos? Use Avisar sobre a atualização para o comprador receber o aviso no sino e por e-mail.'] },
   { id: 'a-novo-tipo', match: /^\/admin\/cursos\/novo/, title: 'Novo cadastro', steps: [
     'Escolha Curso (módulos, aulas, quiz e certificado) ou Produto digital (e-book, áudio, ferramenta, pacote para baixar).',
-    'O tipo não muda depois de criado. Preço, cupom, reembolso e relatórios funcionam igual para os dois.'] },
+    'O tipo não muda depois de criado. Preço, cupom, reembolso e relatórios funcionam igual para os dois.',
+    'Na Descrição completa, use os botões para título, subtítulo, listas e negrito. A página do produto mostra do mesmo jeito.'] },
   { id: 'produto', match: /^\/__produto/, title: 'Produto digital (visão do aluno)', steps: [
     'É assim que o comprador vê o produto: a lista de arquivos com o botão Baixar.',
     'Para trocar ou acrescentar arquivos, use Cursos e produtos, abra o produto e vá em Arquivos.'] },

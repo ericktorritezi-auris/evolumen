@@ -420,3 +420,11 @@ label.check, label.chk, .field label.check, .field label.chk, .check, .chk {
 .field input[type=checkbox]:focus-visible,.field input[type=radio]:focus-visible,.check input:focus-visible,.chk input:focus-visible,.opt input:focus-visible{outline:3px solid var(--ambar);outline-offset:2px}
 .optrow label{display:inline-flex;align-items:center;gap:8px}
 .chk{font-weight:600}.field label.chk{font-weight:600}
+
+/* 1.1.0: descrição completa formatada (página do produto e editor do cadastro) */
+.desc h2{font:600 22px Quicksand,sans-serif;margin:22px 0 8px}.desc h3{font:600 18px Quicksand,sans-serif;margin:18px 0 6px}
+.desc p{margin:0 0 12px;line-height:1.65}.desc ul,.desc ol{margin:0 0 12px;padding-left:24px;line-height:1.65}.desc li{margin:0 0 4px}
+.desc a{color:var(--aurora);text-decoration:underline}.desc>:first-child{margin-top:0}
+.editor--desc .editor__area{min-height:260px;max-height:60vh}
+@media (max-width:639px){.editor--desc .editor__area{min-height:220px}}
+.editor--desc .editor__area:focus-visible{outline:3px solid var(--ambar);outline-offset:-3px}

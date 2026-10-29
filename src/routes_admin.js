@@ -66,9 +66,10 @@ function build(cfg, h) {
     const now = new Date();
     let publishedAt = null;
     if (v.publish) publishedAt = v.pubDate ? new Date(`${v.pubDate}T00:00:00-03:00`) : (existing && existing.published_at) || now;
-    return { ...v, status: v.publish ? 'published' : 'draft', published_at: publishedAt };
+    const keep = v.keepDesc ? { description: existing ? existing.description : '', description_html: existing ? existing.description_html : '' } : {};
+    return { ...v, ...keep, status: v.publish ? 'published' : 'draft', published_at: publishedAt };
   };
-  const COLS = ['slug', 'title', 'summary', 'description', 'target_audience', 'prerequisites', 'level', 'category', 'workload_hours', 'learn_items', 'able_items', 'faq',
+  const COLS = ['slug', 'title', 'summary', 'description', 'description_html', 'target_audience', 'prerequisites', 'level', 'category', 'workload_hours', 'learn_items', 'able_items', 'faq',
     'intro_youtube_id', 'price_cents', 'promo_price_cents', 'promo_until', 'max_installments', 'access_type', 'access_months', 'expiry_notice_days', 'renewal_price_cents',
     'sort_order', 'featured', 'status', 'published_at'];
   const colVal = (v, c) => (['learn_items', 'able_items', 'faq'].includes(c) ? JSON.stringify(v[c]) : v[c]);
