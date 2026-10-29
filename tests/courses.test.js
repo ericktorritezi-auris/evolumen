@@ -29,7 +29,7 @@ test('cadastro do curso valida os campos e não aceita endereço repetido', asyn
 
 test('rascunho não aparece na landing nem na página pública; administrador pré-visualiza', async () => {
   const anon = new Browser(t.base);
-  const home = await anon.get('/'); assert.equal(home.status, 200); assert.doesNotMatch(home.text, /Protocolo ESSÊNCIA/); assert.match(home.text, /Novos cursos em breve/);
+  const home = await anon.get('/'); assert.equal(home.status, 200); assert.doesNotMatch(home.text, /Protocolo ESSÊNCIA/); assert.match(home.text, /Novidades em breve/);
   assert.equal((await anon.get('/cursos/protocolo-essencia')).status, 404);
   const prev = await admin.get('/cursos/protocolo-essencia'); assert.equal(prev.status, 200); assert.match(prev.text, /Pré-visualização/);
 });
@@ -103,7 +103,7 @@ test('acesso ao conteúdo: sem matrícula, matriculado, vencido e removido', asy
   const fileId = (await t.pool.query('SELECT file_id FROM lesson_files LIMIT 1')).rows[0].file_id;
   const lessonUrl = `/curso/protocolo-essencia/aula/${lesson.id}`;
   for (const u of ['/curso/protocolo-essencia', lessonUrl, `/arquivos/${fileId}`]) assert.equal((await b.get(u)).status, 403, 'sem matrícula: ' + u);
-  assert.match((await b.get('/meus-cursos')).text, /ainda não tem cursos/);
+  assert.match((await b.get('/meus-cursos')).text, /ainda não tem produtos/);
   const en = await admin.post(`/admin/cursos/${course.id}/matriculas`, { email: s.email }, `/admin/cursos/${course.id}/matriculas`);
   assert.equal(en.status, 200); assert.match(en.text, /Matrícula criada/);
   const home = await b.get('/meus-cursos'); assert.match(home.text, /Protocolo ESSÊNCIA/); assert.match(home.text, /acesso vitalício/);

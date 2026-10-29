@@ -6,11 +6,11 @@ const NAV = {
   publico: [
     { href: '/#sobre', icon: 'compass', label: 'Sobre', fase: 2 },
     { href: '/#idealizador', icon: 'user', label: 'Idealizador', fase: 2 },
-    { href: '/#cursos', icon: 'book', label: 'Cursos', fase: 2 },
+    { href: '/#cursos', icon: 'book', label: 'Produtos', fase: 2 },
     { href: '/#perguntas', icon: 'chat', label: 'Perguntas', fase: 2 },
   ],
   aluno: [
-    { href: '/meus-cursos', icon: 'book', label: 'Meus cursos', fase: 1 },
+    { href: '/meus-cursos', icon: 'book', label: 'Meus produtos', fase: 1 },
     { href: '/certificados', icon: 'cert', label: 'Certificados', fase: 3 },
     { href: '/pagamentos', icon: 'card', label: 'Pagamentos e acessos', fase: 4 },
     { href: '/perfil', icon: 'user', label: 'Perfil', fase: 1 },
@@ -31,6 +31,7 @@ const NAV = {
     { href: '/admin/lgpd', icon: 'shield', label: 'LGPD e aceites', fase: 5 },
     { href: '/admin/log', icon: 'clock', label: 'Registro de atividades', fase: 2 },
     { href: '/admin/configuracoes', icon: 'gear', label: 'Configurações', fase: 5 },
+    { href: '/admin/lancamento', icon: 'shield', label: 'Lançamento', fase: 6 },
     { href: '/perfil', icon: 'user', label: 'Perfil', fase: 1 },
   ],
 };

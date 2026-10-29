@@ -5,10 +5,10 @@ const STUDENT = [
     'Em Seus arquivos estão os arquivos do produto. Toque em Baixar ao lado de cada um.',
     'Se o professor atualizar o produto, você recebe um aviso no sino e por e-mail. Baixe de novo para ter a versão mais recente.',
     'O acesso vale até a data indicada (ou é vitalício). Para renovar, use Pagamentos e acessos.'] },
-  { id: 'meus-cursos', match: /^\/meus-cursos/, title: 'Seus cursos', steps: [
-    'Cada cartão é um curso que você comprou ou ganhou. Toque no cartão para abrir.',
-    'Na página do curso, o botão grande leva direto para a próxima aula (Começar ou Continuar).',
-    'A barra mostra quanto você já concluiu. O acesso vence na data indicada, se o curso tiver prazo.',
+  { id: 'meus-cursos', match: /^\/meus-cursos/, title: 'Seus produtos', steps: [
+    'Cada cartão é um curso ou produto digital que você comprou ou ganhou. Toque no cartão para abrir.',
+    'Num curso, o botão grande leva direto para a próxima aula (Começar ou Continuar) e a barra mostra quanto você já concluiu. Num produto digital, o botão leva aos arquivos para baixar.',
+    'O acesso vence na data indicada, se o produto tiver prazo.',
     'O sino ao lado do ? guarda seus avisos: resposta do professor, certificado e prazo do acesso. Amarelo é novo.'] },
   { id: 'aula', match: /^\/curso\/[^/]+\/aula\//, title: 'Assistindo a uma aula', steps: [
     'Aperte o play e assista com atenção. O tempo assistido conta para liberar a prova final.',
@@ -55,9 +55,9 @@ const ADMIN = [
   { id: 'a-forum', match: /^\/admin\/forum/, title: 'Fórum e avaliações', steps: [
     'A lista mostra as dúvidas sem resposta, da mais antiga para a mais nova.',
     'Toque em Abrir e responder para ir até a aula e escrever sua resposta. O aluno é avisado por e-mail.',
-    'Ocultar esconde uma mensagem dos alunos sem apagar. Em Avaliações você vê a média e o NPS de cada curso.'] },
+    'Ocultar esconde uma mensagem dos alunos sem apagar. Em Avaliações você vê a média e o NPS de cada produto.'] },
   { id: 'a-fin', match: /^\/admin\/financeiro/, title: 'Cockpit financeiro', steps: [
-    'Escolha o período e, se quiser, um curso. Toque em Atualizar.',
+    'Escolha o período e, se quiser, um produto. Toque em Atualizar.',
     'Receita bruta, devolvido e líquida mostram o dinheiro do período. Churn e efetividade mostram retenção.',
     'A fórmula de cada número está no fim da página.'] },
   { id: 'a-vendas', match: /^\/admin\/(vendas|reembolsos|simulador)/, title: 'Vendas e reembolsos', steps: [
@@ -71,14 +71,19 @@ const ADMIN = [
   { id: 'a-textos', match: /^\/admin\/textos/, title: 'Textos legais', steps: [
     'Edite o rascunho no editor visual e salve. Publicar trava a versão.',
     'Depois de publicar, todos precisam aceitar o texto novo para continuar usando o sistema.'] },
+  { id: 'a-lancamento', match: /^\/admin\/lancamento/, title: 'Lançamento', steps: [
+    'O checklist mostra o que já está pronto para abrir ao público. Itens em amarelo ou vermelho pedem ação.',
+    'Para limpar os testes: crie ALLOW_LAUNCH_RESET=1 no Railway, informe os e-mails das contas de teste e veja a prévia.',
+    'Confirme digitando a frase e a sua senha. Produtos, textos legais e configurações não são apagados.',
+    'Terminou? Remova ALLOW_LAUNCH_RESET no Railway: com ela desligada, ninguém consegue apagar nada por aqui.'] },
   { id: 'a-config', match: /^\/admin\/configuracoes/, title: 'Configurações', steps: [
     'Defina o contato de suporte que aparece na Ajuda dos alunos.',
     'Ligue ou desligue o fórum e os avisos de nova dúvida por e-mail.',
     'O quadro Situação do sistema mostra a versão e se e-mail e pagamentos estão configurados.'] },
-  { id: 'a-cursos', match: /^\/admin\/(cursos|avaliacoes)/, title: 'Cursos', steps: [
+  { id: 'a-cursos', match: /^\/admin\/(cursos|avaliacoes)/, title: 'Cursos e produtos', steps: [
     'Crie o curso, depois monte os módulos e as aulas (vídeos do YouTube não listado e apostilas).',
     'Em Avaliações e certificado, cadastre o quiz e a prova final.',
-    'Só publique quando estiver pronto: curso em rascunho não aparece na vitrine.'] },
+    'Só publique quando estiver pronto: curso ou produto em rascunho não aparece na vitrine.'] },
   { id: 'a-home', match: /^\/admin\/?$/, title: 'Painel', steps: [
     'O quadro mostra o estado do sistema. Use o menu para chegar a cada área.',
     'Em qualquer tela, o botão ? mostra o que fazer ali.'] },
@@ -86,7 +91,7 @@ const ADMIN = [
 
 const FAQ = [
   ['Esqueci minha senha. E agora?', 'Na tela de entrada, toque em Esqueci minha senha. Enviaremos um link por e-mail que vale por pouco tempo.'],
-  ['Paguei e o curso não apareceu.', 'O Pix e o cartão podem levar alguns instantes para confirmar. Atualize a página Pagamentos e acessos. Se passar de 10 minutos, fale com o suporte.'],
+  ['Paguei e meu produto não apareceu.', 'O Pix e o cartão podem levar alguns instantes para confirmar. Atualize a página Pagamentos e acessos. Se passar de 10 minutos, fale com o suporte.'],
   ['Posso pedir meu dinheiro de volta?', 'Sim, em até 7 dias da compra. Peça em Pagamentos e acessos. O professor analisa e o valor volta pelo mesmo meio de pagamento.'],
   ['Meu acesso venceu. Perco o certificado?', 'Não. O certificado emitido continua válido. Para voltar às aulas, é preciso renovar.'],
   ['Como funciona a prova final?', 'Ela libera quando você chega à última aula e assiste mais da metade dela. Você precisa de média 7, em até 3 tentativas.'],

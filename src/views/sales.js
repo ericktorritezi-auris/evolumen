@@ -25,19 +25,19 @@ function vendas(ctx, { rows, courses, f, page, pages, total, kpi, requests }) {
     <div class="stat"><span class="muted">Aguardando pagamento</span><b class="t-card">${kpi.pending}</b></div>
     <div class="stat"><span class="muted">Devolvidas</span><b class="t-card">${kpi.refunded}</b></div></div>
   ${requests.length ? html`<section class="card"><h2 class="t-card">Pedidos de reembolso</h2><p class="muted small">Ao aprovar, o dinheiro é devolvido pelo Mercado Pago e o acesso e o certificado são cancelados na hora.</p>
-    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Aluno</th><th>Curso</th><th>Pedido em</th><th>Motivo</th><th></th></tr></thead><tbody>
-    ${requests.map((r) => html`<tr><td data-l="Aluno"><b>${r.student_name}</b><br><span class="muted small">${r.email}</span></td><td data-l="Curso">${r.course_title}<br><span class="muted small">${brl(r.paid_cents || r.price_cents)}</span></td><td data-l="Pedido em">${fmtDateTime(r.created_at)}</td><td data-l="Motivo">${r.reason || '—'}</td>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Aluno</th><th>Produto</th><th>Pedido em</th><th>Motivo</th><th></th></tr></thead><tbody>
+    ${requests.map((r) => html`<tr><td data-l="Aluno"><b>${r.student_name}</b><br><span class="muted small">${r.email}</span></td><td data-l="Produto">${r.course_title}<br><span class="muted small">${brl(r.paid_cents || r.price_cents)}</span></td><td data-l="Pedido em">${fmtDateTime(r.created_at)}</td><td data-l="Motivo">${r.reason || '—'}</td>
       <td class="tbl__act"><form method="post" action="/admin/vendas/${r.order_id}/reembolsar" class="inline" data-confirm="Devolver o valor e cancelar o acesso deste aluno?">${csrfInput(ctx.csrf)}<input type="hidden" name="request" value="${r.id}"><button class="btn btn--primary btn--sm" type="submit">Aprovar</button></form>
         <details class="inline-pop"><summary class="btn btn--outline btn--sm">Recusar</summary><form method="post" action="/admin/reembolsos/${r.id}/recusar" class="form">${csrfInput(ctx.csrf)}<div class="field"><label for="n${r.id}">Mensagem ao aluno</label><input id="n${r.id}" name="note" maxlength="300" placeholder="Opcional"></div><button class="btn btn--primary btn--sm" type="submit">Recusar</button></form></details></td></tr>`)}</tbody></table></div></section>` : ''}
   <form method="get" action="/admin/vendas" class="form form--grid filters">
     <div class="field"><label for="q">Buscar</label><input id="q" name="q" value="${f.q || ''}" placeholder="Nome, e-mail ou código do pedido" maxlength="80"></div>
     <div class="field"><label for="status">Situação</label>${sel('status', 'status', f.status || '', [['', 'Todas'], ...Object.entries(STATUS)])}</div>
-    <div class="field"><label for="curso">Curso</label>${sel('curso', 'curso', f.curso || '', [['', 'Todos'], ...courses.map((c) => [c.id, c.title])])}</div>
+    <div class="field"><label for="curso">Produto</label>${sel('curso', 'curso', f.curso || '', [['', 'Todos'], ...courses.map((c) => [c.id, c.title])])}</div>
     <div class="field"><label for="forma">Forma</label>${sel('forma', 'forma', f.forma || '', [['', 'Todas'], ['pix', 'Pix'], ['card', 'Cartão']])}</div>
     <div class="row"><button class="btn btn--outline" type="submit">Filtrar</button></div></form>
-  <section class="card">${rows.length ? html`<p class="muted small">${total} ${total === 1 ? 'pedido' : 'pedidos'}</p><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Data</th><th>Aluno</th><th>Curso</th><th>Forma</th><th>Valor</th><th>Situação</th><th></th></tr></thead><tbody>
+  <section class="card">${rows.length ? html`<p class="muted small">${total} ${total === 1 ? 'pedido' : 'pedidos'}</p><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Data</th><th>Aluno</th><th>Produto</th><th>Forma</th><th>Valor</th><th>Situação</th><th></th></tr></thead><tbody>
     ${rows.map((o) => html`<tr><td data-l="Data">${fmtDateTime(o.created_at)}</td><td data-l="Aluno"><b>${o.buyer.name}</b><br><span class="muted small">${o.buyer.email}</span></td>
-      <td data-l="Curso">${o.course_title}${o.kind === 'renewal' ? html` <span class="pill">Renovação</span>` : ''}</td><td data-l="Forma">${METHOD[o.method]}${o.installments > 1 ? html`<br><span class="muted small">${o.installments}x</span>` : ''}</td>
+      <td data-l="Produto">${o.course_title}${o.kind === 'renewal' ? html` <span class="pill">Renovação</span>` : ''}</td><td data-l="Forma">${METHOD[o.method]}${o.installments > 1 ? html`<br><span class="muted small">${o.installments}x</span>` : ''}</td>
       <td data-l="Valor">${brl(o.paid_cents || o.price_cents)}${o.coupon_code ? html`<br><span class="muted small">cupom ${o.coupon_code}</span>` : ''}</td><td data-l="Situação">${pill(o.status)}</td>
       <td class="tbl__act"><a class="btn btn--ghost btn--sm" href="/admin/vendas/${o.id}">Detalhes</a></td></tr>`)}</tbody></table></div>${pager(page, pages, qs)}`
     : html`<div class="empty">${lumen('pensa', 90)}<p class="muted">Nenhum pedido neste filtro.</p></div>`}</section>`;
@@ -64,7 +64,7 @@ function venda(ctx, { o, course, refunds, canRefund }) {
   ])}</section>
   ${refunds.length ? html`<section class="card"><h2 class="t-card">Pedidos de reembolso</h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Data</th><th>Situação</th><th>Motivo</th><th>Resposta</th></tr></thead><tbody>
     ${refunds.map((r) => html`<tr><td data-l="Data">${fmtDateTime(r.created_at)}</td><td data-l="Situação">${{ requested: 'Aguardando', approved: 'Aprovado', rejected: 'Recusado', failed: 'Falhou no gateway' }[r.status]}</td><td data-l="Motivo">${r.reason || '—'}</td><td data-l="Resposta">${r.admin_note || '—'}</td></tr>`)}</tbody></table></div></section>` : ''}
-  ${canRefund ? html`<section class="card"><h2 class="t-card">Devolver o valor</h2><p class="muted small">O Mercado Pago devolve ao aluno, o acesso ao curso é cancelado e o certificado é revogado.</p>
+  ${canRefund ? html`<section class="card"><h2 class="t-card">Devolver o valor</h2><p class="muted small">O Mercado Pago devolve ao aluno, o acesso ao produto é cancelado e o certificado é revogado.</p>
     <form method="post" action="/admin/vendas/${o.id}/reembolsar" class="inline" data-confirm="Devolver o valor e cancelar o acesso deste aluno?">${csrfInput(ctx.csrf)}<button class="btn btn--primary" type="submit">Reembolsar agora</button></form></section>` : ''}`;
   return shell(ctx, `Pedido ${o.public_id}`, content, '/admin/vendas');
 }
@@ -73,10 +73,10 @@ function venda(ctx, { o, course, refunds, canRefund }) {
 function simulador(ctx, { rows }) {
   const acts = [['approved', 'Aprovar'], ['pending', 'Pendente'], ['refused', 'Recusar'], ['expired', 'Vencer'], ['refunded', 'Reembolsar'], ['charged_back', 'Estornar']];
   const content = html`${titleRow('Simulador de pagamento', 'Só existe em teste e staging. Escolha o que o banco responderia e o sistema reage como no pagamento real.')}
-  <section class="card">${rows.length ? html`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Pedido</th><th>Aluno</th><th>Curso</th><th>Valor</th><th>Situação</th><th>Simular</th></tr></thead><tbody>
-    ${rows.map((o) => html`<tr><td data-l="Pedido"><span class="code">${o.public_id}</span></td><td data-l="Aluno">${o.buyer.name}<br><span class="muted small">${o.buyer.email}</span></td><td data-l="Curso">${o.course_title}</td><td data-l="Valor">${brl(o.price_cents)}</td><td data-l="Situação">${pill(o.status)}</td>
+  <section class="card">${rows.length ? html`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Pedido</th><th>Aluno</th><th>Produto</th><th>Valor</th><th>Situação</th><th>Simular</th></tr></thead><tbody>
+    ${rows.map((o) => html`<tr><td data-l="Pedido"><span class="code">${o.public_id}</span></td><td data-l="Aluno">${o.buyer.name}<br><span class="muted small">${o.buyer.email}</span></td><td data-l="Produto">${o.course_title}</td><td data-l="Valor">${brl(o.price_cents)}</td><td data-l="Situação">${pill(o.status)}</td>
       <td class="tbl__act">${acts.map(([v, l]) => html`<form method="post" action="/admin/simulador/${o.public_id}" class="inline">${csrfInput(ctx.csrf)}<input type="hidden" name="result" value="${v}"><button class="btn btn--outline btn--sm" type="submit">${l}</button></form>`)}</td></tr>`)}</tbody></table></div>`
-    : html`<div class="empty">${lumen('pensa', 90)}<p class="muted">Nenhum pedido simulado ainda. Abra o checkout de um curso pago para criar um.</p></div>`}</section>`;
+    : html`<div class="empty">${lumen('pensa', 90)}<p class="muted">Nenhum pedido simulado ainda. Abra o checkout de um produto pago para criar um.</p></div>`}</section>`;
   return shell(ctx, 'Simulador de pagamento', content, '/admin/simulador');
 }
 
@@ -183,7 +183,7 @@ function financeiro(ctx, { per, curso, tipo = '', courses, data: d }) {
     <li>Não renovação: matrícula comprada cujo prazo venceu no período e não foi renovada. Prazos que ainda não chegaram não entram.</li>
     <li>Se as devoluções do período vierem de vendas antigas e superarem a base, o churn é limitado a 100%.</li>
     <li>Efetividade = 100% − churn. Conclusão = data de emissão do certificado. Cortesias e matrículas manuais não entram na receita.</li>
-    <li>Os valores são o preço do curso. Os juros do parcelamento são pagos pelo aluno e não entram na receita.</li></ul></details>`;
+    <li>Os valores são o preço do produto. Os juros do parcelamento são pagos pelo aluno e não entram na receita.</li></ul></details>`;
   return shell(ctx, 'Cockpit financeiro', content, '/admin/financeiro');
 }
 

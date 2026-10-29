@@ -88,7 +88,7 @@ test('princípio: conta sem matrícula não acessa curso; matrícula cancelada p
   const s = await makeStudent(t, { email: 'so-conta@example.com', name: 'Só Conta' });
   const b = new Browser(t.base); await b.login(s.email, s.password);
   assert.equal((await b.get('/curso/protocolo-essencia')).status, 403);
-  assert.match((await b.get('/meus-cursos')).text, /ainda não tem cursos/);
+  assert.match((await b.get('/meus-cursos')).text, /ainda não tem produtos/);
   await admin.post('/admin/cortesias', { course: String(c1), email: s.email }, '/admin/cortesias');
   assert.equal((await b.get('/curso/protocolo-essencia')).status, 200);
   const eid = (await t.pool.query('SELECT id FROM enrollments WHERE user_id=$1', [s.id])).rows[0].id;
@@ -219,7 +219,7 @@ test('cupom: envio por e-mail com a imagem, sem criar conta nem liberar acesso',
   assert.equal(r.status, 303);
   const mail = mailer.memory.find((m) => m.to === 'lead@example.com');
   assert.ok(mail); assert.equal(mail.template, 'cupom_convite'); assert.match(mail.html, /NATAL-2026/); assert.match(mail.html, /R\$\s?50,00/); assert.match(mail.html, /http:\/\/localhost:3000\/cupom\/NATAL-2026/);
-  assert.match(mail.text, /acesso ao curso só é liberado depois da aprovação do pagamento/);
+  assert.match(mail.text, /acesso ao produto só é liberado depois da aprovação do pagamento/);
   assert.equal(mail.attachments.length, 1); assert.equal(mail.attachments[0].filename, 'cupom-NATAL-2026.png'); assert.ok(mail.attachments[0].bytes > 20000);
   const row = (await t.pool.query("SELECT * FROM coupon_sends WHERE email='lead@example.com'")).rows[0]; assert.equal(row.status, 'sent'); assert.equal(row.name, 'Beatriz Lead');
   assert.equal((await t.pool.query("SELECT count(*)::int n FROM users WHERE email='lead@example.com'")).rows[0].n, 0, 'lead não vira usuário');

@@ -13,12 +13,12 @@ const titleRow = (title, sub) => html`<div class="title-row"><h1 class="t-displa
 const navPath = (user) => (user.role === 'admin' ? '/admin/cursos' : '/meus-cursos');
 
 function meusCursos({ cfg, user, csrf, flash, courses, resume }) {
-  const content = html`${titleRow(html`Olá, ${user.name.split(' ')[0]}.`, 'Seus cursos, produtos e o seu avanço.')}
+  const content = html`${titleRow(html`Olá, ${user.name.split(' ')[0]}.`, 'Seus produtos e o seu avanço.')}
   ${resume ? html`<section class="card card--hero resume"><div><span class="eyebrow">Continue de onde parou</span><h2 class="t-card">${resume.course.title}</h2>
       <p class="muted">${resume.lesson.module_title} · ${resume.lesson.title}</p></div>
       <a class="btn btn--primary" href="/curso/${resume.course.slug}/aula/${resume.lesson.id}">Continuar aula</a></section>` : ''}
   ${courses.length
-    ? html`<h2 class="t-card">Meus cursos e produtos</h2><div class="mgrid">${courses.map((c) => html`<article class="card mcard">
+    ? html`<h2 class="t-card">Meus produtos</h2><div class="mgrid">${courses.map((c) => html`<article class="card mcard">
         <a class="mcard__cover" href="/curso/${c.slug}" tabindex="-1" aria-hidden="true">${coverBox(c)}</a>
         <h3 class="t-card"><a href="/curso/${c.slug}">${c.title}</a></h3>
         ${c.product_type === 'download'
@@ -27,10 +27,10 @@ function meusCursos({ cfg, user, csrf, flash, courses, resume }) {
           : html`${bar(c.pct)}
             <p class="muted small">${c.pct}% concluído · ${c.expires_at ? 'acesso até ' + fmtDate(c.expires_at) : 'acesso vitalício'}</p>
             <a class="btn btn--outline btn--sm" href="/curso/${c.slug}">${c.pct > 0 ? 'Continuar' : 'Começar'}</a>`}</article>`)}</div>`
-    : html`<section class="card card--hero"><div class="empty">${lumen('pensa', 120)}<div><h2 class="t-card">Você ainda não tem cursos nem produtos</h2>
+    : html`<section class="card card--hero"><div class="empty">${lumen('pensa', 120)}<div><h2 class="t-card">Você ainda não tem produtos</h2>
         <p class="muted">Quando você comprar ou receber um acesso, ele aparece aqui.</p>
-        <a class="btn btn--outline btn--sm" href="/#cursos">Ver os cursos</a></div></div></section>`}`;
-  return shellApp({ cfg, user, csrf, flash, path: '/meus-cursos', title: 'Meus cursos', content });
+        <a class="btn btn--outline btn--sm" href="/#cursos">Ver os produtos</a></div></div></section>`}`;
+  return shellApp({ cfg, user, csrf, flash, path: '/meus-cursos', title: 'Meus produtos', content });
 }
 
 function lessonRow(course, l, ctx) {
@@ -109,7 +109,7 @@ function produtoHome({ cfg, user, csrf, flash, course, items, access, quota = {}
 }
 
 function cursoHome({ cfg, user, csrf, flash, course, cur, progress, next, access, ov, review }) {
-  const content = html`<a class="back" href="${navPath(user)}">← ${user.role === 'admin' ? 'Cursos' : 'Meus cursos'}</a>
+  const content = html`<a class="back" href="${navPath(user)}">← ${user.role === 'admin' ? 'Cursos e produtos' : 'Meus produtos'}</a>
   ${user.role === 'admin' ? html`<div class="alert alert--info">Você está vendo como administrador. Seu progresso aqui é de teste.</div>` : ''}
   ${titleRow(course.title, course.summary)}
   <section class="card"><div class="resume"><div><span class="eyebrow">Seu progresso</span>

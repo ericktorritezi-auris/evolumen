@@ -29,8 +29,8 @@ async function check(body) {
   if (until && !C.dateOnly(until)) errors.until = 'Data inválida.';
   else if (until && until < todaySP()) errors.until = 'A data precisa ser hoje ou depois.';
   const user = email ? (await db.q('SELECT * FROM users WHERE lower(email) = $1', [email])).rows[0] : null;
-  if (user && user.role !== 'student') errors.email = 'Este e-mail é de um administrador, que já vê todos os cursos.';
-  if (user && user.status !== 'active') errors.email = 'A conta deste aluno está inativa. Reative a conta em Alunos antes de liberar o curso.';
+  if (user && user.role !== 'student') errors.email = 'Este e-mail é de um administrador, que já vê todos os produtos.';
+  if (user && user.status !== 'active') errors.email = 'A conta deste aluno está inativa. Reative a conta em Alunos antes de liberar o acesso.';
   const name = String(body.name || '').trim().replace(/\s+/g, ' ').slice(0, 120);
   if (email && !user && name.length < 3) errors.name = 'Informe o nome para criar a conta do aluno.';
   return { errors, email, name, until, user };

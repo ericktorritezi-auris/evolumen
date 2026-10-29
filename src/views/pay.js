@@ -93,7 +93,7 @@ function orderPage({ cfg, user, csrf, order, course, newUser, simulated }) {
         <p class="small muted">Se a página do Mercado Pago não abrir sozinha, use o botão. Depois de pagar, volte aqui: a confirmação aparece sozinha.</p>`
       : html`<div class="alert alert--info">Modo de teste: o pagamento com cartão é simulado pelo administrador em Vendas e renovações, no simulador.</div>`}</div>`;
   } else if (s === 'refunded' || s === 'charged_back') {
-    body = html`<div class="verify verify--bad">${icon('close', 40)}<span class="eyebrow">${STATUS[s]}</span><h1 class="t-display">Este pagamento foi devolvido</h1><p class="muted">O acesso ao curso foi encerrado.</p></div>`;
+    body = html`<div class="verify verify--bad">${icon('close', 40)}<span class="eyebrow">${STATUS[s]}</span><h1 class="t-display">Este pagamento foi devolvido</h1><p class="muted">O acesso ao produto foi encerrado.</p></div>`;
   } else {
     body = html`<div class="verify verify--bad">${icon('close', 40)}<span class="eyebrow">${STATUS[s]}</span><h1 class="t-display">${s === 'refused' ? 'O pagamento não foi aprovado' : s === 'expired' ? 'O Pix venceu' : 'O pagamento não foi concluído'}</h1>
       <p class="muted">Nada foi cobrado. Você pode tentar de novo quando quiser.</p><div class="row row--center"><a class="btn btn--primary btn--lg" href="${retry}">Tentar de novo</a></div></div>`;
@@ -117,12 +117,12 @@ function pagamentos({ cfg, user, csrf, flash, accesses, orders, refundOpen }) {
       ${canRefund ? html`<details class="refund"><summary class="btn btn--ghost btn--sm">Pedir reembolso</summary>
         <form method="post" action="/pagamentos/${o.public_id}/reembolso" class="form">${csrfInput(csrf)}
           <div class="field"><label for="r-${o.id}">Conte o motivo (opcional)</label><textarea id="r-${o.id}" name="reason" rows="3" maxlength="500"></textarea></div>
-          <p class="muted small">O reembolso encerra o acesso ao curso${o.kind === 'purchase' ? ' e cancela o certificado, se houver' : ''}.</p>
+          <p class="muted small">O reembolso encerra o acesso ao produto${o.kind === 'purchase' ? ' e cancela o certificado, se houver' : ''}.</p>
           <button class="btn btn--primary btn--sm" type="submit" data-confirm="Enviar o pedido de reembolso de ${o.title}?">Enviar pedido</button></form></details>` : ''}</article>`;
   };
-  const content = html`${titleRow('Pagamentos e acessos', 'Seus cursos, prazos de acesso e histórico de pagamentos.')}
+  const content = html`${titleRow('Pagamentos e acessos', 'Seus produtos, prazos de acesso e histórico de pagamentos.')}
     <h2 class="t-card">Meus acessos</h2>
-    ${accesses.length ? html`<div class="mgrid">${accesses.map(accessRow)}</div>` : html`<section class="card empty"><p class="muted">Você ainda não tem cursos.</p><a class="btn btn--outline btn--sm" href="/#cursos">Ver os cursos</a></section>`}
+    ${accesses.length ? html`<div class="mgrid">${accesses.map(accessRow)}</div>` : html`<section class="card empty"><p class="muted">Você ainda não tem produtos.</p><a class="btn btn--outline btn--sm" href="/#cursos">Ver os produtos</a></section>`}
     <h2 class="t-card">Pagamentos</h2>
     ${orders.length ? html`<div class="mgrid">${orders.map(orderRow)}</div>` : html`<section class="card empty"><p class="muted">Nenhum pagamento por aqui ainda.</p></section>`}`;
   return shellApp({ cfg, user, csrf, flash, path: '/pagamentos', title: 'Pagamentos e acessos', content });

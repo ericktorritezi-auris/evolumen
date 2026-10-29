@@ -49,6 +49,8 @@ function load(env = process.env) {
     paymentsEnabled: ((env.PAYMENT_PROVIDER || '').trim().toLowerCase() === 'simulated' && appEnv !== 'production' && (envExplicit || appEnv === 'test')) || !!(env.MP_ACCESS_TOKEN && (env.PAYMENT_PROVIDER || 'mercadopago').toLowerCase() === 'mercadopago') || (appEnv !== 'production' && (envExplicit || appEnv === 'test') && !env.MP_ACCESS_TOKEN && !env.PAYMENT_PROVIDER),
     // Pasta de arquivos grandes: o volume do Railway (caminho vem sozinho) ou FILES_DIR (testes e desenvolvimento).
     filesDir: (env.FILES_DIR || env.RAILWAY_VOLUME_MOUNT_PATH || '').trim(),
+    // Reset de lançamento: só funciona com ALLOW_LAUNCH_RESET=1 no Railway. Depois do lançamento, a variável é removida.
+    allowLaunchReset: (env.ALLOW_LAUNCH_RESET || '').trim() === '1',
     pixMinutes: 30,
     refundDays: 7,
     sessionDays: 30,
