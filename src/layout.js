@@ -125,7 +125,7 @@ function shellAuth({ cfg, title, heading, lead, pose = 'guia', bubble = '', cont
 // Página pública (landing e curso): cabeçalho com menu de seções, menu por cima da tela no celular.
 function shellPublic({ cfg, user, title, content, flash: f, description = '', ogImage = '', robots = 'index, follow' }) {
   const items = menuFor('publico', '/', cfg.version.phase);
-  const cta = user ? { href: user.role === 'admin' ? '/admin' : '/meus-cursos', label: user.role === 'admin' ? 'Painel' : 'Meus cursos' } : { href: '/entrar', label: 'Área de membros' };
+  const cta = user ? { href: user.role === 'admin' ? '/admin' : '/meus-cursos', label: user.role === 'admin' ? 'Painel' : 'Meus produtos' } : { href: '/entrar', label: 'Área de membros' };
   const links = items.map((i) => html`<a href="${i.href}" class="nav__item">${icon(i.icon, 20)}<span>${i.label}</span></a>`);
   const body = html`
 <header class="p-header">

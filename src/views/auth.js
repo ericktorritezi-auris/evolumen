@@ -8,7 +8,7 @@ function login({ cfg, csrf, flash, email = '', next = '' }) {
   return shellAuth({
     cfg, title: 'Entrar', flash,
     heading: html`Sua área de <b class="accent">membros.</b>`,
-    lead: 'Entre para continuar seus cursos, falar com o professor e emitir seus certificados.',
+    lead: 'Entre para acessar seus produtos, continuar seus cursos, falar com o professor e emitir seus certificados.',
     pose: 'guia', bubble: 'Use o login e a senha que enviamos por e-mail.',
     content: html`
       <h2 class="t-card">Entrar</h2>
@@ -20,7 +20,7 @@ function login({ cfg, csrf, flash, email = '', next = '' }) {
         <div class="form__aside"><a href="/esqueci-senha">Esqueci minha senha</a></div>
         <button class="btn btn--primary btn--lg btn--block" type="submit">Entrar</button>
       </form>
-      ${showCourses ? html`<p class="muted small center">Ainda não tem acesso? <a href="/#cursos">Conheça os cursos</a></p>` : ''}`,
+      ${showCourses ? html`<p class="muted small center">Ainda não tem acesso? <a href="/#cursos">Conheça os produtos</a></p>` : ''}`,
   });
 }
 

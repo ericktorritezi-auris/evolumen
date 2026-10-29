@@ -23,11 +23,11 @@ function coverBox(c, cls = '') {
 // Aviso de cupom (?cupom=). Ainda não há pagamento online: o desconto é aplicado na hora de pagar.
 function couponBanner(coupon) {
   if (!coupon) return '';
-  if (coupon.invalid) return html`<div class="alert alert--error" role="alert">Este cupom não está disponível. Ele pode ter vencido, esgotado ou não valer para este curso.</div>`;
+  if (coupon.invalid) return html`<div class="alert alert--error" role="alert">Este cupom não está disponível. Ele pode ter vencido, esgotado ou não valer para este produto.</div>`;
   return html`<div class="alert alert--success" role="status">Cupom <b>${coupon.code}</b> guardado: ${coupon.label} de desconto.
-    ${coupon.price ? html`Neste curso, de <s>${C.brl(coupon.price.original)}</s> por <b>${C.brl(coupon.price.cents)}</b>.` : ''}
+    ${coupon.price ? html`Neste produto, de <s>${C.brl(coupon.price.original)}</s> por <b>${C.brl(coupon.price.cents)}</b>.` : ''}
     Ele vale no pagamento e substitui o preço promocional, se houver.
-    ${coupon.promoCheaper ? html`<b>Atenção:</b> a promoção atual deste curso está igual ou mais barata que o cupom.` : ''}</div>`;
+    ${coupon.promoCheaper ? html`<b>Atenção:</b> a promoção atual deste produto está igual ou mais barata que o cupom.` : ''}</div>`;
 }
 
 const starLine = (r) => (r ? html`<span class="rating" title="${r.n} avaliações">★ ${String(r.avg).replace('.', ',')} <small>(${r.n})</small></span>` : '');
@@ -51,10 +51,10 @@ function landing({ cfg, user, courses, coupon }) {
 ${couponBanner(coupon)}
 <section class="hero">
   <div class="hero__text">
-    <span class="eyebrow">Saúde emocional · cursos online</span>
+    <span class="eyebrow">Saúde emocional · cursos e produtos digitais</span>
     <h1 class="t-hero">Evolua com <b class="accent">clareza.</b></h1>
-    <p class="lead">Cursos de autoconhecimento e transformação do comportamento humano, com videoaulas, apostilas e acompanhamento do seu progresso.</p>
-    <div class="row"><a class="btn btn--primary btn--lg" href="#cursos">Ver os cursos</a><a class="btn btn--ghost btn--lg" href="${user ? '/meus-cursos' : '/entrar'}">Área de membros</a></div>
+    <p class="lead">Cursos e produtos digitais de autoconhecimento e transformação do comportamento humano: videoaulas, e-books, apostilas e ferramentas para você evoluir no seu ritmo.</p>
+    <div class="row"><a class="btn btn--primary btn--lg" href="#cursos">Ver os produtos</a><a class="btn btn--ghost btn--lg" href="${user ? '/meus-cursos' : '/entrar'}">Área de membros</a></div>
   </div>
   <div class="hero__lumen">${lumen('ola', 170)}<div class="bubble">Oi! Eu sou a Lumen. Vou te guiar por aqui.</div></div>
 </section>
@@ -63,11 +63,11 @@ ${couponBanner(coupon)}
   <div class="sec__in">
     <span class="eyebrow">Sobre a EvoLumen</span>
     <h2 class="t-sec">Onde o autoconhecimento <b class="accent">acende.</b></h2>
-    <p class="lead">A EvoLumen Academy é uma plataforma de cursos de saúde emocional criada para quem quer entender a si mesmo e transformar hábitos, crenças e emoções. Cada curso reúne videoaulas e material de apoio para você estudar no seu ritmo.</p>
+    <p class="lead">A EvoLumen Academy é uma plataforma de produtos de saúde emocional, entre eles cursos online e produtos digitais, criada para quem quer entender a si mesmo e transformar hábitos, crenças e emoções. Os cursos reúnem videoaulas e material de apoio, e os produtos digitais (e-books, áudios e ferramentas) ficam disponíveis para baixar, para você usar no seu ritmo.</p>
     <div class="trio">
-      <div class="card">${icon('clock', 26)}<h3 class="t-card">Aprenda no seu ritmo</h3><p class="muted">Videoaulas e apostilas disponíveis quando você quiser, no celular ou no computador.</p></div>
+      <div class="card">${icon('clock', 26)}<h3 class="t-card">Aprenda no seu ritmo</h3><p class="muted">Videoaulas, apostilas e arquivos disponíveis quando você quiser, no celular ou no computador.</p></div>
       <div class="card">${icon('video', 26)}<h3 class="t-card">Conteúdo organizado</h3><p class="muted">Módulos e aulas em sequência, com o seu progresso sempre salvo.</p></div>
-      <div class="card">${icon('cert', 26)}<h3 class="t-card">Material para baixar</h3><p class="muted">Apostilas e arquivos de apoio em cada aula, para estudar e consultar depois.</p></div>
+      <div class="card">${icon('cert', 26)}<h3 class="t-card">Material para baixar</h3><p class="muted">Apostilas, e-books e arquivos de apoio para baixar, estudar e consultar depois.</p></div>
     </div>
   </div>
 </section>
@@ -87,22 +87,22 @@ ${couponBanner(coupon)}
 <section class="sec" id="cursos">
   <div class="sec__in">
     <span class="eyebrow">Vitrine</span>
-    <h2 class="t-sec">Nossos cursos</h2>
+    <h2 class="t-sec">Nossos produtos</h2>
     ${courses.length
-      ? html`<p class="muted">Escolha um curso e veja os detalhes.</p><div class="cgrid">${courses.map(courseCard)}</div>`
-      : html`<div class="card empty">${lumen('pensa', 96)}<div><h3 class="t-card">Novos cursos em breve</h3><p class="muted">Estamos preparando os primeiros cursos. Volte em alguns dias.</p></div></div>`}
+      ? html`<p class="muted">Escolha um curso ou produto digital e veja os detalhes.</p><div class="cgrid">${courses.map(courseCard)}</div>`
+      : html`<div class="card empty">${lumen('pensa', 96)}<div><h3 class="t-card">Novidades em breve</h3><p class="muted">Estamos preparando os primeiros produtos. Volte em alguns dias.</p></div></div>`}
   </div>
 </section>
 
 <section class="sec sec--alt" id="como-funciona">
   <div class="sec__in">
     <span class="eyebrow">Como funciona</span>
-    <h2 class="t-sec">Do primeiro clique ao último módulo</h2>
+    <h2 class="t-sec">Do primeiro clique ao seu acesso</h2>
     <ol class="how">
-      <li><b>Escolha o curso</b><span class="muted">Veja os detalhes, a carga horária e o que você estará apto a fazer.</span></li>
+      <li><b>Escolha o produto</b><span class="muted">Veja os detalhes do curso ou do produto digital e o que você vai receber.</span></li>
       <li><b>Cadastre-se e pague</b><span class="muted">Preencha seus dados e pague por Pix ou cartão.</span></li>
       <li><b>Receba seu acesso</b><span class="muted">Login e senha chegam no seu e-mail.</span></li>
-      <li><b>Estude no seu ritmo</b><span class="muted">Assista às aulas, baixe as apostilas e acompanhe seu progresso.</span></li>
+      <li><b>Use no seu ritmo</b><span class="muted">Assista às aulas, baixe seus arquivos e acompanhe seu progresso.</span></li>
     </ol>
   </div>
 </section>
@@ -112,9 +112,9 @@ ${couponBanner(coupon)}
     <span class="eyebrow">Perguntas frequentes</span>
     <h2 class="t-sec">Ficou com dúvida?</h2>
     <div class="faq">
-      <details><summary>Como recebo o acesso ao curso?</summary><p>Depois do pagamento confirmado, você recebe por e-mail o seu login e a sua senha, e pode entrar na área de membros.</p></details>
+      <details><summary>Como recebo o acesso?</summary><p>Depois do pagamento confirmado, você recebe por e-mail o seu login e a sua senha, e pode entrar na área de membros, onde ficam seus cursos e produtos.</p></details>
       <details><summary>Posso estudar pelo celular?</summary><p>Sim. A plataforma foi pensada primeiro para o celular e pode ser instalada como um app na tela inicial.</p></details>
-      <details><summary>Quanto tempo tenho de acesso?</summary><p>Depende do curso: acesso vitalício ou por um período definido (por exemplo, 6 meses ou 1 ano). A modalidade aparece na página de cada curso. Ao fim do período, você pode renovar.</p></details>
+      <details><summary>Quanto tempo tenho de acesso?</summary><p>Depende do produto: acesso vitalício ou por um período definido (por exemplo, 6 meses ou 1 ano). A modalidade aparece na página de cada produto. Ao fim do período, você pode renovar.</p></details>
       <details><summary>Posso pedir reembolso?</summary><p>Sim, em até 7 dias após a compra, conforme o Código de Defesa do Consumidor. Depois disso, você mantém o acesso durante todo o período contratado.</p></details>
     </div>
   </div>
@@ -122,10 +122,10 @@ ${couponBanner(coupon)}
 
 <section class="cta-band">
   <h2 class="t-sec">Pronto para evoluir com clareza?</h2>
-  <p class="muted">Escolha seu curso e receba o acesso por e-mail.</p>
-  <a class="btn btn--primary btn--lg" href="#cursos">Ver os cursos</a>
+  <p class="muted">Escolha seu produto e receba o acesso por e-mail.</p>
+  <a class="btn btn--primary btn--lg" href="#cursos">Ver os produtos</a>
 </section>`;
-  return shellPublic({ cfg, user, title: 'Cursos de saúde emocional', description: 'EvoLumen Academy: cursos online de autoconhecimento e saúde emocional, com videoaulas e material de apoio.', content });
+  return shellPublic({ cfg, user, title: 'Cursos e produtos de saúde emocional', description: 'EvoLumen Academy: cursos online e produtos digitais de autoconhecimento e saúde emocional.', content });
 }
 
 function coursePage({ cfg, user, course: c, cur, state, preview, coupon, buy = {}, items = [], rating = null, testimonials = [] }) {
@@ -142,9 +142,9 @@ function coursePage({ cfg, user, course: c, cur, state, preview, coupon, buy = {
     ? html`<a class="btn btn--primary btn--lg btn--block" href="/curso/${c.slug}">${dl ? 'Baixar meus arquivos' : 'Ir para o curso'}</a>${buy.open && buy.renew ? html`<p class="muted small">Seu acesso termina em breve. <a href="/checkout/${c.slug}">Renovar agora</a>.</p>` : ''}`
     : state === 'expired'
       ? (buy.open ? html`<a class="btn btn--primary btn--lg btn--block" href="/checkout/${c.slug}">Renovar acesso</a><p class="muted small">Seu acesso terminou. Renove para voltar a ter acesso.</p>`
-        : html`<button class="btn btn--primary btn--lg btn--block" type="button" disabled>Renovação em breve</button><p class="muted small">Seu acesso a este curso terminou. A renovação estará disponível em breve.</p>`)
+        : html`<button class="btn btn--primary btn--lg btn--block" type="button" disabled>Renovação em breve</button><p class="muted small">Seu acesso a este ${dl ? 'produto' : 'curso'} terminou. A renovação estará disponível em breve.</p>`)
       : (buy.open ? html`<a class="btn btn--primary btn--lg btn--block" href="${buyUrl}">${dl ? 'Comprar agora' : 'Matricular-se'}</a><p class="muted small">Pix ou cartão. Reembolso em até 7 dias.</p>`
-        : html`<button class="btn btn--primary btn--lg btn--block" type="button" disabled>Matrículas em breve</button><p class="muted small">As matrículas e o pagamento serão abertos nos próximos dias.</p>`);
+        : html`<button class="btn btn--primary btn--lg btn--block" type="button" disabled>${dl ? 'Compra em breve' : 'Matrículas em breve'}</button><p class="muted small">${dl ? 'A compra' : 'As matrículas e o pagamento'} será${dl ? '' : 'o'} aberta${dl ? '' : 's'} nos próximos dias.</p>`);
   const content = html`
 ${couponBanner(coupon)}
 ${preview ? html`<div class="alert alert--info">Pré-visualização: ${dl ? 'este produto' : 'este curso'} ainda não está publicado na vitrine.</div>` : ''}
@@ -156,7 +156,7 @@ ${preview ? html`<div class="alert alert--info">Pré-visualização: ${dl ? 'est
     ${starLine(rating)}
     ${c.summary ? html`<p class="lead">${c.summary}</p>` : ''}
     ${c.intro_youtube_id
-      ? html`<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/${c.intro_youtube_id}?rel=0" title="Apresentação do curso" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`
+      ? html`<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/${c.intro_youtube_id}?rel=0" title="Apresentação" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`
       : (c.cover_file_id ? coverBox(c, 'cover--wide') : '')}
     <div class="stats">
       ${c.workload_hours ? stat('Carga horária', `${c.workload_hours} horas`) : ''}

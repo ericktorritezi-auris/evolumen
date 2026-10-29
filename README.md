@@ -1,12 +1,13 @@
 # EvoLumen Academy
 
-Plataforma de cursos online de saúde emocional do professor Erick Torritezi.
+Plataforma de cursos online e produtos digitais de saúde emocional do professor Erick Torritezi.
 Mais um produto Belle Planner.
 
 ## Versões entregues
 
 | Versão | Fase | Data | O que mudou |
 |---|---|---|---|
+| 0.9.0 | 6 · Lançamento | 2026-10-29 | **Reset de lançamento** em *Lançamento* (menu do administrador): você informa os e-mails das contas de aluno de teste, vê a **prévia** com as contagens, confirma digitando a frase e a sua senha, e só então apaga (pedidos, reembolsos, matrículas, progresso, provas, certificados, aceites, fórum, avaliações, cupons usados, pedidos LGPD, notificações e registros de e-mail dessas contas). Produtos, textos legais, configurações, o administrador e o registro de atividades ficam; o registro guarda só as contagens. Só funciona com `ALLOW_LAUNCH_RESET=1` no Railway (remova depois). **Checklist de go-live** com verificação automática (HTTPS, e-mail, Mercado Pago e webhook, volume, textos legais, produto e preço, compra e reembolso de teste). Textos da landing, perguntas frequentes, ajuda, menus e e-mails agora falam em **produtos** (curso é um tipo de produto). Migração 012 libera a exclusão dos aceites só dentro do reset. Inclui tudo da 0.8.1. |
 | 0.8.1 | 6 · Painel e acabamento | 2026-10-28 | **Duplicar** cursos e produtos (botão na lista): abre o cadastro preenchido, sem o endereço (slug); nada é criado até salvar. Leva dados, capa e, no curso, módulos, aulas e anexos; no produto, os arquivos (caixa para desmarcar). Não leva vendas, matrículas, avaliações, cupons nem provas; nasce como rascunho. **Dashboard renovado**: vendas e líquido do mês, alunos com acesso, pendências com atalho, atalhos e o cartão **Saúde do sistema** (servidor, banco e tempo de resposta, e-mail, pagamento, tarefas automáticas, volume e memória). Sai a linha "Fase entregue" e o texto antigo. **Caixas de seleção e opções** alinhadas com o texto em todo o sistema. Aniversário: só "Opcional.". Sem migração nova. Inclui tudo da 0.8.0. |
 | 0.8.0 | 6 · Downloads e avaliações | 2026-10-28 | **Limite de downloads** dos produtos digitais: cada aluno baixa cada arquivo 3 vezes (ajustável em Configurações); depois, **pedido com motivo** que você aprova ou nega em *Pedidos de download*, tudo pela campainha, sem e-mail. Download interrompido não conta; acesso cancelado zera o contador. **Avaliação e depoimento**: no produto digital abre após o primeiro download (no curso, após o certificado); estrelas, indicação 0–10 e texto opcional com **aceite** para publicar; você publica ou retira cada depoimento em *Fórum e avaliações*; na página pública aparece com primeiro nome e inicial (ex.: "Ana L."). **Média de estrelas** na vitrine e na página (só com 3 ou mais avaliações; cancelados não contam). **Aviso de novidade** para cursos e produtos: campainha por padrão, e-mail só se marcar. **Produto digital não aparece em Certificados**. **Não publica produto sem arquivos**; avisa ao remover o último arquivo de quem já comprou. Migração 011. Inclui tudo da 0.7.1. |
 | 0.7.1 | 6 · Produtos digitais e volume | 2026-10-28 | **Correção**: o formulário de arquivo de apoio da aula não mostrava o campo "Onde guardar" (banco ou volume). Agora mostra, com o modo Automático. Sem outras mudanças. |
@@ -43,6 +44,7 @@ Endereço de produção: https://evolumen.ericktorritezi.com.br
 | LOG_LEVEL | não | error, warn, info, debug |
 | MP_ACCESS_TOKEN | produção: sim para vender | Access Token do Mercado Pago (teste no staging, produção na produção). Sem ele a produção sobe, mas a matrícula mostra "em breve" |
 | MP_WEBHOOK_SECRET | obrigatória se houver token | chave secreta do webhook (Webhooks > Configurar notificações) |
+| ALLOW_LAUNCH_RESET | só durante a limpeza | `1` liga o reset de lançamento (tela Lançamento). Remova depois de usar. Sem ela, o reset não executa nada |
 | PAYMENT_PROVIDER | não | `mercadopago` ou `simulated`. **Nunca `simulated` na produção** (o sistema recusa subir). Sem token, teste e staging usam o simulador |
 
 ## Como subir
@@ -155,6 +157,13 @@ Lembrete da regra central: login e senha não liberam curso. O acesso nasce de u
 4. **Média de estrelas**: com 3 avaliações, aparece "★ 4,7" na vitrine e na página. Com menos de 3, não aparece.
 5. **Aviso de novidade**: em *Compradores* (ou *Arquivos*) do produto, e em *Matrículas* do curso, escreva uma frase e envie. Vai para a campainha; só vai por e-mail se marcar a caixa.
 6. **Certificados**: a tela do aluno não lista produtos digitais.
+
+## Como testar a 0.9.0
+1. **Textos**: abra a página inicial e as perguntas frequentes: agora falam em *produtos* (cursos e produtos digitais). Confira também o menu (*Produtos*, *Meus produtos*) e a Ajuda.
+2. **Checklist**: em *Lançamento* (menu do administrador), veja o que está verde, amarelo ou vermelho. Os itens são verificados sozinhos.
+3. **Reset desligado** (padrão): a tela explica como ligar e não permite apagar nada.
+4. **Reset** (só quando for limpar os testes): no Railway, crie `ALLOW_LAUNCH_RESET=1` e espere o deploy. Em *Lançamento*, cole os e-mails das contas de teste e toque em *Ver prévia*. Confira as contagens (o aviso de pedidos aprovados lembra de reembolsar antes). Digite a frase pedida e a sua senha e confirme. Depois **remova a variável** `ALLOW_LAUNCH_RESET`.
+5. **Conferência**: em *Alunos* as contas sumiram; em *Vendas* e no *Cockpit financeiro* os pedidos de teste sumiram; produtos, textos legais e configurações continuam; em *Registro de atividades* aparece só "launch_reset" com contagens.
 
 ## Como testar a 0.8.1
 1. **Dashboard**: o cartão *Saúde do sistema* mostra banco, e-mail, pagamento, volume, tarefas automáticas e tempo de resposta (o tempo e as tarefas só aparecem depois de alguns acessos e da primeira hora). Abaixo, vendas do mês, pendências (cada uma leva à tela certa) e atalhos.

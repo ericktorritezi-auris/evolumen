@@ -86,14 +86,14 @@ function courseGranted(cfg, name, courseTitle, slug, { gift = false, noun = 'cur
 // Convite com cupom: não libera acesso. A pessoa precisa pagar usando o cupom.
 function couponInvite(cfg, name, { code, discount, courses, link, validity }) {
   const first = name ? esc(String(name).split(' ')[0]) : '';
-  const list = courses.length > 1 ? `nos cursos ${courses.map(esc).join(', ')}` : `no curso <b>${esc(courses[0])}</b>`;
+  const list = courses.length > 1 ? `nos produtos ${courses.map(esc).join(', ')}` : `no produto <b>${esc(courses[0])}</b>`;
   return {
     subject: `Seu cupom de desconto da EvoLumen Academy: ${code}`,
     template: 'cupom_convite',
     html: layout({ cfg, title: 'Seu cupom de desconto', intro: `${first ? `Olá, ${first}. ` : 'Olá. '}Separamos um desconto de <b>${esc(discount)}</b> para você ${list}.`,
       bodyHtml: `<p style="margin:16px 0 4px;font-size:13px;color:#5A6088">Seu cupom</p><p style="margin:0 0 6px;font-size:28px;letter-spacing:3px;font-weight:700;color:#0B0F26">${esc(code)}</p>${validity ? `<p style="margin:0 0 6px;font-size:13px;color:#5A6088">${esc(validity)}</p>` : ''}`,
-      cta: { url: link, label: 'Ver o curso com o cupom' }, outro: 'Digite o cupom na hora do pagamento. O desconto só vale depois que o pagamento for aprovado e o acesso ao curso é liberado no mesmo momento.' }),
-    text: `${first ? `Olá, ${name}. ` : ''}Seu cupom de desconto (${discount}): ${code}\n${validity || ''}\nAbra: ${link}\nUse o cupom na hora do pagamento. O acesso ao curso só é liberado depois da aprovação do pagamento.`,
+      cta: { url: link, label: 'Ver o produto com o cupom' }, outro: 'Digite o cupom na hora do pagamento. O desconto só vale depois que o pagamento for aprovado e o acesso ao produto é liberado no mesmo momento.' }),
+    text: `${first ? `Olá, ${name}. ` : ''}Seu cupom de desconto (${discount}): ${code}\n${validity || ''}\nAbra: ${link}\nUse o cupom na hora do pagamento. O acesso ao produto só é liberado depois da aprovação do pagamento.`,
   };
 }
 

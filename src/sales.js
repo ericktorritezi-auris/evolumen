@@ -43,7 +43,7 @@ async function checkCoupon(code, course, { userId = null, email = null } = {}) {
   if (!raw) return { coupon: null };
   const c = await K.byCode(raw);
   if (!c || K.stateOf(c, c.uses) !== 'active') return { error: 'Este cupom não está mais válido.' };
-  if (!c.courses.some((x) => String(x.id) === String(course.id))) return { error: 'Este cupom não vale para este curso.' };
+  if (!c.courses.some((x) => String(x.id) === String(course.id))) return { error: 'Este cupom não vale para este produto.' };
   let uid = userId;
   if (!uid && email) { const u = (await db.q('SELECT id FROM users WHERE lower(email) = $1', [email])).rows[0]; uid = u ? u.id : null; }
   if (uid && (await db.q('SELECT 1 FROM coupon_redemptions WHERE coupon_id = $1 AND user_id = $2', [c.id, uid])).rowCount) return { error: 'Você já usou este cupom.' };
@@ -76,7 +76,7 @@ async function publishedDocs() {
 // ---------- pedido ----------
 async function createOrder(cfg, req, { course, buyer, method, user, coupon, renewal, docs }) {
   const price = pricing(course, coupon, { renewal });
-  if (!(price.final > 0)) throw Object.assign(new Error('Este curso não tem valor de venda. Fale com o suporte.'), { status: 400, expose: true });
+  if (!(price.final > 0)) throw Object.assign(new Error('Este produto não tem valor de venda. Fale com o suporte.'), { status: 400, expose: true });
   const publicId = newPublicId();
   const ua = ((req.get && req.get('user-agent')) || '').slice(0, 300);
   const gw = payments.forCfg(cfg);
@@ -177,7 +177,7 @@ async function bell(out) {
   if (out.result === 'aprovado') {
     const who = (out.user && out.user.name) || (o.buyer && o.buyer.name) || 'Um aluno';
     await notify.toAdmins({ kind: 'sale', title: who + (o.kind === 'renewal' ? ' renovou o acesso' : ' acabou de comprar'), body: title, link: '/admin/vendas', key: 'sale:' + o.id, subject: out.user ? out.user.id : null });
-    if (out.user) await notify.add(out.user.id, { kind: 'welcome', title: o.kind === 'renewal' ? 'Seu acesso foi renovado' : 'Pagamento confirmado. Bem-vindo!', body: title + ' — comece pela primeira aula.', link: '/curso/' + out.course.slug, key: 'welcome:' + o.id });
+    if (out.user) await notify.add(out.user.id, { kind: 'welcome', title: o.kind === 'renewal' ? 'Seu acesso foi renovado' : 'Pagamento confirmado. Bem-vindo!', body: title + (out.course && out.course.product_type === 'download' ? ' — seus arquivos já estão disponíveis.' : ' — comece pela primeira aula.'), link: '/curso/' + out.course.slug, key: 'welcome:' + o.id });
   } else if (out.result === 'refunded' || out.result === 'charged_back') {
     await notify.resolveRefundsOf(o.id);
     if (out.result === 'charged_back') await notify.toAdmins({ kind: 'chargeback', title: 'Chargeback recebido', body: title, link: '/admin/vendas', key: 'chargeback:' + o.id, subject: o.user_id });

@@ -59,7 +59,7 @@ test('menu, cabeçalho e rodapé: cada um em um único arquivo e usados por toda
   }
   assert.match(src('layout.js'), /require\('\.\/footer'\)/); assert.match(src('layout.js'), /require\('\.\/nav'\)/);
   const labels = (a) => menuFor(a, '/', 1).map((i) => i.label);
-  assert.deepEqual(labels('aluno'), ['Meus cursos', 'Perfil']);
+  assert.deepEqual(labels('aluno'), ['Meus produtos', 'Perfil']);
   assert.deepEqual(labels('admin'), ['Dashboard', 'Perfil']);
 });
 

@@ -69,7 +69,7 @@ const LABELS = {
   password_changed: 'Trocou a senha', password_reset_requested: 'Pediu nova senha', password_reset_done: 'Criou nova senha', first_access_completed: 'Concluiu o primeiro acesso',
   profile_updated: 'Atualizou o perfil', email_change_requested: 'Pediu troca de e-mail', email_change_confirmed: 'Confirmou troca de e-mail', email_change_code_wrong: 'Errou código de troca de e-mail',
   email_change_admin_requested: 'Pediu troca de e-mail ao administrador', data_export: 'Exportou os próprios dados', data_deletion_requested: 'Pediu exclusão dos dados',
-  acceptance_recorded: 'Aceitou os termos', course_created: 'Criou curso', course_updated: 'Editou curso', course_published: 'Publicou curso', course_unpublished: 'Tirou curso da vitrine',
+  acceptance_recorded: 'Aceitou os termos', launch_reset: 'Reset de lançamento (só contagens)', launch_reset_denied: 'Tentativa de reset negada', course_created: 'Criou curso', course_updated: 'Editou curso', course_published: 'Publicou curso', course_unpublished: 'Tirou curso da vitrine',
   course_deleted: 'Excluiu curso', course_cover_updated: 'Trocou a capa do curso', course_cover_removed: 'Removeu a capa do curso',
   module_created: 'Criou módulo', module_renamed: 'Renomeou módulo', module_moved: 'Reordenou módulo', module_inactivated: 'Inativou módulo', module_reactivated: 'Reativou módulo', module_deleted: 'Excluiu módulo',
   lesson_created: 'Criou aula', lesson_updated: 'Editou aula', lesson_moved: 'Reordenou aula', lesson_inactivated: 'Inativou aula', lesson_reactivated: 'Reativou aula', lesson_deleted: 'Excluiu aula',

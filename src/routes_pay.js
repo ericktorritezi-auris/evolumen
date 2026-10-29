@@ -24,14 +24,14 @@ function build(cfg, h) {
     const course = await C.bySlug(req.params.slug);
     const visible = course && course.status === 'published' && course.published_at && new Date(course.published_at) <= new Date();
     if (!visible) { next(); return null; }
-    if (!cfg.paymentsEnabled) { h.setFlash(res, 'info', 'As matrículas deste curso ainda não estão abertas.'); res.redirect(303, `/cursos/${course.slug}`); return null; }
-    if (req.user && req.user.role === 'admin') { h.setFlash(res, 'info', 'Administradores já veem todos os cursos. Para testar a compra, entre com uma conta de aluno.'); res.redirect(303, `/cursos/${course.slug}`); return null; }
+    if (!cfg.paymentsEnabled) { h.setFlash(res, 'info', 'As vendas deste produto ainda não estão abertas.'); res.redirect(303, `/cursos/${course.slug}`); return null; }
+    if (req.user && req.user.role === 'admin') { h.setFlash(res, 'info', 'Administradores já veem todos os produtos. Para testar a compra, entre com uma conta de aluno.'); res.redirect(303, `/cursos/${course.slug}`); return null; }
     return course;
   }
 
   async function context(req, res, course) {
     const bs = await S.buyState(req.user && req.user.id, course);
-    if (bs.state === 'live') { h.setFlash(res, 'info', 'Você já tem acesso a este curso.'); res.redirect(303, `/curso/${course.slug}`); return null; }
+    if (bs.state === 'live') { h.setFlash(res, 'info', 'Você já tem acesso a este produto.'); res.redirect(303, `/curso/${course.slug}`); return null; }
     const docs = await S.publishedDocs();
     if (!docs.terms || !docs.privacy) throw bad(503, 'As matrículas estão temporariamente indisponíveis. Tente de novo em instantes.');
     return { renewal: bs.state === 'renew', docs };
