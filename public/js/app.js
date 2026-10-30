@@ -216,6 +216,27 @@
     }
   })();
 
+  // 1.1.2: vídeo do Instagram só carrega depois do clique (o navegador só fala com o Instagram se o aluno quiser).
+  (function () {
+    var box = document.querySelector('[data-ig]'); if (!box) return;
+    var btn = box.querySelector('[data-ig-load]'), stage = box.querySelector('[data-ig-stage]'), card = box.querySelector('[data-ig-card]'), fb = box.querySelector('[data-ig-fb]');
+    var link = box.getAttribute('data-ig');
+    if (!btn || !stage || link.indexOf('https://www.instagram.com/') !== 0) return;
+    btn.addEventListener('click', function () {
+      btn.disabled = true; btn.textContent = 'Carregando...';
+      var bq = document.createElement('blockquote');
+      bq.className = 'instagram-media'; bq.setAttribute('data-instgrm-permalink', link); bq.setAttribute('data-instgrm-version', '14');
+      var a = document.createElement('a'); a.href = link.split('?')[0]; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = 'Ver esta publicação no Instagram';
+      bq.appendChild(a); stage.appendChild(bq); stage.hidden = false;
+      function go() { try { window.instgrm.Embeds.process(); } catch (e) {} if (card) card.hidden = true; stage.setAttribute('tabindex', '-1'); try { stage.focus(); } catch (e) {} }
+      if (window.instgrm && window.instgrm.Embeds) return go();
+      var s = document.createElement('script'); s.async = true; s.src = 'https://www.instagram.com/embed.js';
+      s.onload = go; s.onerror = function () { stage.innerHTML = ''; stage.hidden = true; if (s.parentNode) s.parentNode.removeChild(s); if (card) { card.hidden = false; } btn.disabled = false; btn.textContent = 'Tentar de novo'; if (fb) fb.hidden = false; };
+      document.head.appendChild(s);
+      setTimeout(function () { if (fb && !stage.querySelector('iframe')) fb.hidden = false; }, 9000);
+    });
+  })();
+
   // Fase 3: tempo assistido da aula (o player do YouTube informa o tempo tocado; o servidor soma com limite pelo tempo real).
   (function () {
     var box = document.querySelector('[data-watch]'), fr = document.getElementById('yt-player');

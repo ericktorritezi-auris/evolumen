@@ -197,11 +197,14 @@ function cursoForm(ctx, { course, values, errors = {} }) {
 
 function conteudo(ctx, { course, cur, errors = {} }) {
   const move = (base, id) => html`<span class="mv"><form method="post" action="${base}/${id}/mover" class="inline">${csrfInput(ctx.csrf)}<input type="hidden" name="dir" value="up"><button class="icon-btn icon-btn--sm" aria-label="Subir" title="Subir">↑</button></form><form method="post" action="${base}/${id}/mover" class="inline">${csrfInput(ctx.csrf)}<input type="hidden" name="dir" value="down"><button class="icon-btn icon-btn--sm" aria-label="Descer" title="Descer">↓</button></form></span>`;
-  const lessonForm = (l) => html`<details class="lcard"><summary><span class="lcard__t">${l.title}${l.active ? '' : html` <span class="pill pill--draft">Inativa</span>`}</span><span class="muted small">${l.has_video || l.youtube_id ? 'vídeo' : 'sem vídeo'} · ${l.files.length} ${l.files.length === 1 ? 'arquivo' : 'arquivos'}</span></summary>
+  const lessonForm = (l) => html`<details class="lcard"><summary><span class="lcard__t">${l.title}${l.active ? '' : html` <span class="pill pill--draft">Inativa</span>`}</span><span class="muted small">${l.is_bonus ? 'bônus · ' : ''}${l.instagram_url ? 'Instagram' : l.has_video || l.youtube_id ? 'vídeo' : 'sem vídeo'} · ${l.files.length} ${l.files.length === 1 ? 'arquivo' : 'arquivos'}</span></summary>
     <div class="lcard__body">
       <form method="post" action="/admin/aulas/${l.id}" class="form form--grid">${csrfInput(ctx.csrf)}
         <div class="span2">${field({ id: `lt${l.id}`, name: 'title', label: 'Título da aula', value: l.title, required: true })}</div>
         ${field({ id: `ly${l.id}`, name: 'video', label: 'Vídeo (link do YouTube não listado)', value: l.youtube_id ? 'https://youtu.be/' + l.youtube_id : '', placeholder: 'https://youtu.be/...' })}
+        <div class="span2">${area(`lig${l.id}`, 'Vídeo do Instagram (link ou código de incorporação)', l.instagram_url || '', { rows: 2, name: 'instagram', placeholder: 'Cole o link do reel/post ou o código de incorporação do Instagram. Use no lugar do YouTube, nunca os dois.' })}
+          <p class="muted small">O sistema guarda só o endereço da publicação (o código colado não é guardado). Só funciona com publicações públicas.</p></div>
+        <div class="span2"><label class="check"><input type="checkbox" name="is_bonus" value="1"${l.is_bonus ? raw(' checked') : ''}><span>Aula bônus<br><small class="muted">Aparece no curso, mas não conta no percentual nem no certificado.</small></span></label></div>
         ${field({ id: `ld${l.id}`, name: 'duration_min', label: 'Duração (minutos)', value: l.duration_min || '', inputmode: 'numeric' })}
         <div class="span2">${area(`ldesc${l.id}`, 'Sobre a aula', l.description, { rows: 3, name: 'description' })}</div>
         <div class="span2 row"><button class="btn btn--primary btn--sm" type="submit">Salvar aula</button></div></form>

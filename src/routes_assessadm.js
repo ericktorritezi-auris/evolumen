@@ -45,7 +45,8 @@ function build(cfg, h) {
     try {
       const a = (await db.q('INSERT INTO assessments (course_id, module_id, kind, title) VALUES ($1,$2,$3,$4) RETURNING *', [course.id, mod ? mod.id : null, kind, mod ? mod.title : 'Prova final'])).rows[0];
       await audit(req, 'assessment_created', { entity: 'assessment', entityId: a.id, meta: { kind, course: course.id } });
-      flashBack(req, res, 'success', kind === 'final' ? 'Prova final criada. Agora adicione as questões.' : 'Quiz criado. Agora adicione as questões.', `/admin/avaliacoes/${a.id}`);
+      const warn = kind === 'final' ? await require('./courses').lastLessonIssue(course.id) : null;
+      flashBack(req, res, warn ? 'info' : 'success', (kind === 'final' ? 'Prova final criada. Agora adicione as questões.' : 'Quiz criado. Agora adicione as questões.') + (warn ? ' Atenção: ' + warn : ''), `/admin/avaliacoes/${a.id}`);
     } catch (e) {
       if (e.code === '23505') return flashBack(req, res, 'info', 'Esta avaliação já existe.', back);
       throw e;

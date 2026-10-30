@@ -134,13 +134,15 @@ const accessLabel = (c) => (c.access_type === 'lifetime' ? 'Vitalício' : c.acce
 // ---- consultas ----
 // Aula "viva" = aula ativa dentro de módulo ativo (o que o aluno enxerga e o que conta no progresso).
 const LIVE = 'l.active AND EXISTS (SELECT 1 FROM modules mm WHERE mm.id = l.module_id AND mm.active)';
+// Aula que conta no percentual e no certificado: viva e que não seja bônus (1.1.2).
+const COUNTED = `${LIVE} AND NOT l.is_bonus`;
 const TYPES = { course: 'Curso', download: 'Produto digital' };
 const typeOf = (c) => (c && c.product_type === 'download' ? 'download' : 'course');
 const VISIBLE = "c.status = 'published' AND c.published_at IS NOT NULL AND c.published_at <= now()";
 
 async function listPublic() {
   const r = await db.q(`
-    SELECT c.*, (SELECT count(*)::int FROM lessons l WHERE l.course_id = c.id AND l.youtube_id IS NOT NULL AND ${LIVE}) AS videos,
+    SELECT c.*, (SELECT count(*)::int FROM lessons l WHERE l.course_id = c.id AND (l.youtube_id IS NOT NULL OR l.instagram_url IS NOT NULL) AND ${LIVE}) AS videos,
            (SELECT count(*)::int FROM lesson_files lf JOIN lessons l ON l.id = lf.lesson_id WHERE l.course_id = c.id AND ${LIVE}) AS materials,
            (SELECT count(*)::int FROM product_files pf WHERE pf.product_id = c.id) AS n_files
     FROM courses c WHERE ${VISIBLE}
@@ -161,7 +163,7 @@ async function byId(id) {
 // `all` (só o painel do administrador) inclui módulos e aulas inativos.
 async function curriculum(courseId, { withVideo = false, withFiles = false, all = false } = {}) {
   const mods = (await db.q('SELECT id, title, position, active FROM modules WHERE course_id = $1 AND ($2 OR active) ORDER BY position, id', [courseId, all])).rows;
-  const les = (await db.q(`SELECT l.id, l.module_id, l.title, l.description, ${withVideo ? 'l.youtube_id' : '(l.youtube_id IS NOT NULL) AS has_video'}, l.duration_min, l.position, l.active,
+  const les = (await db.q(`SELECT l.id, l.module_id, l.title, l.description, ${withVideo ? 'l.youtube_id, l.instagram_url' : '(l.youtube_id IS NOT NULL) AS has_video, (l.instagram_url IS NOT NULL) AS has_instagram'}, l.is_bonus, l.duration_min, l.position, l.active,
                            (SELECT count(*)::int FROM lesson_progress p WHERE p.lesson_id = l.id) AS progress_count
                            FROM lessons l WHERE l.course_id = $1 AND ($2 OR (${LIVE})) ORDER BY l.position, l.id`, [courseId, all])).rows;
   let files = [];
@@ -186,17 +188,29 @@ async function enrollmentState(userId, courseId) {
 }
 
 async function progressFor(userId, courseId) {
-  const total = (await db.q(`SELECT count(*)::int n FROM lessons l WHERE l.course_id = $1 AND ${LIVE}`, [courseId])).rows[0].n;
-  const done = (await db.q(`SELECT p.lesson_id FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = $1 AND l.course_id = $2 AND ${LIVE}`, [userId, courseId])).rows.map((x) => x.lesson_id);
-  return { total, done: new Set(done.map(String)), count: done.length, pct: total ? Math.floor((done.length / total) * 100) : 0 };
+  const total = (await db.q(`SELECT count(*)::int n FROM lessons l WHERE l.course_id = $1 AND ${COUNTED}`, [courseId])).rows[0].n;
+  // `done` guarda todas as aulas concluídas (inclusive bônus, para o visto na lista); `count` e o percentual só contam as que valem para o certificado.
+  const rows = (await db.q(`SELECT p.lesson_id, l.is_bonus FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = $1 AND l.course_id = $2 AND ${LIVE}`, [userId, courseId])).rows;
+  const count = rows.filter((x) => !x.is_bonus).length;
+  return { total, done: new Set(rows.map((x) => String(x.lesson_id))), count, pct: total ? Math.floor((count / total) * 100) : 0 };
+}
+
+// A prova final libera quando o aluno assiste a última aula que vale para o certificado, e o Instagram não informa o tempo assistido.
+// Devolve o aviso (texto) se o curso tem prova final ativa e essa última aula é um vídeo do Instagram; senão, null.
+async function lastLessonIssue(courseId) {
+  const fin = (await db.q("SELECT 1 FROM assessments WHERE course_id = $1 AND kind = 'final' AND active", [courseId])).rowCount;
+  if (!fin) return null;
+  const last = (await db.q(`SELECT l.title, l.instagram_url FROM lessons l JOIN modules m ON m.id = l.module_id WHERE l.course_id = $1 AND ${COUNTED} ORDER BY m.position DESC, m.id DESC, l.position DESC, l.id DESC LIMIT 1`, [courseId])).rows;
+  const l = last[0] || null;
+  return l && l.instagram_url ? `a última aula do curso (“${l.title}”) é um vídeo do Instagram, que não mede o tempo assistido, e a prova final depende da última aula. Coloque uma aula do YouTube por último ou marque a do Instagram como bônus.` : null;
 }
 
 async function myCourses(userId) {
   const r = await db.q(`
     SELECT c.id, c.slug, c.title, c.summary, c.cover_file_id, c.product_type, c.category, e.expires_at,
            (SELECT count(*)::int FROM product_files pf WHERE pf.product_id = c.id) AS n_files,
-           (SELECT count(*)::int FROM lessons l WHERE l.course_id = c.id AND ${LIVE}) AS total,
-           (SELECT count(*)::int FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = e.user_id AND l.course_id = c.id AND ${LIVE}) AS done
+           (SELECT count(*)::int FROM lessons l WHERE l.course_id = c.id AND ${COUNTED}) AS total,
+           (SELECT count(*)::int FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = e.user_id AND l.course_id = c.id AND ${COUNTED}) AS done
     FROM enrollments e JOIN courses c ON c.id = e.course_id
     WHERE e.user_id = $1 AND e.status = 'active' AND e.starts_at <= now() AND (e.expires_at IS NULL OR e.expires_at > now())
     ORDER BY e.created_at DESC`, [userId]);
@@ -210,4 +224,4 @@ async function productFiles(productId) {
 // Texto simples (descrições antigas) para o editor: parágrafos por linha em branco, quebra simples vira <br>.
 const plainToHtml = (t) => String(t || '').replace(/\r\n?/g, '\n').trim().split(/\n{2,}/).filter(Boolean).map((p) => `<p>${esc(p.trim()).replace(/\n/g, '<br>')}</p>`).join('');
 
-module.exports = { plainToHtml, productFiles, TYPES, typeOf, LIVE, dateOnly, LEVELS, brl, brlInput, parseMoney, slugify, SLUG_RE, youtubeId, parseCourse, effectivePrice, accessLabel, listPublic, bySlug, byId, curriculum, flatLessons, accessFor, enrollmentState, progressFor, myCourses, VISIBLE };
+module.exports = { plainToHtml, productFiles, TYPES, typeOf, LIVE, COUNTED, dateOnly, LEVELS, brl, brlInput, parseMoney, slugify, SLUG_RE, youtubeId, parseCourse, effectivePrice, accessLabel, listPublic, bySlug, byId, curriculum, flatLessons, accessFor, enrollmentState, progressFor, lastLessonIssue, myCourses, VISIBLE };

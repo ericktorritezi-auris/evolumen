@@ -12,6 +12,7 @@ const STUDENT = [
     'O sino ao lado do ? guarda seus avisos: resposta do professor, certificado e prazo do acesso. Amarelo é novo.'] },
   { id: 'aula', match: /^\/curso\/[^/]+\/aula\//, title: 'Assistindo a uma aula', steps: [
     'Aperte o play e assista com atenção. O tempo assistido conta para liberar a prova final.',
+    'Aulas com vídeo do Instagram pedem um clique em Carregar vídeo. Depois, marque a aula como concluída. Aulas com o selo Bônus não contam para o certificado.',
     'Quando terminar, toque em Marcar como concluída. Depois use Próxima aula.',
     'Apostilas e materiais ficam abaixo do vídeo, no botão Baixar.',
     'Tem dúvida? Escreva em Dúvidas da aula, no fim da página. O professor responde e avisa por e-mail.'] },

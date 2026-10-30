@@ -65,8 +65,8 @@ async function nudges(now) {
   const done = (await db.q(`SELECT e.id, e.user_id, c.id AS course_id, c.title, c.slug FROM enrollments e JOIN courses c ON c.id = e.course_id JOIN users u ON u.id = e.user_id
     WHERE c.product_type = 'course' AND e.status = 'active' AND u.status = 'active' AND u.role = 'student' AND (e.expires_at IS NULL OR e.expires_at > $1)
       AND NOT EXISTS (SELECT 1 FROM certificates ce WHERE ce.user_id = e.user_id AND ce.course_id = e.course_id)
-      AND (SELECT count(*) FROM lessons l WHERE l.course_id = c.id AND ${C.LIVE}) > 0
-      AND NOT EXISTS (SELECT 1 FROM lessons l WHERE l.course_id = c.id AND ${C.LIVE} AND NOT EXISTS (SELECT 1 FROM lesson_progress p WHERE p.lesson_id = l.id AND p.user_id = e.user_id))`, [now.toISOString()])).rows;
+      AND (SELECT count(*) FROM lessons l WHERE l.course_id = c.id AND ${C.COUNTED}) > 0
+      AND NOT EXISTS (SELECT 1 FROM lessons l WHERE l.course_id = c.id AND ${C.COUNTED} AND NOT EXISTS (SELECT 1 FROM lesson_progress p WHERE p.lesson_id = l.id AND p.user_id = e.user_id))`, [now.toISOString()])).rows;
   for (const e of done) if (await notify.add(e.user_id, { kind: 'nudge', title: 'Falta pouco para o seu certificado', body: e.title + ' — confira a prova final ou emita o certificado.', link: `/curso/${e.slug}`, key: 'nudgecert:' + e.id })) n++;
   return n;
 }

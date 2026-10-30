@@ -437,3 +437,10 @@ tr.is-focus td{background:rgba(255,178,87,.12)}
 @media (min-width:900px){.stats--5{grid-template-columns:repeat(5,1fr)}}
 .tbl td .cell{min-width:0}
 @media (max-width:639px){.tbl td .cell{text-align:right}}
+
+.pill--bonus{background:rgba(142,155,255,.2);color:var(--aurora);font-size:11px;padding:1px 8px}
+.igbox{margin:14px 0}
+.igbox__card{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:18px;border-radius:var(--r);background:var(--panel);border:1px dashed var(--line)}
+.igbox__card p{margin:0}
+.igbox__stage{max-width:540px;margin:0 auto}
+.igbox__stage .instagram-media{max-width:540px;min-width:0!important;width:100%!important}

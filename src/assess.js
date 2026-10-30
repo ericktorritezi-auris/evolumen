@@ -66,7 +66,7 @@ async function overview(userId, course) {
   for (const m of cur) {
     const q = asm.find((a) => a.kind === 'quiz' && a.module_id === m.id);
     const quiz = q ? withState(q) : null;
-    const allDone = m.lessons.every((l) => progress.done.has(String(l.id)));
+    const allDone = m.lessons.every((l) => l.is_bonus || progress.done.has(String(l.id)));
     modules[m.id] = { locked: blocked, blockedBy, quiz, allDone, quizAvailable: !!quiz && !blocked && allDone };
     if (quiz && !quiz.passed && !blocked) { blocked = true; blockedBy = { id: m.id, title: m.title }; }
   }
@@ -75,7 +75,7 @@ async function overview(userId, course) {
   let final = null;
   if (fa) {
     final = withState(fa);
-    const last = flat[flat.length - 1];
+    const last = flat.filter((l) => !l.is_bonus).pop(); // a última aula que vale para o certificado (bônus não conta)
     let unlocked = false; let why = ''; let watchPct = 0;
     if (final.manual_unlock) unlocked = true;
     else if (!last) why = 'O curso ainda não tem aulas.';

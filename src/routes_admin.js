@@ -3,6 +3,7 @@
 const express = require('express');
 const db = require('./db');
 const C = require('./courses');
+const IG = require('./instagram');
 const files = require('./files');
 const sec = require('./security');
 const access = require('./access');
@@ -118,6 +119,7 @@ function build(cfg, h) {
     const { errors, values } = C.parseCourse(req.body, C.typeOf(course));
     if (!errors.slug && await slugTaken(values.slug, course.id)) errors.slug = 'Já existe um curso com este endereço.';
     if (C.typeOf(course) === 'download' && values.publish && !(await C.productFiles(course.id)).length) errors.publish = 'Este produto ainda não tem arquivos. Envie ao menos um na aba Arquivos antes de publicar.';
+    if (C.typeOf(course) === 'course' && values.publish && !errors.publish) { const issue = await C.lastLessonIssue(course.id); if (issue) errors.publish = issue; }
     if (Object.keys(errors).length) return res.status(422).send(views.cursoForm(ctx(req, res, { raw: req.body }), { course, values, errors }));
     const v = saveValues(values, course);
     await db.q(`UPDATE courses SET ${COLS.map((c, i) => `${c} = $${i + 2}`).join(', ')}, updated_at = now() WHERE id = $1`, [course.id, ...COLS.map((c) => colVal(v, c))]);
@@ -242,7 +244,8 @@ function build(cfg, h) {
   r.get('/admin/cursos/:id/conteudo', async (req, res, next) => {
     const course = await courseOr404(req, next); if (!course) return;
     const cur = await C.curriculum(course.id, { withVideo: true, withFiles: true, all: true });
-    res.send(views.conteudo(ctx(req, res), { course, cur }));
+    const issue = await C.lastLessonIssue(course.id);
+    res.send(views.conteudo(ctx(req, res), { course, cur, errors: { general: issue ? 'Atenção: ' + issue : null } }));
   });
   const back = (courseId) => `/admin/cursos/${courseId}/conteudo`;
   const title = (v) => String(v || '').trim().replace(/\s+/g, ' ').slice(0, 140);
@@ -335,11 +338,16 @@ function build(cfg, h) {
     const duration = dm ? Number(dm) : null;
     if (t.length < 2) return flashBack(req, res, 'error', 'Informe o título da aula.', back(l.course_id));
     if (yt.error) return flashBack(req, res, 'error', 'Link do YouTube inválido. Cole o endereço do vídeo, como https://youtu.be/...', back(l.course_id));
+    const ig = IG.parse(req.body.instagram);
+    if (ig.error) return flashBack(req, res, 'error', ig.error, back(l.course_id));
+    if (yt.id && ig.url) return flashBack(req, res, 'error', 'Use só um vídeo por aula. Para trocar o tipo de vídeo, apague o campo do outro (YouTube ou Instagram) e salve.', back(l.course_id));
+    const bonus = req.body.is_bonus === '1';
     if (duration !== null && (!Number.isInteger(duration) || duration < 1 || duration > 1440)) return flashBack(req, res, 'error', 'Duração em minutos inteiros (1 a 1440).', back(l.course_id));
-    await db.q('UPDATE lessons SET title = $2, youtube_id = $3, description = $4, duration_min = $5, updated_at = now() WHERE id = $1',
-      [l.id, t, yt.id || null, String(req.body.description || '').trim().slice(0, 4000), duration]);
-    await audit(req, 'lesson_updated', { entity: 'lesson', entityId: l.id });
-    flashBack(req, res, 'success', 'Aula salva.', back(l.course_id));
+    await db.q('UPDATE lessons SET title = $2, youtube_id = $3, instagram_url = $6, is_bonus = $7, description = $4, duration_min = $5, updated_at = now() WHERE id = $1',
+      [l.id, t, yt.id || null, String(req.body.description || '').trim().slice(0, 4000), duration, ig.url || null, bonus]);
+    await audit(req, 'lesson_updated', { entity: 'lesson', entityId: l.id, meta: { instagram: !!ig.url, bonus } });
+    const issue = await C.lastLessonIssue(l.course_id);
+    flashBack(req, res, issue ? 'info' : 'success', issue ? 'Aula salva. Atenção: ' + issue : 'Aula salva.', back(l.course_id));
   });
   r.post('/admin/aulas/:id/mover', async (req, res, next) => {
     const l = await lessonOr404(req, next); if (!l) return;
@@ -426,8 +434,8 @@ function build(cfg, h) {
   // ---- matrículas (liberação manual) ----
   const enrollRows = async (courseId) => (await db.q(`
     SELECT e.id, e.expires_at, e.status, e.origin, (e.expires_at IS NOT NULL AND e.expires_at <= now()) AS expired, u.name, u.email,
-      (SELECT count(*)::int FROM lessons l WHERE l.course_id = e.course_id AND ${C.LIVE}) AS total,
-      (SELECT count(*)::int FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = e.user_id AND l.course_id = e.course_id AND ${C.LIVE}) AS done,
+      (SELECT count(*)::int FROM lessons l WHERE l.course_id = e.course_id AND ${C.COUNTED}) AS total,
+      (SELECT count(*)::int FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = e.user_id AND l.course_id = e.course_id AND ${C.COUNTED}) AS done,
       (SELECT count(*)::int FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = e.user_id AND l.course_id = e.course_id) AS any_progress
     FROM enrollments e JOIN users u ON u.id = e.user_id WHERE e.course_id = $1 ORDER BY e.created_at DESC`, [courseId])).rows;
 

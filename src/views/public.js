@@ -132,7 +132,7 @@ ${couponBanner(coupon)}
 function coursePage({ cfg, user, course: c, cur, state, preview, coupon, buy = {}, items = [], rating = null, testimonials = [] }) {
   const dl = c.product_type === 'download';
   const lessons = cur.flatMap((m) => m.lessons);
-  const videos = lessons.filter((l) => l.has_video).length;
+  const videos = lessons.filter((l) => l.has_video || l.has_instagram).length;
   const materials = lessons.reduce((n, l) => n + (l.files ? l.files.length : 0), 0);
   const total = lessons.reduce((n, l) => n + (l.duration_min || 0), 0);
   const stat = (k, v) => html`<div class="stat"><span class="muted">${k}</span><b>${v}</b></div>`;
