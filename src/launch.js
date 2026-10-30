@@ -42,6 +42,7 @@ async function preview(emails, c) {
     contas: ids.length,
     matriculas: await n('SELECT count(*)::int AS n FROM enrollments WHERE user_id = ANY($1::bigint[])', [ids]),
     pedidos: await n(`SELECT count(*)::int AS n FROM orders WHERE ${ORDERS}`, [ids, mails]),
+    comissoes: await n(`SELECT count(*)::int AS n FROM commissions WHERE order_id IN (SELECT id FROM orders WHERE ${ORDERS})`, [ids, mails]),
     reembolsos: await n(`SELECT count(*)::int AS n FROM refund_requests WHERE order_id IN (SELECT id FROM orders WHERE ${ORDERS})`, [ids, mails]),
     certificados: await n('SELECT count(*)::int AS n FROM certificates WHERE user_id = ANY($1::bigint[])', [ids]),
     aceites: await n('SELECT count(*)::int AS n FROM acceptances WHERE user_id = ANY($1::bigint[])', [ids]),
@@ -84,6 +85,7 @@ async function run(emails, sig) {
     const orders = `SELECT id FROM orders WHERE ${ORDERS}`;
     await del('avisos_do_gateway', `DELETE FROM webhook_events WHERE payment_id IN (SELECT provider_payment_id FROM orders WHERE ${ORDERS} AND provider_payment_id IS NOT NULL)`, [ids, mails]);
     await del('reembolsos', `DELETE FROM refund_requests WHERE order_id IN (${orders})`, [ids, mails]);
+    await del('comissoes', `DELETE FROM commissions WHERE order_id IN (${orders})`, [ids, mails]);
     await del('pedidos', `DELETE FROM orders WHERE ${ORDERS}`, [ids, mails]);
     await del('cupons_usados', 'DELETE FROM coupon_redemptions WHERE user_id = ANY($1::bigint[])', [ids]);
     await del('certificados', 'DELETE FROM certificates WHERE user_id = ANY($1::bigint[])', [ids]);

@@ -9,7 +9,8 @@ const shell = (ctx, title, content) => shellApp({ cfg: ctx.cfg, user: ctx.user, 
 const titleRow = (title, sub) => html`<div class="title-row"><h1 class="t-display">${title}</h1>${sub ? html`<p class="muted">${sub}</p>` : ''}</div>`;
 
 const LABEL = {
-  contas: 'Contas de aluno', matriculas: 'Matrículas', pedidos: 'Pedidos', reembolsos: 'Pedidos de reembolso', certificados: 'Certificados', aceites: 'Aceites dos termos',
+  contas: 'Contas de aluno', matriculas: 'Matrículas', pedidos: 'Pedidos', comissoes: 'Comissões de afiliado',
+  reembolsos: 'Pedidos de reembolso', certificados: 'Certificados', aceites: 'Aceites dos termos',
   tentativas: 'Tentativas de prova', progresso: 'Aulas concluídas', forum: 'Mensagens do fórum', avaliacoes: 'Avaliações', cupons_usados: 'Cupons usados',
   pedidos_lgpd: 'Pedidos de dados (LGPD)', notificacoes: 'Notificações', emails_enviados: 'Registros de e-mail', envios_de_cupom: 'Envios de cupom',
 };
@@ -28,7 +29,7 @@ function previewCard(ctx, p, error) {
     </tbody></table></div>
     ${p.paid.n ? html`<div class="alert alert--info" role="status"><b>Atenção:</b> há ${p.paid.n} ${p.paid.n === 1 ? 'pedido aprovado' : 'pedidos aprovados'} (${brl(p.paid.cents)} pagos) que ainda não foram reembolsados. Apagar o pedido não devolve o dinheiro. Se for compra de teste, reembolse antes pelo painel do Mercado Pago.</div>` : ''}
     ${p.pending ? html`<div class="alert alert--error" role="alert">Há ${p.pending} ${p.pending === 1 ? 'pedido aguardando pagamento' : 'pedidos aguardando pagamento'} nestas contas. Espere vencer ou ser pago antes de apagar: senão o dinheiro pode chegar sem pedido.</div>` : ''}
-    <p class="muted small">Ficam intactos: produtos, textos legais, configurações, o administrador e o registro de atividades. Atenção: o registro de atividades guarda, pelo prazo legal, e-mail e IP das ações financeiras e de aceite dessas contas (este reset grava só contagens). Apagar também remove a prova dos testes (pedidos e avisos do Mercado Pago): faça o reset depois de validar o fluxo e antes de abrir ao público. Esta ação não pode ser desfeita.</p>
+    <p class="muted small">As comissões de afiliado ligadas a esses pedidos também são apagadas; repasses já lançados ficam, então confira o saldo do afiliado depois. Ficam intactos: produtos, textos legais, configurações, o administrador e o registro de atividades. Atenção: o registro de atividades guarda, pelo prazo legal, e-mail e IP das ações financeiras e de aceite dessas contas (este reset grava só contagens). Apagar também remove a prova dos testes (pedidos e avisos do Mercado Pago): faça o reset depois de validar o fluxo e antes de abrir ao público. Esta ação não pode ser desfeita.</p>
     ${error ? html`<div class="alert alert--error" role="alert">${error}</div>` : ''}
     <form method="post" action="/admin/lancamento/executar" class="form" autocomplete="off">${csrfInput(ctx.csrf)}
       <input type="hidden" name="emails" value="${p.emails.join('\n')}"><input type="hidden" name="sig" value="${p.sig}">

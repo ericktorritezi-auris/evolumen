@@ -12,6 +12,7 @@ const mailer = require('./mailer');
 const emails = require('./emails');
 const notify = require('./notify');
 const certs = require('./certificates');
+const AFF = require('./affiliates');
 const payments = require('./payments');
 const { tempPassword } = require('./access');
 const { audit, deviceLabel } = require('./audit');
@@ -84,9 +85,9 @@ async function createOrder(cfg, req, { course, buyer, method, user, coupon, rene
   return db.tx(async (c) => {
     await c.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`order:${course.id}:${buyer.email}`]);
     const dup = (await c.query(method === 'pix'
-      ? `SELECT * FROM orders WHERE course_id = $1 AND lower(buyer->>'email') = $2 AND method = 'pix' AND status = 'pending' AND price_cents = $3 AND pix_expires_at > now() + interval '2 minutes' ORDER BY id DESC LIMIT 1`
-      : `SELECT * FROM orders WHERE course_id = $1 AND lower(buyer->>'email') = $2 AND method = 'card' AND status = 'pending' AND price_cents = $3 AND checkout_url IS NOT NULL AND created_at > now() - interval '30 minutes' ORDER BY id DESC LIMIT 1`,
-    [course.id, buyer.email, price.final])).rows[0];
+      ? `SELECT * FROM orders WHERE course_id = $1 AND lower(buyer->>'email') = $2 AND method = 'pix' AND status = 'pending' AND price_cents = $3 AND coupon_id IS NOT DISTINCT FROM $4::bigint AND pix_expires_at > now() + interval '2 minutes' ORDER BY id DESC LIMIT 1`
+      : `SELECT * FROM orders WHERE course_id = $1 AND lower(buyer->>'email') = $2 AND method = 'card' AND status = 'pending' AND price_cents = $3 AND coupon_id IS NOT DISTINCT FROM $4::bigint AND checkout_url IS NOT NULL AND created_at > now() - interval '30 minutes' ORDER BY id DESC LIMIT 1`,
+    [course.id, buyer.email, price.final, price.coupon ? price.coupon.id : null])).rows[0];
     if (dup) return dup;
     const o = (await c.query(`INSERT INTO orders (public_id, user_id, course_id, kind, buyer, list_cents, price_cents, price_source, coupon_id, method, provider, terms_doc_id, privacy_doc_id, ip, user_agent)
       VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
@@ -148,6 +149,10 @@ async function applyPayment(cfg, bg, orderId, pay, req) {
         await c.query(`UPDATE orders SET status = $2, refunded_at = COALESCE(refunded_at, now()), updated_at = now() WHERE id = $1`, [o.id, pay.status]);
         await c.query("UPDATE refund_requests SET status = 'approved', decided_at = COALESCE(decided_at, now()) WHERE order_id = $1 AND status = 'requested'", [o.id]);
         res.result = pay.status; res.audits.push([pay.status === 'refunded' ? 'order_refunded' : 'order_charged_back', { order: o.id, course: o.course_id, user: o.user_id }]);
+        let cm = null;
+        try { await c.query('SAVEPOINT aff_cancel'); cm = await AFF.cancelFor(c, o.id, pay.status === 'refunded' ? 'Reembolso' : 'Estorno (chargeback)'); await c.query('RELEASE SAVEPOINT aff_cancel'); }
+        catch (e) { await c.query('ROLLBACK TO SAVEPOINT aff_cancel'); log.error('comissao_cancelar_falhou', { order: o.id, error: e.message }); res.audits.push(['affiliate_commission_failed', { order: o.id, acao: 'cancelar' }]); }
+        if (cm) res.audits.push(['affiliate_commission_cancelled', { order: o.id, affiliate: cm.affiliate_id, commission: cm.id, valor: cm.amount_cents, motivo: pay.status }]);
         if (revoked) res.after.push(() => certs.revokeFor(o.user_id, o.course_id, pay.status === 'refunded' ? 'Reembolso do curso' : 'Estorno (chargeback) do pagamento'));
         if (user && o.status === 'approved') res.mails.push({ to: user.email, ...emails.refundDone(cfg, { name: user.name, course, amountCents: o.paid_cents || o.price_cents }) });
         res.revokedAccess = revoked;
@@ -239,7 +244,14 @@ async function finalize(cfg, c, o, course, pay) {
     approved_at = now(), refund_until = now() + ($7 || ' days')::interval, prev_expires_at = $8, prev_enrollment = $9, updated_at = now() WHERE id = $1 RETURNING *`,
   [o.id, pay.detail || null, user.id, pay.id, paid, pay.installments || null, String(cfg.refundDays), live ? ex.expires_at : null, live && !!ex.expires_at])).rows[0];
   const mail = { to: user.email, ...emails.purchaseApproved(cfg, { name: user.name, email: user.email, password, course, order: row, renewal: renewal && !!ex, expiresLabel: newExp ? fmtLong(newExp) : null }) };
-  return { order: row, user, mails: [mail], audits: [['order_approved', { order: o.id, course: course.id, user: user.id, valor: paid, novo_usuario: !!password }], ...(couponFlag ? [[couponFlag, { order: o.id, coupon: o.coupon_id, user: user.id }]] : [])] };
+  // Cupom de afiliado: a comissão nasce junto com a aprovação (mesma transação) e fica em carência até o fim do prazo de reembolso.
+  // Um defeito na comissão nunca pode impedir o acesso de quem pagou: roda em um ponto de retorno e, se falhar, só registra o erro.
+  let aff = null; let affFailed = false;
+  try { await c.query('SAVEPOINT aff_commission'); aff = await AFF.onApproved(c, row, user); await c.query('RELEASE SAVEPOINT aff_commission'); }
+  catch (e) { await c.query('ROLLBACK TO SAVEPOINT aff_commission'); affFailed = true; log.error('comissao_falhou', { order: o.id, error: e.message }); }
+  const affAudit = affFailed ? [['affiliate_commission_failed', { order: o.id }]] : aff && aff.commission ? [['affiliate_commission_created', { order: o.id, affiliate: aff.commission.affiliate_id, commission: aff.commission.id, valor: aff.commission.amount_cents, pct: Number(aff.commission.pct) }]]
+    : aff && aff.skipped ? [['affiliate_commission_skipped', { order: o.id, affiliate: aff.affiliate, motivo: aff.skipped }]] : [];
+  return { order: row, user, mails: [mail], audits: [['order_approved', { order: o.id, course: course.id, user: user.id, valor: paid, novo_usuario: !!password }], ...(couponFlag ? [[couponFlag, { order: o.id, coupon: o.coupon_id, user: user.id }]] : []), ...affAudit] };
 }
 
 // Encerra o acesso ligado a este pedido. Renovação volta ao prazo anterior; compra inicial cancela a matrícula.

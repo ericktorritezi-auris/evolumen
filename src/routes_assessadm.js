@@ -5,6 +5,9 @@ const db = require('./db');
 const C = require('./courses');
 const A = require('./assess');
 const certs = require('./certificates');
+const notify = require('./notify');
+const mailer = require('./mailer');
+const emails = require('./emails');
 const { audit } = require('./audit');
 const views = require('./views/assessadm');
 
@@ -42,7 +45,8 @@ function build(cfg, h) {
     try {
       const a = (await db.q('INSERT INTO assessments (course_id, module_id, kind, title) VALUES ($1,$2,$3,$4) RETURNING *', [course.id, mod ? mod.id : null, kind, mod ? mod.title : 'Prova final'])).rows[0];
       await audit(req, 'assessment_created', { entity: 'assessment', entityId: a.id, meta: { kind, course: course.id } });
-      flashBack(req, res, 'success', kind === 'final' ? 'Prova final criada. Agora adicione as questões.' : 'Quiz criado. Agora adicione as questões.', `/admin/avaliacoes/${a.id}`);
+      const warn = kind === 'final' ? await require('./courses').lastLessonIssue(course.id) : null;
+      flashBack(req, res, warn ? 'info' : 'success', (kind === 'final' ? 'Prova final criada. Agora adicione as questões.' : 'Quiz criado. Agora adicione as questões.') + (warn ? ' Atenção: ' + warn : ''), `/admin/avaliacoes/${a.id}`);
     } catch (e) {
       if (e.code === '23505') return flashBack(req, res, 'info', 'Esta avaliação já existe.', back);
       throw e;
@@ -231,7 +235,8 @@ function build(cfg, h) {
     const a = await load(req, next); if (!a) return;
     const course = await C.byId(a.course_id);
     const people = (await db.q(`SELECT u.id AS user_id, u.name, u.email FROM enrollments e JOIN users u ON u.id = e.user_id WHERE e.course_id = $1 AND e.status = 'active' AND u.role = 'student'
-      UNION SELECT u.id, u.name, u.email FROM assessment_attempts t JOIN users u ON u.id = t.user_id WHERE t.assessment_id = $2 ORDER BY name LIMIT 300`, [a.course_id, a.id])).rows;
+      UNION SELECT u.id, u.name, u.email FROM assessment_attempts t JOIN users u ON u.id = t.user_id WHERE t.assessment_id = $2
+      UNION SELECT u.id, u.name, u.email FROM users u WHERE u.id = $3::bigint AND u.role = 'student' ORDER BY name LIMIT 300`, [a.course_id, a.id, ID.test(String(req.query.aluno || '')) ? req.query.aluno : null])).rows;
     const rows = [];
     for (const p of people) {
       const s = (await A.attemptStats(p.user_id, [a.id]))[a.id] || { used: 0, best: null, passed: false, extra: 0, manual_unlock: false };
@@ -242,18 +247,33 @@ function build(cfg, h) {
       }
       rows.push({ ...p, ...s, limit: a.max_attempts + s.extra, unlocked });
     }
-    res.send(views.attemptsPage(ctx(req, res), { a, course, rows }));
+    res.send(views.attemptsPage(ctx(req, res), { a, course, rows, focus: ID.test(String(req.query.aluno || '')) ? String(req.query.aluno) : '' }));
   });
 
   const targetUser = async (req) => (ID.test(String(req.body.user || '')) ? (await db.q("SELECT id, name FROM users WHERE id = $1 AND role = 'student'", [req.body.user])).rows[0] : null);
+  // Libera de 1 a 10 tentativas de uma vez. O aluno recebe campainha e e-mail; o aviso de "tentativas esgotadas" do administrador é resolvido.
   r.post('/admin/avaliacoes/:id/extra', async (req, res, next) => {
     const a = await load(req, next); if (!a) return;
     const u = await targetUser(req);
     const back = `/admin/avaliacoes/${a.id}/tentativas`;
     if (!u) return flashBack(req, res, 'error', 'Aluno não encontrado.', back);
-    await db.q('INSERT INTO attempt_grants (assessment_id, user_id, extra, granted_by) VALUES ($1,$2,1,$3)', [a.id, u.id, req.user.id]);
-    await audit(req, 'attempt_granted', { entity: 'assessment', entityId: a.id, meta: { user: u.id } });
-    flashBack(req, res, 'success', `Tentativa extra liberada para ${u.name}.`, back);
+    const raw = req.body.qtd === undefined ? '1' : String(req.body.qtd).trim();
+    const qtd = /^\d{1,2}$/.test(raw) ? Number(raw) : 0;
+    if (qtd < 1 || qtd > 10) return flashBack(req, res, 'error', 'Informe de 1 a 10 tentativas para liberar.', `${back}?aluno=${u.id}`);
+    const st = (await A.attemptStats(u.id, [a.id]))[a.id];
+    if (st && st.passed) return flashBack(req, res, 'error', `${u.name} já foi aprovado nesta avaliação. Não é preciso liberar tentativas.`, back);
+    // Duplo clique: a mesma liberação (aluno, quantidade, administrador) nos últimos 10 segundos não grava de novo.
+    if ((await db.q("SELECT 1 FROM attempt_grants WHERE assessment_id = $1 AND user_id = $2 AND extra = $3 AND granted_by = $4 AND created_at > now() - interval '10 seconds'", [a.id, u.id, qtd, req.user.id])).rowCount) return flashBack(req, res, 'info', 'Esta liberação acabou de ser feita. Não gravei de novo.', back);
+    const g = (await db.q('INSERT INTO attempt_grants (assessment_id, user_id, extra, granted_by) VALUES ($1,$2,$3,$4) RETURNING id', [a.id, u.id, qtd, req.user.id])).rows[0];
+    await audit(req, 'attempt_granted', { entity: 'assessment', entityId: a.id, meta: { user: u.id, qtd } });
+    await notify.resolveAdminsPrefix(`exhausted:${a.id}:${u.id}:`);
+    const course = await C.byId(a.course_id);
+    const label = a.kind === 'final' ? 'Prova final' : (a.title ? `Quiz: ${a.title}` : 'Quiz do módulo');
+    const url = `/curso/${course.slug}/avaliacao/${a.id}`;
+    await notify.add(u.id, { kind: 'attempts', title: qtd === 1 ? 'Mais uma tentativa foi liberada para você' : `Mais ${qtd} tentativas foram liberadas para você`, body: `${label} · ${course.title}`, link: url, key: `granted:${g.id}` });
+    const stu = (await db.q('SELECT name, email FROM users WHERE id = $1', [u.id])).rows[0];
+    if (stu) h.background(mailer.send(cfg, { to: stu.email, ...emails.attemptsGranted(cfg, { name: stu.name, course, assessment: label, count: qtd, url: cfg.baseUrl + url }) }));
+    flashBack(req, res, 'success', `${qtd === 1 ? 'Uma tentativa liberada' : qtd + ' tentativas liberadas'} para ${u.name}. O aluno foi avisado pela campainha e por e-mail.`, back);
   });
   r.post('/admin/avaliacoes/:id/liberar', async (req, res, next) => {
     const a = await load(req, next); if (!a) return;

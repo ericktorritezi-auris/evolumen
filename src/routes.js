@@ -211,7 +211,7 @@ function build(cfg, app) {
     try {
       const [m, l, sum, students, pubs, refunds, lgpd, forum, dls, testi] = await Promise.all([
         db.q('SELECT count(*)::int AS n FROM schema_migrations'),
-        db.q("SELECT count(*)::int AS n FROM legal_documents WHERE status = 'published'"),
+        db.q("SELECT count(*)::int AS n FROM legal_documents WHERE status = 'published' AND doc_type IN ('terms','privacy')"),
         F.summary(F.period({})),
         one("SELECT count(DISTINCT user_id)::int AS n FROM enrollments WHERE status = 'active' AND starts_at <= now() AND (expires_at IS NULL OR expires_at > now())"),
         db.q("SELECT count(*) FILTER (WHERE product_type = 'course')::int AS cursos, count(*) FILTER (WHERE product_type = 'download')::int AS produtos FROM courses WHERE status = 'published' AND published_at <= now()"),

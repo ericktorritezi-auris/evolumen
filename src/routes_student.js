@@ -3,6 +3,7 @@
 const express = require('express');
 const db = require('./db');
 const C = require('./courses');
+const IG = require('./instagram');
 const files = require('./files');
 const A = require('./assess');
 const certs = require('./certificates');
@@ -25,7 +26,7 @@ function build(cfg, h) {
       if (c.product_type === 'download' || c.pct >= 100 || !c.total) continue;
       const cur = await C.curriculum(c.id);
       const prog = await C.progressFor(req.user.id, c.id);
-      const nxt = C.flatLessons(cur).find((l) => !prog.done.has(String(l.id)));
+      const nxt = C.flatLessons(cur).find((l) => !l.is_bonus && !prog.done.has(String(l.id)));
       if (nxt) { resume = { course: c, lesson: nxt }; break; }
     }
     res.send(views.meusCursos({ ...h.appCtx(req, res), courses, resume }));
@@ -55,7 +56,7 @@ function build(cfg, h) {
     const progress = await C.progressFor(req.user.id, course.id);
     const ov = await A.overview(req.user.id, course);
     const open = (l) => isAdmin || !A.lessonLocked(ov, l.module_id);
-    const next_ = C.flatLessons(cur).find((l) => open(l) && !progress.done.has(String(l.id))) || C.flatLessons(cur).find(open);
+    const next_ = C.flatLessons(cur).find((l) => open(l) && !l.is_bonus && !progress.done.has(String(l.id))) || C.flatLessons(cur).find((l) => open(l) && !progress.done.has(String(l.id))) || C.flatLessons(cur).find(open);
     const review = !isAdmin && ov && ov.cert && ov.cert.issued ? (await Co.reviewOf(req.user.id, course.id)) || {} : null;
     res.send(views.cursoHome({ ...h.appCtx(req, res), course, cur, progress, next: next_, access, ov, review }));
   });
@@ -70,6 +71,7 @@ function build(cfg, h) {
     const progress = await C.progressFor(req.user.id, course.id);
     const ov = await A.overview(req.user.id, course);
     if (req.user.role !== 'admin' && A.lessonLocked(ov, lesson.module_id)) { h.setFlash(res, 'info', `Passe no quiz do módulo “${ov.modules[lesson.module_id].blockedBy.title}” para avançar.`); return res.redirect(303, `/curso/${course.slug}`); }
+    if (lesson.instagram_url) res.setHeader('Content-Security-Policy', IG.allowCsp(res.getHeader('Content-Security-Policy')));
     const st = await Set_.all();
     const posts = st.forum_enabled === '1' ? await Co.listLesson(lesson.id, { admin: req.user.role === 'admin' }) : [];
     res.send(views.aula({ ...h.appCtx(req, res), course, cur, lesson, flat, progress, access, ov, forum: { enabled: st.forum_enabled === '1', posts } }));
@@ -89,10 +91,10 @@ function build(cfg, h) {
     else await db.q('DELETE FROM lesson_progress WHERE user_id = $1 AND lesson_id = $2', [req.user.id, l.rows[0].id]);
     const flat = C.flatLessons(await C.curriculum(course.id));
     const i = flat.findIndex((x) => x.id === l.rows[0].id);
-    const nxt = req.body.done === '1' ? flat[i + 1] : null;
+    const nxt = req.body.done === '1' ? (flat.slice(i + 1).find((x) => !x.is_bonus) || flat[i + 1]) : null;
     let msg = req.body.done === '1' ? 'Aula concluída.' : 'Aula desmarcada.';
     if (req.body.done === '1' && req.user.role === 'student') {
-      const pr = (await db.q(`SELECT count(*)::int AS total, count(p.lesson_id)::int AS done FROM lessons l LEFT JOIN lesson_progress p ON p.lesson_id = l.id AND p.user_id = $2 WHERE l.course_id = $1 AND ${C.LIVE}`, [course.id, req.user.id])).rows[0];
+      const pr = (await db.q(`SELECT count(*)::int AS total, count(p.lesson_id)::int AS done FROM lessons l LEFT JOIN lesson_progress p ON p.lesson_id = l.id AND p.user_id = $2 WHERE l.course_id = $1 AND ${C.COUNTED}`, [course.id, req.user.id])).rows[0];
       if (pr.total >= 2 && pr.done * 2 >= pr.total) await notify.toAdmins({ kind: 'progress', title: req.user.name + ' chegou a 50% do curso', body: course.title, link: '/admin/alunos', key: `p50:${req.user.id}:${course.id}`, subject: req.user.id });
       if (pr.total >= 1 && pr.done >= pr.total) await notify.toAdmins({ kind: 'progress', title: req.user.name + ' assistiu todas as aulas', body: course.title, link: '/admin/alunos', key: `p100:${req.user.id}:${course.id}`, subject: req.user.id });
     }

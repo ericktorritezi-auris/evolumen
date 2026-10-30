@@ -125,7 +125,7 @@ test('reset apaga só as contas escolhidas e tudo o que é delas; o resto fica; 
   assert.equal(await total('users', "WHERE email = 'real@example.com'"), 1); assert.equal(await total('users', "WHERE role='admin'"), 1);
   assert.equal(await total('webhook_events'), 1);
   assert.equal(await total('email_log', "WHERE to_email IN ('teste1@example.com','teste2@example.com')"), 0); assert.equal(await total('email_log', "WHERE to_email IN ('real@example.com','outra@example.com')"), 2);
-  assert.equal(await total('courses'), 1); assert.equal(await total('lessons'), 1); assert.equal(await total('legal_documents'), 2);
+  assert.equal(await total('courses'), 1); assert.equal(await total('lessons'), 1); assert.equal(await total('legal_documents'), 3);
   const log = (await q("SELECT * FROM audit_log WHERE action='launch_reset'")).rows;
   assert.equal(log.length, 1); assert.equal(log[0].meta.counts.contas, 2); assert.equal(log[0].meta.counts.aceites, 2);
   assert.doesNotMatch(JSON.stringify(log[0]), /teste1|teste2|Teste Um/);

@@ -36,7 +36,7 @@ test('migrações e seed são idempotentes', async () => {
   const s1 = await seed(pool, cfg); const s2 = await seed(pool, cfg);
   assert.equal(s1.admin, 'criado'); assert.equal(s2.admin, 'existente'); assert.equal(s2.legal, 0);
   assert.equal((await pool.query("SELECT count(*)::int n FROM users WHERE role='admin'")).rows[0].n, 1);
-  assert.equal((await pool.query('SELECT count(*)::int n FROM legal_documents')).rows[0].n, 2);
+  assert.equal((await pool.query('SELECT count(*)::int n FROM legal_documents')).rows[0].n, 3); // termos, privacidade e o termo de afiliados (rascunho)
   await db.close();
 });
 

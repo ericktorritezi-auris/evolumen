@@ -110,12 +110,12 @@ function build(cfg, h) {
   const docOr404 = async (req) => (ID.test(String(req.params.id)) ? (await db.q('SELECT * FROM legal_documents WHERE id = $1', [req.params.id])).rows[0] : null);
 
   r.post('/admin/textos/nova', async (req, res) => {
-    const t = req.body.doc_type === 'privacy' ? 'privacy' : 'terms';
+    const t = ['privacy', 'affiliate'].includes(req.body.doc_type) ? req.body.doc_type : 'terms';
     const last = (await db.q('SELECT * FROM legal_documents WHERE doc_type = $1 ORDER BY created_at DESC, id DESC LIMIT 1', [t])).rows[0];
     if (last && last.status === 'draft') return flashBack(req, res, 'error', 'Já existe um rascunho. Edite ou publique antes de criar outro.', `/admin/textos/${last.id}`);
     const n = (await db.q('SELECT count(*)::int AS n FROM legal_documents WHERE doc_type = $1', [t])).rows[0].n + 1;
     const d = (await db.q(`INSERT INTO legal_documents (doc_type, version, title, body_html, body_src, status) VALUES ($1,$2,$3,$4,$5,'draft') RETURNING id`,
-      [t, `v${n}.0`, last ? last.title : (t === 'terms' ? 'Termos de uso' : 'Política de privacidade'), last ? last.body_html : '', null])).rows[0];
+      [t, `v${n}.0`, last ? last.title : ({ terms: 'Termos de uso', privacy: 'Política de privacidade', affiliate: 'Termo do Programa de Afiliados' }[t]), last ? last.body_html : '', null])).rows[0];
     await audit(req, 'legal_draft_created', { entity: 'legal_document', entityId: d.id });
     flashBack(req, res, 'success', 'Nova versão criada em rascunho.', `/admin/textos/${d.id}`);
   });

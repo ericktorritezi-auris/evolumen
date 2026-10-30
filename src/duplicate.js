@@ -49,10 +49,10 @@ async function copyInto(c, srcId, newId, userId, { withFiles = true, created = [
   for (const m of mods) {
     const nm = (await c.query('INSERT INTO modules (course_id, title, position, active) VALUES ($1,$2,$3,$4) RETURNING id', [newId, m.title, m.position, m.active])).rows[0].id;
     out.modules++;
-    const ls = (await c.query('SELECT id, title, description, youtube_id, duration_min, position, active FROM lessons WHERE module_id = $1 ORDER BY position, id', [m.id])).rows;
+    const ls = (await c.query('SELECT id, title, description, youtube_id, instagram_url, is_bonus, duration_min, position, active FROM lessons WHERE module_id = $1 ORDER BY position, id', [m.id])).rows;
     for (const l of ls) {
-      const nl = (await c.query('INSERT INTO lessons (course_id, module_id, title, description, youtube_id, duration_min, position, active) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id',
-        [newId, nm, l.title, l.description, l.youtube_id, l.duration_min, l.position, l.active])).rows[0].id;
+      const nl = (await c.query('INSERT INTO lessons (course_id, module_id, title, description, youtube_id, instagram_url, is_bonus, duration_min, position, active) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id',
+        [newId, nm, l.title, l.description, l.youtube_id, l.instagram_url, l.is_bonus, l.duration_min, l.position, l.active])).rows[0].id;
       out.lessons++;
       if (!withFiles) continue;
       const fs_ = (await c.query('SELECT file_id, label, position FROM lesson_files WHERE lesson_id = $1 ORDER BY position, id', [l.id])).rows;

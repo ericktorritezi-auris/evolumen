@@ -27,6 +27,10 @@ const toAdmins = safe(async (opts) => {
 const resolveAdmins = safe(async (key) => {
   await db.q("UPDATE notifications SET read_at = now() WHERE ref_key = $1 AND read_at IS NULL AND user_id IN (SELECT id FROM users WHERE role = 'admin')", [key]);
 });
+// Resolve todos os avisos dos administradores cuja chave começa com o prefixo (ex.: todos os níveis de "tentativas esgotadas" de um aluno).
+const resolveAdminsPrefix = safe(async (prefix) => {
+  await db.q("UPDATE notifications SET read_at = now() WHERE left(ref_key, $2) = $1 AND read_at IS NULL AND user_id IN (SELECT id FROM users WHERE role = 'admin')", [prefix, String(prefix).length]);
+});
 const resolveFor = safe(async (userId, key) => { await db.q('UPDATE notifications SET read_at = now() WHERE user_id = $1 AND ref_key = $2 AND read_at IS NULL', [userId, key]); });
 
 const resolveRefundsOf = safe(async (orderId) => {
@@ -53,4 +57,4 @@ const cleanup = safe(async () => {
   await db.q("DELETE FROM notifications WHERE COALESCE(read_at, created_at) < now() - interval '400 days'");
 });
 
-module.exports = { add, toAdmins, resolveAdmins, resolveFor, resolveRefundsOf, list, open, markAll, cleanup, KEEP_DAYS };
+module.exports = { add, toAdmins, resolveAdmins, resolveAdminsPrefix, resolveFor, resolveRefundsOf, list, open, markAll, cleanup, KEEP_DAYS };

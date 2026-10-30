@@ -7,6 +7,7 @@ const path = require('path');
 const QRCode = require('qrcode');
 const db = require('./db');
 const C = require('./courses');
+const AFF = require('./affiliates');
 
 const CODE_RE = /^[A-Z0-9][A-Z0-9-]{2,19}$/;
 const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -21,7 +22,7 @@ function generateCode() {
 const asList = (v) => (Array.isArray(v) ? v : v == null || v === '' ? [] : [v]).map(String).filter((x) => /^\d{1,12}$/.test(x));
 
 // Valida o formulário. `locked` = o valor do desconto não pode mudar (cupom já enviado ou usado).
-async function parse(b, { locked = null } = {}) {
+async function parse(b, { locked = null, lockedAff = null } = {}) {
   const errors = {};
   const v = {};
   const rawCode = String(b.code || '').trim().toUpperCase();
@@ -54,6 +55,22 @@ async function parse(b, { locked = null } = {}) {
   } else v.max_uses = null;
   if (!v.starts_on && !v.ends_on && !v.max_uses && !errors.max_uses) errors.limit = 'Defina um período, uma quantidade de usos, ou os dois.';
   v.note = String(b.note || '').trim().slice(0, 300);
+  // Afiliado e comissão: andam juntos. Depois da primeira venda não mudam mais (a comissão já foi gravada com este percentual).
+  if (lockedAff) { v.affiliate_id = lockedAff.affiliate_id; v.commission_pct = lockedAff.commission_pct; }
+  else {
+    const aid = String(b.affiliate_id || '').trim();
+    const pctRaw = String(b.commission_pct || '').trim();
+    v.affiliate_id = null; v.commission_pct = null;
+    if (aid) {
+      const af = /^\d{1,12}$/.test(aid) ? await AFF.byId(aid) : null;
+      if (!af) errors.affiliate_id = 'Afiliado não encontrado.';
+      else if (af.status !== 'active' && String(b.affiliate_keep || '') !== aid) errors.affiliate_id = 'Este afiliado está inativo. Reative-o ou escolha outro.';
+      else v.affiliate_id = af.id;
+      const pct = AFF.parsePct(pctRaw);
+      if (pct == null) errors.commission_pct = 'Informe o percentual da comissão, de 0,01 a 100. Ex.: 10 ou 12,5.';
+      else v.commission_pct = pct;
+    } else if (pctRaw) errors.affiliate_id = 'Escolha o afiliado deste cupom ou deixe o percentual vazio.';
+  }
   v.courses = [...new Set(asList(b.courses))];
   if (!v.courses.length) errors.courses = 'Escolha pelo menos um curso.';
   else {
@@ -97,6 +114,8 @@ function priceWith(c, course) {
 
 const withUses = `SELECT c.*, (SELECT count(*)::int FROM coupon_redemptions r WHERE r.coupon_id = c.id) AS uses,
   (SELECT count(*)::int FROM coupon_sends s WHERE s.coupon_id = c.id) AS sends,
+  (SELECT count(*)::int FROM commissions m WHERE m.coupon_id = c.id) AS commissions,
+  (SELECT f.name FROM affiliates f WHERE f.id = c.affiliate_id) AS affiliate_name,
   (SELECT COALESCE(json_agg(json_build_object('id', x.id, 'title', x.title, 'slug', x.slug, 'price_cents', x.price_cents) ORDER BY x.title), '[]'::json)
      FROM coupon_courses cc JOIN courses x ON x.id = cc.course_id WHERE cc.coupon_id = c.id) AS courses
   FROM coupons c`;

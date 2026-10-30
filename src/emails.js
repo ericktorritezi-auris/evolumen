@@ -166,6 +166,19 @@ function refundRejected(cfg, { name, course, note }) {
   };
 }
 
+// Aviso ao aluno: o administrador liberou mais tentativas numa avaliação.
+function attemptsGranted(cfg, { name, course, assessment, count, url }) {
+  const n = Number(count);
+  const qtd = n === 1 ? 'mais uma tentativa' : `mais ${n} tentativas`;
+  return {
+    subject: `${n === 1 ? 'Mais uma tentativa liberada' : `Mais ${n} tentativas liberadas`} para você: ${assessment}`, template: 'tentativas_liberadas',
+    html: layout({ cfg, title: n === 1 ? 'Mais uma tentativa liberada' : `Mais ${n} tentativas liberadas`,
+      intro: `Olá, ${first(name)}. Liberamos ${qtd} para você em <b>${esc(assessment)}</b>, do ${nn(course)} <b>${esc(course.title)}</b>.`,
+      cta: { url, label: 'Fazer a avaliação' }, outro: 'Revise o conteúdo com calma e tente quando se sentir pronto. Boa sorte!' }),
+    text: `Olá, ${name}. Liberamos ${qtd} para você em ${assessment}, do ${nn(course)} ${course.title}. Acesse: ${url}`,
+  };
+}
+
 function refundRequested(cfg, { student, course, reason, orderId }) {
   const url = `${cfg.baseUrl}/admin/vendas/${orderId}`;
   return {
@@ -243,4 +256,4 @@ function dataRequestDone(cfg, { name, kind, ok, note }) {
   };
 }
 
-module.exports = { courseNews, productUpdated, accessExpiring, forumQuestion, forumAnswer, dataRequestDone, purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };
+module.exports = { courseNews, productUpdated, accessExpiring, forumQuestion, forumAnswer, dataRequestDone, purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, attemptsGranted, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };

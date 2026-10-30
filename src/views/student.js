@@ -1,5 +1,6 @@
 'use strict';
 const { html, raw } = require('../html');
+const IG = require('../instagram');
 const { shellApp, lumen } = require('../layout');
 const { icon } = require('../header');
 const { forumSection, reviewCard } = require('./community');
@@ -38,7 +39,7 @@ function lessonRow(course, l, ctx) {
   const cur = ctx.current && ctx.current.id === l.id;
   const locked = !!(ctx.ov && ctx.ov.modules[l.module_id] && ctx.ov.modules[l.module_id].locked && !ctx.admin);
   return html`<li class="lrow${done ? ' is-done' : ''}${cur ? ' is-current' : ''}${locked ? ' is-locked' : ''}"><a href="/curso/${course.slug}/aula/${l.id}"${cur ? raw(' aria-current="true"') : ''}>
-    <span class="lrow__st" aria-hidden="true">${locked ? icon('lock', 16) : done ? icon('check', 16) : (cur ? '▶' : '○')}</span><span class="lrow__t">${l.title}</span>
+    <span class="lrow__st" aria-hidden="true">${locked ? icon('lock', 16) : done ? icon('check', 16) : (cur ? '▶' : '○')}</span><span class="lrow__t">${l.title}${l.is_bonus ? html` <span class="pill pill--bonus">Bônus</span>` : ''}</span>
     ${l.duration_min ? html`<span class="muted small">${dur(l.duration_min)}</span>` : ''}<span class="sr">${locked ? 'bloqueada até passar no quiz do módulo anterior' : done ? 'concluída' : ''}</span></a></li>`;
 }
 
@@ -57,7 +58,7 @@ function finalRow(course, ctx) {
   const f = ctx.ov && ctx.ov.final;
   if (!f || ctx.admin) return '';
   const href = `/curso/${course.slug}/avaliacao/${f.id}`;
-  const label = f.passed ? `Aprovado · nota ${f.best != null ? Number(f.best).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : ''}` : f.unlocked ? (f.used ? 'Liberada · continue' : 'Liberada') : 'Libera ao assistir 50% da última aula';
+  const label = f.passed ? `Aprovado · nota ${f.best != null ? Number(f.best).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : ''}` : f.unlocked ? (f.used ? 'Liberada · continue' : 'Liberada') : (f.lastLesson && !f.lastLesson.has_video ? 'Libera ao concluir a última aula' : 'Libera ao assistir 50% da última aula');
   const open = f.passed || f.unlocked;
   return html`<div class="syl__final"><ul class="lrows"><li class="lrow lrow--final ${f.passed ? 'is-done' : open ? 'is-current' : 'is-locked'}" data-final-row data-href="${href}">${open ? html`<a href="${href}">` : html`<span class="lrow__a">`}
     <span class="lrow__st" aria-hidden="true">${f.passed ? icon('check', 16) : open ? '▶' : icon('lock', 16)}</span><span class="lrow__t">Prova final</span><span class="muted small" data-final-label>${label}</span>${open ? raw('</a>') : raw('</span>')}</li></ul></div>`;
@@ -65,9 +66,10 @@ function finalRow(course, ctx) {
 
 function curriculumList(course, cur, ctx) {
   return html`<div class="syl syl--app">${cur.map((m, i) => {
-    const doneN = m.lessons.filter((l) => ctx.progress.done.has(String(l.id))).length;
+    const counted = m.lessons.filter((l) => !l.is_bonus);
+    const doneN = counted.filter((l) => ctx.progress.done.has(String(l.id))).length;
     const open = ctx.current ? m.lessons.some((l) => l.id === ctx.current.id) : i === 0;
-    return html`<details ${open ? raw('open') : ''}><summary><span>Módulo ${i + 1} · ${m.title}</span><span class="muted small">${doneN}/${m.lessons.length}</span></summary>
+    return html`<details ${open ? raw('open') : ''}><summary><span>Módulo ${i + 1} · ${m.title}</span><span class="muted small">${counted.length ? `${doneN}/${counted.length}` : 'bônus'}</span></summary>
       <ul class="lrows">${m.lessons.map((l) => lessonRow(course, l, ctx))}${quizRow(course, m, ctx.ov)}</ul></details>`;
   })}${finalRow(course, ctx)}</div>`;
 }
@@ -146,9 +148,19 @@ function aula({ cfg, user, csrf, flash, course, cur, lesson, flat, progress, acc
       <p class="muted small">${lesson.module_title} · Aula ${idx + 1} de ${flat.length}</p>
       ${lesson.youtube_id
         ? html`<div class="player" data-watch="/curso/${course.slug}/aula/${lesson.id}/assistido" data-csrf="${csrf}"${user.role === 'admin' ? raw(' data-admin="1"') : ''}><iframe id="yt-player" src="https://www.youtube-nocookie.com/embed/${lesson.youtube_id}?rel=0&enablejsapi=1&origin=${encodeURIComponent(cfg.baseUrl)}" title="${lesson.title}" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`
-        : html`<div class="player player--empty">${lumen('pensa', 90)}<p class="muted">O vídeo desta aula ainda não foi publicado.</p></div>`}
+        : lesson.instagram_url && IG.isValid(lesson.instagram_url)
+          ? html`<div class="igbox" data-ig="${IG.embedPermalink(lesson.instagram_url)}">
+              <div class="igbox__card" data-ig-card><b>Este vídeo está no Instagram</b>
+                <p class="muted small">Ao carregar, o seu navegador se conecta ao Instagram (Meta), que pode coletar dados como endereço IP e cookies. Veja a <a href="/privacidade" target="_blank" rel="noopener">Política de privacidade</a>.</p>
+                <button class="btn btn--primary" type="button" data-ig-load aria-live="polite">Carregar vídeo</button></div>
+              <div class="igbox__stage" data-ig-stage hidden></div>
+              <p class="small igbox__fb" data-ig-fb role="status" hidden>Se o vídeo não apareceu, ele pode ter saído do ar ou estar privado.</p>
+              <p class="small"><a href="${lesson.instagram_url}" target="_blank" rel="noopener noreferrer" aria-label="Abrir no Instagram (abre em nova aba)">Abrir no Instagram ↗</a></p></div>`
+          : html`<div class="player player--empty">${lumen('pensa', 90)}<p class="muted">O vídeo desta aula ainda não foi publicado.</p></div>`}
       ${meter(course, lesson, ov, user)}
-      <h1 class="t-display t-display--sm">${lesson.title}</h1>
+      <h1 class="t-display t-display--sm">${lesson.title}${lesson.is_bonus ? html` <span class="pill pill--bonus">Bônus</span>` : ''}</h1>
+      ${lesson.is_bonus ? html`<p class="muted small">Aula bônus: ela não conta para o seu percentual nem para o certificado.</p>` : ''}
+      ${lesson.instagram_url ? html`<p class="muted small">Este vídeo não mede o tempo assistido. Quando terminar, marque a aula como concluída.</p>` : ''}
       <div class="lesson__act">
         <form method="post" action="${link(lesson)}/concluir">${csrfInput(csrf)}<input type="hidden" name="done" value="${done ? '0' : '1'}">
           ${done && ov && ov.cert.issued && user.role !== 'admin'
