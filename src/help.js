@@ -33,6 +33,11 @@ const STUDENT = [
     'Aqui estão suas compras, a situação de cada pagamento e até quando vai o acesso.',
     'Para renovar um acesso perto do fim, use Renovar agora.',
     'Comprou há menos de 7 dias e quer desistir? Use Pedir reembolso. O professor analisa e o valor volta pelo mesmo meio de pagamento.'] },
+  { id: 'afiliado', match: /^\/afiliado/, title: 'Painel do afiliado', steps: [
+    'Aqui você vê só os seus dados: seus cupons, suas vendas e suas comissões.',
+    'A comissão de cada venda fica em carência até acabar o prazo de reembolso do comprador (7 dias). Depois ela passa a Liberada e entra no saldo a repassar.',
+    'Se o comprador pedir reembolso, a comissão da venda é cancelada. Os repasses são feitos fora do sistema e aparecem aqui quando forem registrados.',
+    'Em cada cupom, toque em Copiar link para divulgar ou em Baixar imagem para postar. Por privacidade, você vê o comprador só pelo nome abreviado.'] },
   { id: 'perfil', match: /^\/perfil/, title: 'Seu perfil', steps: [
     'Atualize seus dados e sua senha quando precisar.',
     'Para trocar o e-mail, o sistema envia um código de confirmação.',

@@ -27,6 +27,10 @@ async function exportFor(userId) {
     avaliacoes_de_cursos: await q('SELECT course_id, stars, nps, comment, consent_publish, published, created_at, updated_at FROM course_reviews WHERE user_id = $1 ORDER BY id'),
     pedidos_de_download: await q('SELECT file_id, course_id, reason, status, response, created_at, decided_at FROM download_requests WHERE user_id = $1 ORDER BY id'),
     downloads_de_arquivos: await q('SELECT file_id, used, extra, last_at FROM file_quota WHERE user_id = $1'),
+    afiliado: await q("SELECT name, email, phone, status, invited_at, created_at FROM affiliates WHERE user_id = $1"),
+    afiliado_comissoes: await q(`SELECT co.title AS produto, m.base_cents, m.pct, m.amount_cents, m.status, m.created_at, m.release_at FROM commissions m JOIN orders o ON o.id = m.order_id JOIN courses co ON co.id = o.course_id
+      JOIN affiliates a ON a.id = m.affiliate_id WHERE a.user_id = $1 ORDER BY m.id`),
+    afiliado_repasses: await q('SELECT p.paid_on, p.amount_cents, p.voided_at FROM affiliate_payouts p JOIN affiliates a ON a.id = p.affiliate_id WHERE a.user_id = $1 ORDER BY p.id'),
     registro_de_atividade: await q('SELECT at, action, ip FROM audit_log WHERE actor_user_id = $1 ORDER BY id'),
   };
 }
@@ -52,6 +56,9 @@ async function anonymize(userId, client) {
     await c.query("UPDATE webhook_events w SET payload = '{}'::jsonb FROM orders o WHERE o.user_id = $1 AND w.provider = o.provider AND w.payment_id = o.provider_payment_id", [userId]);
     await c.query("UPDATE download_requests SET reason = '[removido a pedido do titular]', response = '', status = CASE WHEN status = 'pending' THEN 'denied' ELSE status END, decided_at = COALESCE(decided_at, now()) WHERE user_id = $1", [userId]);
     await c.query('DELETE FROM file_quota WHERE user_id = $1', [userId]);
+    // Afiliado: os dados pessoais saem; vendas, comissões e repasses ficam (registro financeiro, 5 anos) sem identificar a pessoa.
+    await c.query("UPDATE affiliates SET name = 'Afiliado removido', email = $2, phone = '', note = '', status = 'inactive', inactivated_at = COALESCE(inactivated_at, now()), updated_at = now() WHERE user_id = $1",
+      [userId, `removido-afiliado-${userId}@removido.invalid`]);
     await c.query("UPDATE course_reviews SET comment = '', consent_publish = false, published = false, published_at = NULL WHERE user_id = $1", [userId]);
     return true;
   });

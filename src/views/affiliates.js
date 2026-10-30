@@ -53,7 +53,7 @@ function cockpit(ctx, { rows, totals }) {
 // ---------- cadastro ----------
 function affiliateFields(v, errors = {}) {
   return html`${field({ id: 'name', label: 'Nome completo', value: v.name || '', error: errors.name, autocomplete: 'off', maxlength: 120, required: true })}
-    ${field({ id: 'email', label: 'E-mail', type: 'email', value: v.email || '', error: errors.email, autocomplete: 'off', required: true, note: 'Será o login do afiliado quando o painel dele for liberado.' })}
+    ${field({ id: 'email', label: 'E-mail', type: 'email', value: v.email || '', error: errors.email, autocomplete: 'off', required: true, note: 'É o login do afiliado no painel.' })}
     ${field({ id: 'phone', label: 'Telefone com DDD', value: v.phone ? phoneFmt(v.phone) : '', error: errors.phone, inputmode: 'tel', autocomplete: 'off', required: true })}
     <div class="span2">${field({ id: 'note', label: 'Anotação interna (opcional)', value: v.note || '', maxlength: 300, note: 'Só você vê. Ex.: dados para o repasse (Pix).' })}</div>`;
 }
@@ -69,7 +69,17 @@ function form(ctx, { values = {}, errors = {} }) {
 }
 
 // ---------- detalhe ----------
-function detail(ctx, { a, sales, payouts, coupons, errors = {}, values = null, payErrors = {}, payValues = {}, today }) {
+function accessCard(ctx, a, access) {
+  const form = (label, cls = 'btn btn--primary btn--sm') => html`<form method="post" action="/admin/afiliados/${a.id}/convidar" class="inline">${csrfInput(ctx.csrf)}<button class="${cls}" type="submit">${label}</button></form>`;
+  if (!access) return html`<section class="card"><h2 class="t-card">Acesso ao painel</h2><p class="muted">Ainda sem acesso. O convite cria a conta (ou usa a que já existe com este e-mail), envia o login e a senha provisória por e-mail e libera o painel só com os dados dele: cupons, vendas e comissões. Ele nunca vê dados de compradores além do nome abreviado.</p>${a.status === 'active' ? html`<div class="row">${form('Convidar para o painel')}</div>` : html`<p class="muted small">Reative o afiliado para convidar.</p>`}</section>`;
+  return html`<section class="card"><h2 class="t-card">Acesso ao painel</h2>
+    <ul class="checks"><li class="is-ok">✔ Conta: ${access.user.email}${access.alsoStudent ? ' (também é aluno)' : ''}</li>
+      <li class="${access.firstAccessPending ? '' : 'is-ok'}">${access.firstAccessPending ? '○ Ainda não fez o primeiro acesso' : '✔ Já entrou no painel'}</li>
+      <li class="${access.term ? 'is-ok' : ''}">${access.term ? `✔ Termo do Programa de Afiliados aceito (${access.term.version}) em ${fmtDate(access.term.accepted_at)}` : access.termPublished ? '○ Termo do Programa de Afiliados ainda não aceito' : '○ Termo do Programa de Afiliados ainda é rascunho: não é exigido de ninguém'}</li></ul>
+    ${access.firstAccessPending ? html`<div class="row">${form('Reenviar convite (nova senha provisória)', 'btn btn--outline btn--sm')}</div>` : ''}</section>`;
+}
+
+function detail(ctx, { a, sales, payouts, coupons, access = null, errors = {}, values = null, payErrors = {}, payValues = {}, today }) {
   const v = values || a;
   const active = a.status === 'active';
   const content = html`<a class="back" href="/admin/afiliados">← Afiliados</a>${titleRow(a.name, `${a.email} · ${phoneFmt(a.phone)}`)}
@@ -77,6 +87,8 @@ function detail(ctx, { a, sales, payouts, coupons, errors = {}, values = null, p
   ${Object.keys(errors).length || Object.keys(payErrors).length ? html`<div class="alert alert--error" role="alert">Confira os campos destacados.</div>` : ''}
   ${stats(a)}
   ${a.balance < 0 ? html`<div class="alert alert--error" role="alert">O saldo está negativo em ${brl(Math.abs(a.balance))}: houve reembolso ou estorno de uma venda cuja comissão já tinha sido repassada. Desconte nos próximos repasses ou combine a devolução com o afiliado.</div>` : ''}
+
+  ${accessCard(ctx, a, access)}
 
   <section class="card"><h2 class="t-card">Cupons deste afiliado</h2>
     ${coupons.length ? html`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Cupom</th><th>Desconto</th><th>Comissão</th><th>Vendas</th><th>Situação</th><th></th></tr></thead><tbody>

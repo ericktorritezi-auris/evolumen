@@ -11,8 +11,15 @@ const NAV = {
   ],
   aluno: [
     { href: '/meus-cursos', icon: 'book', label: 'Meus produtos', fase: 1 },
+    { href: '/afiliado', icon: 'cash', label: 'Afiliado', fase: 6, onlyAffiliate: true },
     { href: '/certificados', icon: 'cert', label: 'Certificados', fase: 3 },
     { href: '/pagamentos', icon: 'card', label: 'Pagamentos e acessos', fase: 4 },
+    { href: '/perfil', icon: 'user', label: 'Perfil', fase: 1 },
+    { href: '/ajuda', icon: 'help', label: 'Ajuda', fase: 5 },
+  ],
+  // Quem é só afiliado (sem nenhum produto): menu mínimo.
+  afiliado: [
+    { href: '/afiliado', icon: 'cash', label: 'Afiliado', fase: 6 },
     { href: '/perfil', icon: 'user', label: 'Perfil', fase: 1 },
     { href: '/ajuda', icon: 'help', label: 'Ajuda', fase: 5 },
   ],
@@ -44,8 +51,8 @@ function isActive(href, path) {
 }
 
 // Devolve o menu do perfil, só com os itens já disponíveis na fase atual, e marca o da tela aberta.
-function menuFor(area, path, phase) {
-  const items = (NAV[area] || []).filter((i) => i.fase <= phase);
+function menuFor(area, path, phase, { affiliate = false } = {}) {
+  const items = (NAV[area] || []).filter((i) => i.fase <= phase && (!i.onlyAffiliate || affiliate));
   const exact = items.find((i) => i.href === path);
   return items.map((i) => ({
     ...i,

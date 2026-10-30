@@ -100,6 +100,7 @@ function createApp(cfg) {
   app.use(require('./routes_notify').build(cfg, main.helpers));
   app.use(require('./routes_launch').build(cfg, main.helpers));
   app.use(require('./routes_affiliates').build(cfg, main.helpers));
+  app.use(require('./routes_afiliado').build(cfg, main.helpers));
   app.use(require('./routes_downloads').build(cfg, main.helpers));
 
   app.use((req, res) => {

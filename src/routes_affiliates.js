@@ -1,7 +1,12 @@
 'use strict';
 // Painel do administrador: afiliados, comissões e repasses (1.1.1).
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const db = require('./db');
+const notify = require('./notify');
+const mailer = require('./mailer');
+const emails = require('./emails');
+const { tempPassword } = require('./access');
 const A = require('./affiliates');
 const C = require('./courses');
 const L = require('./lgpd');
@@ -45,7 +50,7 @@ function build(cfg, h) {
   });
 
   const render = async (req, res, a, extra = {}, status = 200) => res.status(status).send(views.detail(ctx(req, res), {
-    a, sales: await A.salesOf(a.id), payouts: await A.payoutsOf(a.id), coupons: await A.couponsOf(a.id), today: today(), ...extra }));
+    a, sales: await A.salesOf(a.id), payouts: await A.payoutsOf(a.id), coupons: await A.couponsOf(a.id), access: await A.accessInfo(a), today: today(), ...extra }));
 
   r.get('/admin/afiliados/:id', async (req, res, next) => { const a = await load(req, next); if (a) await render(req, res, a); });
 
@@ -61,6 +66,7 @@ function build(cfg, h) {
     const a = await load(req, next); if (!a) return;
     const { errors, values } = A.parse(req.body);
     if (!errors.email && await A.emailTaken(values.email, a.id)) errors.email = 'Já existe outro afiliado com este e-mail.';
+    if (!errors.email && a.user_id && values.email !== String(a.email).toLowerCase()) errors.email = 'Este afiliado já tem conta. O e-mail dele (que é o login) só muda pela tela de Alunos.';
     if (Object.keys(errors).length) return render(req, res, a, { errors, values: { ...req.body, phone: values.phone } }, 422);
     try {
       await db.q('UPDATE affiliates SET name = $2, email = $3, phone = $4, note = $5, updated_at = now() WHERE id = $1', [a.id, values.name, values.email, values.phone, values.note]);
@@ -85,6 +91,51 @@ function build(cfg, h) {
     flashBack(req, res, 'success', 'Afiliado reativado.', `/admin/afiliados/${a.id}`);
   });
 
+  // ---------- convite para o painel (1.2.0) ----------
+  r.post('/admin/afiliados/:id/convidar', async (req, res, next) => {
+    const a = await load(req, next); if (!a) return;
+    const back = `/admin/afiliados/${a.id}`;
+    if (a.status !== 'active') return flashBack(req, res, 'error', 'Reative o afiliado antes de convidar.', back);
+    let out;
+    try {
+      out = await db.tx(async (c) => {
+        const af = (await c.query('SELECT * FROM affiliates WHERE id = $1 FOR UPDATE', [a.id])).rows[0];
+        let user; let password = null; let mode;
+        if (af.user_id) {
+          user = (await c.query('SELECT * FROM users WHERE id = $1 FOR UPDATE', [af.user_id])).rows[0];
+          if (user.role === 'admin') return { done: 'admin' };
+          if (user.status !== 'active') return { done: 'blocked' };
+          if (!user.must_change_password) return { done: 'already' };
+          password = tempPassword(); mode = 'resend';
+          await c.query('UPDATE users SET password_hash = $2, must_change_password = TRUE, updated_at = now() WHERE id = $1', [user.id, await bcrypt.hash(password, cfg.bcryptCost)]);
+          await c.query('DELETE FROM sessions WHERE user_id = $1', [user.id]);
+        } else {
+          user = (await c.query('SELECT * FROM users WHERE lower(email) = lower($1) FOR UPDATE', [af.email])).rows[0] || null;
+          if (user && user.role === 'admin') return { done: 'admin' };
+          if (user && user.status !== 'active') return { done: 'blocked' };
+          if (user) mode = 'linked';
+          else {
+            password = tempPassword(); mode = 'created';
+            user = (await c.query("INSERT INTO users (email, password_hash, role, name, phone, must_change_password) VALUES ($1,$2,'student',$3,$4,TRUE) RETURNING *", [af.email, await bcrypt.hash(password, cfg.bcryptCost), af.name, af.phone || null])).rows[0];
+          }
+          await c.query('UPDATE affiliates SET user_id = $2, invited_at = now(), updated_at = now() WHERE id = $1', [af.id, user.id]);
+        }
+        return { user, password, mode };
+      });
+    } catch (e) {
+      if (e.code === '23505') return flashBack(req, res, 'error', 'Este e-mail já é de outro afiliado ou já tem conta. Confira em Alunos.', back);
+      throw e;
+    }
+    if (out.done === 'already') return flashBack(req, res, 'info', 'Este afiliado já entrou no painel. Se ele esqueceu a senha, peça para usar “Esqueci a senha” na tela de entrada.', back);
+    if (out.done === 'admin') return flashBack(req, res, 'error', 'Este e-mail é de um administrador. Use outro e-mail para o afiliado.', back);
+    if (out.done === 'blocked') return flashBack(req, res, 'error', 'A conta com este e-mail está bloqueada. Desbloqueie em Alunos antes de convidar.', back);
+    await audit(req, 'affiliate_invited', { entity: 'affiliate', entityId: a.id, meta: { modo: out.mode, user: out.user.id } });
+    const tpl = out.password ? emails.affiliateInvite(cfg, { name: out.user.name, email: out.user.email, password: out.password }) : emails.affiliateLinked(cfg, { name: out.user.name });
+    h.background(mailer.send(cfg, { to: out.user.email, ...tpl }));
+    flashBack(req, res, 'success', out.mode === 'linked' ? 'Pronto. Essa pessoa já tinha conta: o menu Afiliado apareceu para ela e o aviso foi enviado por e-mail.'
+      : out.mode === 'resend' ? 'Convite reenviado com uma nova senha provisória.' : 'Convite enviado por e-mail com a senha provisória.', back);
+  });
+
   // ---------- repasses ----------
   r.post('/admin/afiliados/:id/repasses', async (req, res, next) => {
     const a = await load(req, next); if (!a) return;
@@ -95,6 +146,11 @@ function build(cfg, h) {
     if (dupe) return flashBack(req, res, 'info', 'Este repasse acabou de ser registrado. Não gravei de novo.', `/admin/afiliados/${a.id}`);
     const p = (await db.q('INSERT INTO affiliate_payouts (affiliate_id, amount_cents, paid_on, note, created_by) VALUES ($1,$2,$3,$4,$5) RETURNING id', [a.id, values.cents, values.paid_on, values.note, req.user.id])).rows[0];
     await audit(req, 'affiliate_payout_recorded', { entity: 'affiliate', entityId: a.id, meta: { payout: p.id, valor: values.cents, data: values.paid_on } });
+    if (a.user_id && a.status === 'active') {
+      await notify.add(a.user_id, { kind: 'affiliate', title: 'Repasse registrado', body: `${C.brl(values.cents)} · ${new Date(values.paid_on + 'T12:00:00').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, link: '/afiliado', key: `affpay:${p.id}` });
+      const au = (await db.q('SELECT name, email FROM users WHERE id = $1 AND status = $2', [a.user_id, 'active'])).rows[0];
+      if (au) h.background(mailer.send(cfg, { to: au.email, ...emails.payoutRecorded(cfg, { name: au.name, amountCents: values.cents, paidOn: values.paid_on }) }));
+    }
     const over = values.cents > a.balance;
     flashBack(req, res, over ? 'info' : 'success', over ? `Repasse registrado. Atenção: o valor é maior que o saldo liberado (${C.brl(Math.max(0, a.balance))}), então o saldo ficou negativo.` : 'Repasse registrado.', `/admin/afiliados/${a.id}`);
   });

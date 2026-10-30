@@ -179,6 +179,41 @@ function attemptsGranted(cfg, { name, course, assessment, count, url }) {
   };
 }
 
+// Programa de afiliados (1.2.0).
+function affiliateInvite(cfg, { name, email, password }) {
+  const url = `${cfg.baseUrl}/entrar`;
+  return {
+    subject: 'Você foi convidado para o Programa de Afiliados da EvoLumen Academy', template: 'afiliado_convite',
+    html: layout({ cfg, title: 'Convite para o Programa de Afiliados',
+      intro: `Olá, ${first(name)}. Você foi convidado para o Programa de Afiliados da EvoLumen Academy. No seu painel você acompanha seus cupons, suas vendas e suas comissões.`,
+      bodyHtml: `<p style="margin:14px 0 4px;font-size:14px">Login: <b>${esc(email)}</b></p><p style="margin:0 0 14px;font-size:14px">Senha provisória: <b style="letter-spacing:1px">${esc(password)}</b></p>`,
+      cta: { url, label: 'Entrar no painel do afiliado' }, outro: 'No primeiro acesso você escolhe sua própria senha e lê e aceita o Termo do Programa de Afiliados.' }),
+    text: `Olá, ${name}. Você foi convidado para o Programa de Afiliados da EvoLumen Academy.\nLogin: ${email}\nSenha provisória: ${password}\nEntre em: ${url}\nNo primeiro acesso você escolhe sua própria senha e lê e aceita o Termo do Programa de Afiliados.`,
+  };
+}
+// Quem já tinha conta de aluno: nada de senha nova, só o aviso de que o painel apareceu no menu.
+function affiliateLinked(cfg, { name }) {
+  const url = `${cfg.baseUrl}/afiliado`;
+  return {
+    subject: 'Seu painel de afiliado da EvoLumen Academy está liberado', template: 'afiliado_vinculado',
+    html: layout({ cfg, title: 'Painel de afiliado liberado',
+      intro: `Olá, ${first(name)}. Você agora faz parte do Programa de Afiliados da EvoLumen Academy. Entre com o seu login e a senha de sempre: o menu <b>Afiliado</b> já está lá.`,
+      cta: { url, label: 'Abrir o painel do afiliado' }, outro: 'Ao entrar, leia e aceite o Termo do Programa de Afiliados. Seu acesso aos seus produtos não muda.' }),
+    text: `Olá, ${name}. Você agora faz parte do Programa de Afiliados da EvoLumen Academy. Entre com o seu login e a senha de sempre e abra o menu Afiliado: ${url}\nAo entrar, leia e aceite o Termo do Programa de Afiliados.`,
+  };
+}
+function payoutRecorded(cfg, { name, amountCents, paidOn }) {
+  const url = `${cfg.baseUrl}/afiliado`;
+  const when = new Date(paidOn + 'T12:00:00').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  return {
+    subject: 'Repasse registrado na EvoLumen Academy', template: 'afiliado_repasse',
+    html: layout({ cfg, title: 'Repasse registrado',
+      intro: `Olá, ${first(name)}. Registramos um repasse de <b>${brl(amountCents)}</b> para você, com data de ${when}.`,
+      cta: { url, label: 'Ver no painel do afiliado' }, outro: 'Se algo não bater com o que você recebeu, responda a quem combinou o pagamento com você em até 30 dias.' }),
+    text: `Olá, ${name}. Registramos um repasse de ${brl(amountCents)} para você, com data de ${when}. Veja no painel: ${url}`,
+  };
+}
+
 function refundRequested(cfg, { student, course, reason, orderId }) {
   const url = `${cfg.baseUrl}/admin/vendas/${orderId}`;
   return {
@@ -256,4 +291,4 @@ function dataRequestDone(cfg, { name, kind, ok, note }) {
   };
 }
 
-module.exports = { courseNews, productUpdated, accessExpiring, forumQuestion, forumAnswer, dataRequestDone, purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, attemptsGranted, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };
+module.exports = { affiliateInvite, affiliateLinked, payoutRecorded, courseNews, productUpdated, accessExpiring, forumQuestion, forumAnswer, dataRequestDone, purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, attemptsGranted, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };

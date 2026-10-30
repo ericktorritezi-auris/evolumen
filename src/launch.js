@@ -98,6 +98,8 @@ async function run(emails, sig) {
     await del('envios_de_cupom', 'DELETE FROM coupon_sends WHERE lower(email) = ANY($1::text[])', [mails]);
     // o resto (matrículas, progresso, sessões, notificações, pedidos LGPD, downloads) sai junto com a conta
     done.matriculas = p.counts.matriculas; done.pedidos_lgpd = p.counts.pedidos_lgpd;
+    // Conta de afiliado de teste: o cadastro do afiliado fica (como os cupons); só o vínculo com a conta some.
+    await del('afiliados_desvinculados', 'UPDATE affiliates SET user_id = NULL, invited_at = NULL WHERE user_id = ANY($1::bigint[])', [ids]);
     await del('contas', "DELETE FROM users WHERE id = ANY($1::bigint[]) AND role = 'student'", [ids]);
   });
   files.sweepVolume().catch((e) => log.warn('reset_varredura_falhou', { error: e.message })); // arquivos soltos no volume saem na varredura
