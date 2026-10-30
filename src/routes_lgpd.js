@@ -23,7 +23,7 @@ function build(cfg, h) {
   r.use(['/admin/lgpd', '/admin/configuracoes'], h.needUser, h.gate, h.needAdmin);
 
   // ---- LGPD ----
-  const accFilter = (req) => ({ q: String(req.query.q || '').trim().slice(0, 80), doc: ['terms', 'privacy'].includes(req.query.doc) ? req.query.doc : '' });
+  const accFilter = (req) => ({ q: String(req.query.q || '').trim().slice(0, 80), doc: ['terms', 'privacy', 'affiliate'].includes(req.query.doc) ? req.query.doc : '' });
 
   r.get('/admin/lgpd', async (req, res) => {
     const aba = req.query.aba === 'aceites' ? 'aceites' : 'pedidos';
@@ -34,7 +34,7 @@ function build(cfg, h) {
       const pages = Math.max(1, Math.ceil(first.total / PAGE));
       const cur = Math.min(page, pages);
       const out = cur === 1 ? first : await L.listAcceptances(f, { limit: PAGE, offset: (cur - 1) * PAGE });
-      return res.send(views.lgpd(ctx(req, res), { aba, aceites: out.rows, f, page: cur, pages, total: out.total, docTypes: [['terms', 'Termos de uso'], ['privacy', 'Política de privacidade']] }));
+      return res.send(views.lgpd(ctx(req, res), { aba, aceites: out.rows, f, page: cur, pages, total: out.total, docTypes: [['terms', 'Termos de uso'], ['privacy', 'Política de privacidade'], ['affiliate', 'Termo de afiliados']] }));
     }
     const pedidos = (await db.q(`SELECT d.*, u.name, u.email FROM data_requests d JOIN users u ON u.id = d.user_id ORDER BY (d.status = 'open') DESC, d.created_at DESC LIMIT 200`)).rows;
     res.send(views.lgpd(ctx(req, res), { aba, pedidos }));
@@ -83,7 +83,7 @@ function build(cfg, h) {
 
   // ---- Configurações ----
   const statusInfo = async () => {
-    const l = await db.q("SELECT count(DISTINCT doc_type)::int AS n FROM legal_documents WHERE status = 'published'");
+    const l = await db.q("SELECT count(DISTINCT doc_type)::int AS n FROM legal_documents WHERE status = 'published' AND doc_type IN ('terms','privacy')");
     return {
       version: cfg.version.version, env: cfg.appEnv, baseUrl: cfg.baseUrl,
       mail: cfg.mailTransport === 'memory' || !!(cfg.resendApiKey && cfg.resendFrom),

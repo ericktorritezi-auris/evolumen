@@ -6,6 +6,7 @@ const db = require('./db');
 const C = require('./courses');
 const A = require('./assess');
 const certs = require('./certificates');
+const notify = require('./notify');
 const { audit } = require('./audit');
 const views = require('./views/assess');
 
@@ -107,6 +108,16 @@ function build(cfg, h) {
     const at = await A.submit(req.user.id, req.body.attempt, answers, a.id);
     if (!at) return flashTo(req, res, 'info', 'Esta tentativa já foi enviada.', `/curso/${course.slug}/avaliacao/${a.id}`);
     await audit(req, 'assessment_submitted', { entity: 'assessment', entityId: a.id, meta: { attempt: at.number, score: Number(at.score), passed: at.passed } });
+    if (!at.passed) {
+      // Última tentativa gasta sem passar: a campainha do administrador leva direto à liberação de novas tentativas.
+      const s = (await A.attemptStats(req.user.id, [a.id]))[a.id];
+      const limit = a.max_attempts + (s ? s.extra : 0);
+      if (s && !s.passed && s.used >= limit) {
+        const what = a.kind === 'final' ? 'a prova final' : `o quiz${a.title ? ' “' + a.title + '”' : ''}`;
+        await notify.toAdmins({ kind: 'attempts', title: `${req.user.name} esgotou as tentativas`, body: `${what[0].toUpperCase() + what.slice(1)} · ${course.title}`,
+          link: `/admin/avaliacoes/${a.id}/tentativas?aluno=${req.user.id}`, key: `exhausted:${a.id}:${req.user.id}:${limit}`, subject: req.user.id });
+      }
+    }
     if (at.passed) {
       const c = await certs.maybeIssue(req.user.id, course);
       if (c) { await audit(req, 'certificate_issued', { entity: 'certificate', entityId: c.id, meta: { code: c.code, course: course.id } }); h.setFlash(res, 'success', 'Parabéns! Seu certificado foi emitido. Veja em Certificados.'); }

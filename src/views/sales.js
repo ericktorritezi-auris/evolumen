@@ -82,9 +82,9 @@ function simulador(ctx, { rows }) {
 
 // ---- textos legais ----
 function textos(ctx, { docs }) {
-  const label = { terms: 'Termos de uso', privacy: 'Política de privacidade' };
-  const content = html`${titleRow('Textos legais', 'Termos de uso e política de privacidade. Um texto publicado não muda mais: para alterar, crie uma nova versão.')}
-  ${['terms', 'privacy'].map((t) => html`<section class="card"><h2 class="t-card">${label[t]}</h2>
+  const label = { terms: 'Termos de uso', privacy: 'Política de privacidade', affiliate: 'Termo do Programa de Afiliados' };
+  const content = html`${titleRow('Textos legais', 'Termos de uso, política de privacidade e termo do programa de afiliados. Um texto publicado não muda mais: para alterar, crie uma nova versão. O termo de afiliados só é exigido de quem for afiliado, e a exigência começa na versão 1.2.0 do sistema.')}
+  ${['terms', 'privacy', 'affiliate'].map((t) => html`<section class="card"><h2 class="t-card">${label[t]}</h2>
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Versão</th><th>Situação</th><th>Publicado em</th><th>Aceites</th><th></th></tr></thead><tbody>
     ${docs.filter((d) => d.doc_type === t).map((d) => html`<tr><td data-l="Versão">${d.version}</td><td data-l="Situação">${d.status === 'published' ? html`<span class="pill pill--ok">Publicado</span>` : html`<span class="pill pill--draft">Rascunho</span>`}</td><td data-l="Publicado em">${d.published_at ? fmtDate(d.published_at) : '—'}</td><td data-l="Aceites">${d.accepts}</td>
       <td class="tbl__act">${d.status === 'draft' ? html`<a class="btn btn--outline btn--sm" href="/admin/textos/${d.id}">Editar</a>` : html`<a class="btn btn--ghost btn--sm" href="/admin/textos/${d.id}">Ver</a>`}</td></tr>`)}</tbody></table></div>

@@ -7,6 +7,7 @@ Mais um produto Belle Planner.
 
 | Versão | Fase | Data | O que mudou |
 |---|---|---|---|
+| 1.1.1 | 6 · Lançamento | 2026-10-30 | **Afiliados, parte 1 (você controla tudo)**: novo menu *Afiliados* com cadastro (nome, e-mail, telefone), cockpit (em carência, liberada, repassada, devolvida e saldo a repassar), lista de vendas por afiliado e CSV. O *Cupom* ganha *Afiliado* e *% de comissão* (travam depois da primeira venda). A comissão nasce sozinha na aprovação do pagamento, sobre o valor pago com o desconto do cupom, fica **7 dias em carência** (o prazo de reembolso) e depois é liberada; reembolso ou estorno cancela; estorno depois do repasse deixa o saldo negativo (vermelho); compra do próprio afiliado e afiliado inativo não geram comissão. *Repasses* lançados por você (com anulação e motivo). Em *Textos legais* nasce o **Termo do Programa de Afiliados**, só rascunho: ninguém é obrigado a aceitar ainda. **Tentativas**: quando o aluno gasta a última tentativa do quiz ou da prova final sem passar, o sino avisa você e leva direto à liberação; o campo *Liberar tentativas* aceita de 1 a 10 e o aluno recebe sino e e-mail. Migração 014. |
 | 1.1.0 | 6 · Lançamento | 2026-10-29 | **Descrição completa com editor**: no cadastro de curso e de produto, o campo *Descrição completa* ganha o mesmo editor dos Textos legais (título, subtítulo, parágrafo, negrito, itálico, listas, link; a formatação do Word é limpa). O que você escrever aparece igual na página do produto. O HTML é limpo ao salvar (sem script, estilo ou imagem). As descrições antigas continuam como estão até você editá-las. Duplicar leva a descrição formatada. Migração 013 (coluna nova). |
 | 1.0.0 | 6 · Lançamento | 2026-10-29 | **Primeira versão em produção.** É a 0.9.0 validada em staging e produção (compra por Pix e cartão, reembolso, estorno, e-mails e campainhas), sem mudança de funcionalidade: só versão e nota. Para abrir ao público: reset dos testes feito, `ALLOW_LAUNCH_RESET` removida e preço real no produto. |
 | 0.9.0 | 6 · Lançamento | 2026-10-29 | **Reset de lançamento** em *Lançamento* (menu do administrador): você informa os e-mails das contas de aluno de teste, vê a **prévia** com as contagens, confirma digitando a frase e a sua senha, e só então apaga (pedidos, reembolsos, matrículas, progresso, provas, certificados, aceites, fórum, avaliações, cupons usados, pedidos LGPD, notificações e registros de e-mail dessas contas). Produtos, textos legais, configurações, o administrador e o registro de atividades ficam; o registro guarda só as contagens. Só funciona com `ALLOW_LAUNCH_RESET=1` no Railway (remova depois). **Checklist de go-live** com verificação automática (HTTPS, e-mail, Mercado Pago e webhook, volume, textos legais, produto e preço, compra e reembolso de teste). Textos da landing, perguntas frequentes, ajuda, menus e e-mails agora falam em **produtos** (curso é um tipo de produto). Migração 012 libera a exclusão dos aceites só dentro do reset. Inclui tudo da 0.8.1. |
@@ -159,6 +160,24 @@ Lembrete da regra central: login e senha não liberam curso. O acesso nasce de u
 4. **Média de estrelas**: com 3 avaliações, aparece "★ 4,7" na vitrine e na página. Com menos de 3, não aparece.
 5. **Aviso de novidade**: em *Compradores* (ou *Arquivos*) do produto, e em *Matrículas* do curso, escreva uma frase e envie. Vai para a campainha; só vai por e-mail se marcar a caixa.
 6. **Certificados**: a tela do aluno não lista produtos digitais.
+
+## Como testar a 1.1.1
+**Afiliados**
+1. **Cadastro**: em *Afiliados* > *Novo afiliado*, cadastre nome, e-mail e telefone. Tente repetir o e-mail: deve recusar.
+2. **Cupom**: em *Cupons* > *Novo cupom*, escolha o afiliado e o % de comissão (ex.: 10). Crie. Cupom sem afiliado continua funcionando como antes.
+3. **Venda**: em staging, compre um produto com o cupom (Pix simulado) e aprove em *Simulador*. Em *Afiliados* > abrir o afiliado, a venda aparece **Em carência** com *falta 7 dias para liberar* e o valor da comissão (percentual sobre o valor pago, já com o desconto do cupom).
+4. **Reembolso**: reembolse essa venda: a comissão vira **Cancelada** e sai do saldo.
+5. **Repasse**: lance um repasse (*Registrar repasse*) com valor e data; o histórico mostra quem lançou e quando. Anule com motivo: o valor volta ao saldo e o lançamento fica no histórico, riscado. Como a carência dura 7 dias, o saldo liberado só aparece depois desse prazo.
+6. **Compra própria**: compre com o e-mail do próprio afiliado: não gera comissão.
+7. **CSV**: *Baixar CSV* na tela do afiliado e *Baixar todas as vendas* no cockpit. Abra no Excel.
+8. **Termo de afiliados**: em *Textos legais* aparece o *Termo do Programa de Afiliados* como **Rascunho**. Nenhum aluno é obrigado a aceitar nada novo.
+
+**Tentativas**
+9. Com um aluno de teste, erre as 3 tentativas de um quiz: o sino do **admin** mostra *esgotou as tentativas*. Ao tocar, abre a tela do aluno com o campo *Liberar tentativas*.
+10. Digite 2 e toque em *Liberar*: o sino do aluno mostra *Mais 2 tentativas foram liberadas para você*, chega o e-mail e o aviso do admin fica cinza. Valores fora de 1 a 10 são recusados.
+11. Repita na prova final.
+
+**Reset de lançamento**: a prévia passa a mostrar *Comissões de afiliado* e o reset também as apaga. Afiliados e cupons ficam.
 
 ## Como testar a 1.1.0
 1. **Descrição antiga**: abra um curso ou produto já cadastrado na vitrine: a descrição aparece como antes. No cadastro, o editor abre com o mesmo texto em parágrafos.

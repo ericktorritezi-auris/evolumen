@@ -81,6 +81,15 @@ const ADMIN = [
     'Defina o contato de suporte que aparece na Ajuda dos alunos.',
     'Ligue ou desligue o fórum e os avisos de nova dúvida por e-mail.',
     'O quadro Situação do sistema mostra a versão e se e-mail e pagamentos estão configurados.'] },
+  { id: 'a-afiliados', match: /^\/admin\/afiliados/, title: 'Afiliados', steps: [
+    'Cadastre o afiliado (nome, e-mail e telefone) e, em Cupons, escolha-o no cupom e informe o percentual da comissão. Depois da primeira venda esses dois campos não mudam mais (cupons já usados antes não aceitam afiliado: crie um cupom novo).',
+    'A comissão nasce quando o pagamento é aprovado, sobre o valor pago com o desconto do cupom. Ela fica em carência até acabar o prazo de reembolso e depois é liberada.',
+    'Reembolso ou estorno cancela a comissão. Se o estorno vier depois do repasse, o saldo do afiliado fica negativo (em vermelho).',
+    'Registre cada repasse feito ao afiliado. O sistema só registra: o pagamento é feito por você. Um lançamento errado pode ser anulado, com motivo, e o histórico fica guardado.'] },
+  { id: 'a-tentativas', match: /^\/admin\/avaliacoes\/\d+\/tentativas/, title: 'Tentativas dos alunos', steps: [
+    'Quando um aluno gasta a última tentativa sem passar, o sino avisa você, e ao tocar nele esta tela abre já no aluno.',
+    'Digite quantas tentativas liberar (de 1 a 10) e toque em Liberar. O aluno é avisado pelo sino e por e-mail.',
+    'Na prova final, Liberar prova abre a prova sem medir o tempo assistido.'] },
   { id: 'a-cursos', match: /^\/admin\/(cursos|avaliacoes)/, title: 'Cursos e produtos', steps: [
     'Crie o curso, depois monte os módulos e as aulas (vídeos do YouTube não listado e apostilas).',
     'Em Avaliações e certificado, cadastre o quiz e a prova final.',

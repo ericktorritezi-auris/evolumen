@@ -99,6 +99,7 @@ function createApp(cfg) {
   app.use(require('./routes_lgpd').build(cfg, main.helpers));
   app.use(require('./routes_notify').build(cfg, main.helpers));
   app.use(require('./routes_launch').build(cfg, main.helpers));
+  app.use(require('./routes_affiliates').build(cfg, main.helpers));
   app.use(require('./routes_downloads').build(cfg, main.helpers));
 
   app.use((req, res) => {
@@ -126,7 +127,7 @@ async function start() {
   const cleanup = () => db.q(`DELETE FROM sessions WHERE expires_at < now();
     DELETE FROM password_resets WHERE expires_at < now() - interval '7 days';
     DELETE FROM email_changes WHERE expires_at < now() - interval '7 days';
-    DELETE FROM audit_log WHERE at < now() - interval '30 days' AND action !~ '^(order_|refund_|file_|download_|payment_|legal_|checkout_|data_|acceptance_|launch_)';
+    DELETE FROM audit_log WHERE at < now() - interval '30 days' AND action !~ '^(order_|refund_|file_|download_|payment_|legal_|checkout_|data_|acceptance_|launch_|affiliate_)';
     DELETE FROM audit_log WHERE at < now() - interval '5 years'`).catch((e) => log.warn('limpeza_falhou', { error: e.message }));
   cleanup(); setInterval(cleanup, 6 * 3600 * 1000).unref();
   const sweep = () => require('./sales').sweepExpired(cfg, (pr) => Promise.resolve(pr).catch((e) => log.warn('email_falhou', { error: e.message }))).catch((e) => log.warn('varredura_pix_falhou', { error: e.message }));

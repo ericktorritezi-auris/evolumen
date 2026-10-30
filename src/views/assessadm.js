@@ -90,16 +90,17 @@ function editor(ctx, { a, course, module: mod, questions, attempts, errors = {} 
 }
 
 // ---- tentativas ----
-function attemptsPage(ctx, { a, course, rows }) {
+function attemptsPage(ctx, { a, course, rows, focus = '' }) {
   const isFinal = a.kind === 'final';
   const content = html`<a class="back" href="/admin/avaliacoes/${a.id}">← ${isFinal ? 'Prova final' : 'Quiz'}</a>${titleRow('Tentativas dos alunos', course.title)}
   <section class="card">${rows.length ? html`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Aluno</th><th>Tentativas</th><th>Melhor nota</th><th>Situação</th>${isFinal ? html`<th>Prova</th>` : ''}<th></th></tr></thead><tbody>
-    ${rows.map((r) => html`<tr><td data-l="Aluno"><b>${r.name}</b><br><span class="muted small">${r.email}</span></td>
+    ${rows.map((r) => html`<tr id="aluno-${r.user_id}"${String(r.user_id) === String(focus) ? raw(' class="is-focus"') : ''}><td data-l="Aluno"><b>${r.name}</b><br><span class="muted small">${r.email}</span></td>
       <td data-l="Tentativas">${r.used} de ${r.limit}${r.extra ? html` <span class="muted small">(+${r.extra} extra)</span>` : ''}</td>
       <td data-l="Melhor nota">${score(r.best)}</td>
       <td data-l="Situação">${r.passed ? html`<span class="pill pill--ok">Aprovado</span>` : (r.used >= r.limit ? html`<span class="pill pill--draft">Sem tentativas</span>` : html`<span class="pill">Em andamento</span>`)}</td>
       ${isFinal ? html`<td data-l="Prova">${r.unlocked ? 'Liberada' : 'Bloqueada'}</td>` : ''}
-      <td class="tbl__act"><form method="post" action="/admin/avaliacoes/${a.id}/extra" class="inline">${csrfInput(ctx.csrf)}<input type="hidden" name="user" value="${r.user_id}"><button class="btn btn--outline btn--sm" type="submit">+1 tentativa extra</button></form>
+      <td class="tbl__act">${r.passed ? '' : html`<form method="post" action="/admin/avaliacoes/${a.id}/extra" class="inline row">${csrfInput(ctx.csrf)}<input type="hidden" name="user" value="${r.user_id}">
+          <label class="muted small" for="q${r.user_id}">Liberar tentativas</label><input id="q${r.user_id}" class="qty" name="qtd" type="number" min="1" max="10" step="1" value="1" inputmode="numeric" required${String(r.user_id) === String(focus) ? raw(' autofocus') : ''}><button class="btn btn--outline btn--sm" type="submit">Liberar</button></form>`}
         ${isFinal && !r.unlocked ? html`<form method="post" action="/admin/avaliacoes/${a.id}/liberar" class="inline" data-confirm="Liberar a prova final para este aluno, sem medir o tempo assistido?">${csrfInput(ctx.csrf)}<input type="hidden" name="user" value="${r.user_id}"><button class="btn btn--ghost btn--sm" type="submit">Liberar prova</button></form>` : ''}</td></tr>`)}</tbody></table></div>`
     : html`<div class="empty">${lumen('pensa', 90)}<p class="muted">Nenhum aluno matriculado neste curso ainda.</p></div>`}</section>`;
   return shell(ctx, 'Tentativas', content);

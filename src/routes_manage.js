@@ -5,6 +5,7 @@ const express = require('express');
 const db = require('./db');
 const C = require('./courses');
 const K = require('./coupons');
+const AFF = require('./affiliates');
 const access = require('./access');
 const mailer = require('./mailer');
 const emails = require('./emails');
@@ -122,27 +123,28 @@ function build(cfg, h) {
   r.get('/admin/cupons', async (req, res) => res.send(views.cuponsList(ctx(req, res), { rows: await K.list() })));
 
   const formCourses = async () => (await db.q('SELECT id, title, price_cents, status FROM courses ORDER BY sort_order, id')).rows;
+  const formAffiliates = async (current = null) => { const l = await AFF.activeList(); if (current && !l.some((a) => String(a.id) === String(current))) { const a = await AFF.byId(current); if (a) l.push({ id: a.id, name: a.name + ' (inativo)', email: a.email }); } return l; };
   r.get('/admin/cupons/novo', async (req, res) => {
     const src = req.query.copiar ? await K.byId(req.query.copiar) : null;
-    const values = src ? { kind: src.kind, percent: src.percent, amount: C.brlInput(src.amount_cents), starts_on: '', ends_on: '', max_uses: src.max_uses || '', note: src.note, courses: src.courses.map((x) => String(x.id)) } : { kind: 'percent', courses: [] };
-    res.send(views.cupomForm(ctx(req, res), { courses: await formCourses(), values, from: src }));
+    const values = src ? { kind: src.kind, percent: src.percent, amount: C.brlInput(src.amount_cents), starts_on: '', ends_on: '', max_uses: src.max_uses || '', note: src.note, courses: src.courses.map((x) => String(x.id)), affiliate_id: src.affiliate_id || '', commission_pct: src.commission_pct != null ? String(Number(src.commission_pct)).replace('.', ',') : '' } : { kind: 'percent', courses: [] };
+    res.send(views.cupomForm(ctx(req, res), { courses: await formCourses(), affiliates: await formAffiliates(values.affiliate_id), values, from: src }));
   });
 
   r.post('/admin/cupons', async (req, res) => {
     const { errors, values } = await K.parse(req.body);
-    const redo = async (status) => res.status(status).send(views.cupomForm(ctx(req, res), { courses: await formCourses(), values: { ...req.body, courses: [].concat(req.body.courses || []).map(String) }, errors }));
+    const redo = async (status) => res.status(status).send(views.cupomForm(ctx(req, res), { courses: await formCourses(), affiliates: await formAffiliates(req.body.affiliate_id), values: { ...req.body, courses: [].concat(req.body.courses || []).map(String) }, errors }));
     if (Object.keys(errors).length) return redo(422);
     let id = null;
     for (let tries = 0; tries < 6 && !id; tries++) {
       const code = values.code || K.generateCode();
       try {
         id = await db.tx(async (c) => {
-          const ins = await c.query(`INSERT INTO coupons (code, kind, percent, amount_cents, starts_on, ends_on, max_uses, note, created_by)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`, [code, values.kind, values.percent, values.amount_cents, values.starts_on, values.ends_on, values.max_uses, values.note, req.user.id]);
+          const ins = await c.query(`INSERT INTO coupons (code, kind, percent, amount_cents, starts_on, ends_on, max_uses, note, created_by, affiliate_id, commission_pct)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`, [code, values.kind, values.percent, values.amount_cents, values.starts_on, values.ends_on, values.max_uses, values.note, req.user.id, values.affiliate_id, values.commission_pct]);
           for (const cid of values.courses) await c.query('INSERT INTO coupon_courses (coupon_id, course_id) VALUES ($1,$2)', [ins.rows[0].id, cid]);
           return ins.rows[0].id;
         });
-        await audit(req, 'coupon_created', { entity: 'coupon', entityId: id, meta: { code } });
+        await audit(req, 'coupon_created', { entity: 'coupon', entityId: id, meta: { code, ...(values.affiliate_id ? { affiliate: values.affiliate_id, comissao: values.commission_pct } : {}) } });
       } catch (e) {
         if (e.code !== '23505') throw e;
         if (values.code) { errors.code = 'Já existe um cupom com este código. Escolha outro ou deixe vazio para gerar.'; return redo(422); }
@@ -157,7 +159,7 @@ function build(cfg, h) {
   r.get('/admin/cupons/:id', async (req, res, next) => {
     const c = await coupon(req, next); if (!c) return;
     const sends = (await db.q('SELECT email, name, status, created_at FROM coupon_sends WHERE coupon_id = $1 ORDER BY created_at DESC, id DESC LIMIT 100', [c.id])).rows;
-    res.send(views.cupomDetail(ctx(req, res), { c, sends, courses: await formCourses(), link: K.linkFor(cfg, c) }));
+    res.send(views.cupomDetail(ctx(req, res), { c, sends, courses: await formCourses(), affiliates: await formAffiliates(c.affiliate_id), link: K.linkFor(cfg, c) }));
   });
 
   r.get('/admin/cupons/:id/imagem.png', async (req, res, next) => {
@@ -173,23 +175,29 @@ function build(cfg, h) {
     const back = `/admin/cupons/${c.id}`;
     if (c.status === 'inactive') return flashBack(req, res, 'error', 'Cupom inativo não pode ser editado. Crie um novo cupom a partir dele.', back);
     const locked = c.uses > 0 || c.sends > 0 ? c : null;
-    const { errors, values } = await K.parse({ ...req.body, code: c.code }, { locked });
+    const soldAff = c.uses > 0 || c.commissions > 0;
+    const { errors, values } = await K.parse({ ...req.body, code: c.code, affiliate_keep: c.affiliate_id || '' }, { locked, lockedAff: soldAff ? c : null });
     if (locked && !errors.courses) {
       const removed = c.courses.filter((x) => !values.courses.map(String).includes(String(x.id)));
       if (removed.length) errors.courses = 'Este cupom já foi enviado ou usado, então os cursos dele não podem ser retirados. Você pode acrescentar cursos ou inativar o cupom.';
     }
     if (!errors.max_uses && values.max_uses && values.max_uses < c.uses) errors.max_uses = `Já houve ${c.uses} ${c.uses === 1 ? 'uso' : 'usos'}. O limite não pode ser menor.`;
+    if (!soldAff && !errors.affiliate_id && !errors.commission_pct && (String(c.affiliate_id || '') !== String(values.affiliate_id || '') || Number(c.commission_pct || 0) !== Number(values.commission_pct || 0))) {
+      const pend = (await db.q("SELECT count(*)::int n FROM orders WHERE coupon_id = $1 AND status = 'pending'", [c.id])).rows[0].n;
+      if (pend) errors.affiliate_id = 'Há compras em andamento com este cupom. Espere o pagamento sair para mudar o afiliado ou a comissão.';
+    }
     if (Object.keys(errors).length) {
       const sends = (await db.q('SELECT email, name, status, created_at FROM coupon_sends WHERE coupon_id = $1 ORDER BY created_at DESC, id DESC LIMIT 100', [c.id])).rows;
-      return res.status(422).send(views.cupomDetail(ctx(req, res), { c, sends, courses: await formCourses(), link: K.linkFor(cfg, c), errors, values: { ...req.body, courses: [].concat(req.body.courses || []).map(String) } }));
+      return res.status(422).send(views.cupomDetail(ctx(req, res), { c, sends, courses: await formCourses(), affiliates: await formAffiliates(c.affiliate_id), link: K.linkFor(cfg, c), errors, values: { ...req.body, courses: [].concat(req.body.courses || []).map(String) } }));
     }
     await db.tx(async (t) => {
-      await t.query('UPDATE coupons SET kind = $2, percent = $3, amount_cents = $4, starts_on = $5, ends_on = $6, max_uses = $7, note = $8, updated_at = now() WHERE id = $1',
-        [c.id, values.kind, values.percent, values.amount_cents, values.starts_on, values.ends_on, values.max_uses, values.note]);
+      await t.query('UPDATE coupons SET kind = $2, percent = $3, amount_cents = $4, starts_on = $5, ends_on = $6, max_uses = $7, note = $8, affiliate_id = $9, commission_pct = $10, updated_at = now() WHERE id = $1',
+        [c.id, values.kind, values.percent, values.amount_cents, values.starts_on, values.ends_on, values.max_uses, values.note, values.affiliate_id, values.commission_pct]);
       await t.query('DELETE FROM coupon_courses WHERE coupon_id = $1 AND NOT (course_id = ANY($2::bigint[]))', [c.id, values.courses]);
       for (const cid of values.courses) await t.query('INSERT INTO coupon_courses (coupon_id, course_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [c.id, cid]);
     });
-    await audit(req, 'coupon_updated', { entity: 'coupon', entityId: c.id, meta: { code: c.code } });
+    const affChanged = String(c.affiliate_id || '') !== String(values.affiliate_id || '') || Number(c.commission_pct || 0) !== Number(values.commission_pct || 0);
+    await audit(req, 'coupon_updated', { entity: 'coupon', entityId: c.id, meta: { code: c.code, ...(affChanged ? { afiliado: values.affiliate_id || 'nenhum', comissao: values.commission_pct } : {}) } });
     flashBack(req, res, 'success', 'Cupom salvo.', back);
   });
 

@@ -4,6 +4,7 @@ const db = require('./db');
 const { audit, deviceLabel } = require('./audit');
 
 // Documentos publicados (a versão mais recente de cada tipo) que o usuário ainda não aceitou.
+// O Termo do Programa de Afiliados só é exigido de quem é afiliado (conta ligada a um afiliado ativo); os demais nunca o veem.
 async function pendingFor(userId) {
   const r = await db.q(PENDING_SQL, [userId]);
   return r.rows;
@@ -11,6 +12,7 @@ async function pendingFor(userId) {
 const PENDING_SQL = `
   SELECT d.* FROM legal_documents d
   WHERE d.status = 'published'
+    AND (d.doc_type <> 'affiliate' OR EXISTS (SELECT 1 FROM affiliates f WHERE f.user_id = $1 AND f.status = 'active'))
     AND d.id = (SELECT d2.id FROM legal_documents d2 WHERE d2.doc_type = d.doc_type AND d2.status = 'published'
                 ORDER BY d2.published_at DESC, d2.id DESC LIMIT 1)
     AND NOT EXISTS (SELECT 1 FROM acceptances a WHERE a.user_id = $1 AND a.legal_document_id = d.id)

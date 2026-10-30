@@ -7,6 +7,7 @@ const { titleRow } = require('./student');
 const { enrollActions } = require('./admin');
 const C = require('../courses');
 const K = require('../coupons');
+const AFF = require('../affiliates');
 
 const SP = 'America/Sao_Paulo';
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('pt-BR', { timeZone: SP }) : '');
@@ -79,6 +80,7 @@ const LABELS = {
   question_created: 'Criou questão', question_updated: 'Alterou questão', question_inactivated: 'Inativou questão', question_reactivated: 'Reativou questão', question_deleted: 'Excluiu questão',
   attempt_granted: 'Liberou tentativa extra', exam_unlocked: 'Liberou a prova final', certificate_issued: 'Certificado emitido', certificate_downloaded: 'Certificado baixado', certificate_revoked: 'Revogou certificado', certificate_restored: 'Restabeleceu certificado', certificate_settings_saved: 'Alterou dados do certificado',
   enrollment_granted: 'Liberou acesso a curso', enrollment_cancelled: 'Cancelou matrícula', enrollment_reactivated: 'Reativou matrícula', enrollment_removed: 'Excluiu matrícula',
+  affiliate_created: 'Cadastrou afiliado', affiliate_updated: 'Editou afiliado', affiliate_inactivated: 'Inativou afiliado', affiliate_reactivated: 'Reativou afiliado', affiliate_commission_created: 'Comissão de afiliado criada', affiliate_commission_cancelled: 'Comissão de afiliado cancelada', affiliate_commission_skipped: 'Venda sem comissão (compra própria ou afiliado inativo)', affiliate_commission_failed: 'FALHA ao calcular comissão (confira o pedido)', affiliate_payout_recorded: 'Registrou repasse a afiliado', affiliate_payout_voided: 'Anulou repasse a afiliado', affiliate_csv_exported: 'Baixou vendas de afiliado (CSV)',
   gift_granted: 'Concedeu cortesia', coupon_created: 'Criou cupom', coupon_updated: 'Editou cupom', coupon_inactivated: 'Inativou cupom', coupon_sent: 'Enviou cupom por e-mail',
 };
 const metaText = (m) => Object.entries(m || {}).map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' · ').slice(0, 140);
@@ -113,7 +115,7 @@ function cuponsList(ctx, { rows }) {
   const content = html`${titleRow('Cupons', 'Descontos para divulgar. O cupom vale no pagamento e substitui o preço promocional. Cupons nunca são excluídos: só inativados.')}
   <div class="row row--top"><a class="btn btn--primary" href="/admin/cupons/novo">Novo cupom</a></div>
   ${rows.length ? html`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Cupom</th><th>Desconto</th><th>Cursos</th><th>Validade e usos</th><th>Situação</th><th></th></tr></thead><tbody>
-    ${rows.map((c) => html`<tr><td data-l="Cupom"><b class="code">${c.code}</b>${c.note ? html`<br><span class="muted small">${c.note}</span>` : ''}</td>
+    ${rows.map((c) => html`<tr><td data-l="Cupom"><b class="code">${c.code}</b>${c.note ? html`<br><span class="muted small">${c.note}</span>` : ''}${c.affiliate_id ? html`<br><span class="muted small">Afiliado: ${c.affiliate_name} · ${AFF.pctLabel(c.commission_pct)} de comissão</span>` : ''}</td>
       <td data-l="Desconto">${K.discountLabel(c)}</td>
       <td data-l="Cursos">${c.courses.length === 1 ? c.courses[0].title : `${c.courses.length} cursos`}</td>
       <td data-l="Validade e usos" class="small">${K.validityLabel(c).replace(/ · \d+ usos?$/, '') || 'Sem período'}<br><span class="muted">${c.uses}${c.max_uses ? ` de ${c.max_uses}` : ''} ${c.uses === 1 ? 'uso' : 'usos'} · ${c.sends} ${c.sends === 1 ? 'envio' : 'envios'}</span></td>
@@ -124,7 +126,7 @@ function cuponsList(ctx, { rows }) {
 }
 
 const list2 = (v) => [].concat(v || []).map(String);
-function couponFields(ctx, { courses, v, errors = {}, lockedValue = false, isNew = true }) {
+function couponFields(ctx, { courses, affiliates = [], v, errors = {}, lockedValue = false, lockedAff = false, isNew = true }) {
   const chosen = list2(v.courses);
   return html`
     ${isNew ? field({ id: 'code', label: 'Código (opcional)', value: v.code || '', error: errors.code, note: 'Deixe vazio para gerar um código como EVO-7K3M9Q. Para criar o seu, use letras maiúsculas, números e hífen.' }) : ''}
@@ -138,26 +140,32 @@ function couponFields(ctx, { courses, v, errors = {}, lockedValue = false, isNew
     ${field({ id: 'ends_on', label: 'Válido até', type: 'date', value: v.ends_on ? String(v.ends_on).slice(0, 10) : '', error: errors.ends_on })}
     ${field({ id: 'max_uses', label: 'Quantidade de usos', value: v.max_uses || '', inputmode: 'numeric', error: errors.max_uses, note: 'Cada pessoa só pode usar o mesmo cupom uma vez.' })}
     ${errors.limit ? html`<div class="field__msg field__msg--err span2" role="alert">${errors.limit}</div>` : html`<p class="muted small span2">Defina um período, uma quantidade, ou os dois (a quantidade vale dentro do período).</p>`}
+    ${lockedAff
+    ? html`<div class="span2"><p class="muted small"><b>Afiliado:</b> ${v.affiliate_name || '—'}${v.commission_pct != null && v.commission_pct !== '' ? html` · comissão de ${AFF.pctLabel(v.commission_pct)}` : ''}. Depois da primeira venda o afiliado e a comissão não mudam mais: cada venda guarda o percentual do dia.</p></div>`
+    : html`<div class="field${errors.affiliate_id ? ' field--err' : ''}"><label for="affiliate_id">Afiliado (opcional)</label>${sel('affiliate_id', 'affiliate_id', v.affiliate_id || '', [['', 'Sem afiliado'], ...affiliates.map((a) => [a.id, a.name])])}
+        ${errors.affiliate_id ? html`<div class="field__msg field__msg--err" role="alert">${errors.affiliate_id}</div>` : html`<div class="field__msg">Quem divulga este cupom e recebe comissão. <a href="/admin/afiliados/novo">Cadastrar afiliado</a></div>`}</div>
+      ${field({ id: 'commission_pct', label: 'Comissão do afiliado (%)', value: v.commission_pct != null && v.commission_pct !== '' ? String(Number(String(v.commission_pct).replace(',', '.'))).replace('.', ',') : '', inputmode: 'decimal', error: errors.commission_pct, note: 'Sobre o valor pago pelo produto, já com o desconto do cupom. Ex.: 10 ou 12,5. Trava depois da primeira venda.' })}`}
     <div class="span2">${field({ id: 'note', label: 'Anotação interna (opcional)', value: v.note || '', note: 'Só você vê. Ex.: "Campanha de Natal".' })}</div>
     <fieldset class="span2 fieldset${errors.courses ? ' field--err' : ''}"><legend>Cursos com este cupom</legend>
       ${courses.map((c) => html`<label class="check"><input type="checkbox" name="courses" value="${c.id}"${chosen.includes(String(c.id)) ? raw(' checked') : ''}><span>${c.title} <small class="muted">${C.brl(c.price_cents)}${c.status === 'published' ? '' : ' · rascunho'}</small></span></label>`)}
       ${errors.courses ? html`<div class="field__msg field__msg--err" role="alert">${errors.courses}</div>` : ''}</fieldset>`;
 }
 
-function cupomForm(ctx, { courses, values, errors = {}, from = null }) {
+function cupomForm(ctx, { courses, affiliates = [], values, errors = {}, from = null }) {
   const content = html`<a class="back" href="/admin/cupons">← Cupons</a>${titleRow('Novo cupom', from ? `Baseado no cupom ${from.code}. O código novo é gerado, e as datas ficam em branco.` : 'Ao criar, o sistema gera o código, o QR Code e a imagem do cupom.')}
   ${Object.keys(errors).length ? html`<div class="alert alert--error" role="alert">Confira os campos destacados.</div>` : ''}
   <form method="post" action="/admin/cupons" class="form" novalidate>${csrfInput(ctx.csrf)}
-    <section class="card"><div class="form form--grid">${couponFields(ctx, { courses, v: values, errors })}</div></section>
+    <section class="card"><div class="form form--grid">${couponFields(ctx, { courses, affiliates, v: values, errors })}</div></section>
     <div class="row"><button class="btn btn--primary btn--lg" type="submit">Criar cupom</button></div></form>`;
   return shell(ctx, '/admin/cupons', 'Novo cupom', content);
 }
 
-function cupomDetail(ctx, { c, sends, courses, link, errors = {}, values = null }) {
+function cupomDetail(ctx, { c, sends, courses, affiliates = [], link, errors = {}, values = null }) {
   const st = K.stateOf(c, c.uses);
   const editable = c.status === 'active';
   const locked = c.uses > 0 || c.sends > 0;
-  const v = values || { ...c, courses: c.courses.map((x) => String(x.id)) };
+  const lockedAff = c.uses > 0 || c.commissions > 0;
+  const v = { affiliate_name: c.affiliate_name, ...(values || { ...c, courses: c.courses.map((x) => String(x.id)) }) };
   const img = `/admin/cupons/${c.id}/imagem.png`;
   const content = html`<a class="back" href="/admin/cupons">← Cupons</a>${titleRow(c.code, `${K.discountLabel(c)} de desconto · ${K.validityLabel(c) || 'sem período'}`)}
   ${Object.keys(errors).length ? html`<div class="alert alert--error" role="alert">Confira os campos destacados.</div>` : ''}
@@ -166,6 +174,7 @@ function cupomDetail(ctx, { c, sends, courses, link, errors = {}, values = null 
     <div class="coupon-top__info">
       <p>${stateBadge(c)} <span class="muted small">${c.uses}${c.max_uses ? ` de ${c.max_uses}` : ''} ${c.uses === 1 ? 'uso' : 'usos'} · ${c.sends} ${c.sends === 1 ? 'envio' : 'envios'}</span></p>
       <p class="muted small">Cursos: ${c.courses.map((x) => x.title).join(', ')}</p>
+      ${c.affiliate_id ? html`<p class="muted small">Afiliado: <a href="/admin/afiliados/${c.affiliate_id}">${c.affiliate_name}</a> · comissão de ${AFF.pctLabel(c.commission_pct)} · ${c.commissions} ${c.commissions === 1 ? 'venda com comissão' : 'vendas com comissão'}</p>` : ''}
       <div class="linkbox"><code id="cupom-link">${link}</code><button type="button" class="btn btn--ghost btn--sm" data-copy="cupom-link">Copiar link</button></div>
       <div class="row"><button type="button" class="btn btn--primary btn--sm" data-modal-open="cupom-modal">Ver imagem maior</button>
         <a class="btn btn--outline btn--sm" href="${img}?baixar=1">Baixar imagem</a></div>
@@ -187,7 +196,7 @@ function cupomDetail(ctx, { c, sends, courses, link, errors = {}, values = null 
 
   ${editable ? html`<section class="card"><h2 class="t-card">Editar cupom</h2>
     <form method="post" action="/admin/cupons/${c.id}" class="form" novalidate>${csrfInput(ctx.csrf)}
-      <div class="form form--grid">${couponFields(ctx, { courses, v, errors, lockedValue: locked, isNew: false })}</div>
+      <div class="form form--grid">${couponFields(ctx, { courses, affiliates, v, errors, lockedValue: locked, lockedAff, isNew: false })}</div>
       <div class="row"><button class="btn btn--primary" type="submit">Salvar cupom</button></div></form></section>
   <section class="card danger"><h2 class="t-card">Inativar cupom</h2>
     <p class="muted">Cupom não é excluído, para o histórico ficar guardado. Inativar é definitivo: para usar de novo, crie outro cupom.</p>
