@@ -47,7 +47,7 @@ function build(cfg, app) {
   const loginLimit = cfg.isTest ? (req, res, next) => next() : limiter(15 * 60 * 1000, 30);
   const mailLimit = cfg.isTest ? (req, res, next) => next() : limiter(60 * 60 * 1000, 12);
 
-  const home = (u) => (u.role === 'admin' ? '/admin' : '/meus-cursos');
+  const home = (u) => (u.role === 'admin' ? '/admin' : u.is_affiliate && !u.has_enrollment ? '/afiliado' : '/meus-cursos');
   const view = (req, res) => ({ cfg, csrf: req.csrf, flash: popFlash(req, res) });
   const appCtx = (req, res) => ({ cfg, user: req.user, csrf: req.csrf, flash: popFlash(req, res) });
 

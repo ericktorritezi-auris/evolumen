@@ -66,12 +66,13 @@ function helpPanel(hp) {
 }
 
 function shellApp({ cfg, user, path, title, content, flash: f, csrf }) {
-  const area = user.role === 'admin' ? 'admin' : 'aluno';
-  const items = menuFor(area, path, cfg.version.phase);
-  const sub = area === 'admin' ? 'ADMIN' : 'ÁREA DE MEMBROS';
+  const pureAffiliate = user.role !== 'admin' && !!user.is_affiliate && !user.has_enrollment;
+  const area = user.role === 'admin' ? 'admin' : pureAffiliate ? 'afiliado' : 'aluno';
+  const items = menuFor(area, path, cfg.version.phase, { affiliate: !!user.is_affiliate });
+  const sub = area === 'admin' ? 'ADMIN' : area === 'afiliado' ? 'AFILIADO' : 'ÁREA DE MEMBROS';
   const links = items.map((i) => html`<a href="${i.href}" class="nav__item${i.active ? ' is-active' : ''}"${i.active ? raw(' aria-current="page"') : ''}>${icon(i.icon, 20)}<span>${i.label}</span></a>`);
   const logoutForm = (cls) => html`<form method="post" action="/sair" class="${cls}"><input type="hidden" name="_csrf" value="${csrf}"><button type="submit" class="nav__item nav__item--btn">${icon('out', 20)}<span>Sair</span></button></form>`;
-  const mascot = area === 'aluno' && user.mascot_enabled;
+  const mascot = area !== 'admin' && user.mascot_enabled;
   const hp = helpFor(path, user.role);
   const body = html`
 <div class="app">

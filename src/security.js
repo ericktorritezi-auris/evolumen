@@ -40,7 +40,10 @@ function sessionMiddleware(cfg) {
     if (sid && /^[A-Za-z0-9_-]{30,64}$/.test(sid)) {
       const idHash = sha256(sid);
       const r = await db.q(
-        `SELECT s.id_hash, s.last_seen_at, u.* FROM sessions s JOIN users u ON u.id = s.user_id
+        `SELECT s.id_hash, s.last_seen_at, u.*,
+           EXISTS (SELECT 1 FROM affiliates a WHERE a.user_id = u.id) AS is_affiliate,
+           EXISTS (SELECT 1 FROM enrollments e WHERE e.user_id = u.id AND e.status = 'active') AS has_enrollment
+         FROM sessions s JOIN users u ON u.id = s.user_id
          WHERE s.id_hash = $1 AND s.expires_at > now()
            AND s.last_seen_at > now() - ($2 || ' days')::interval AND u.status = 'active'`,
         [idHash, String(cfg.sessionIdleDays)]);

@@ -118,6 +118,56 @@ const payoutsOf = async (affiliateId) => (await db.q(`SELECT p.*, u.name AS by_n
 const couponsOf = async (affiliateId) => (await db.q(`SELECT k.id, k.code, k.status, k.commission_pct, k.kind, k.percent, k.amount_cents,
     (SELECT count(*)::int FROM commissions m WHERE m.coupon_id = k.id) AS sales FROM coupons k WHERE k.affiliate_id = $1 ORDER BY k.created_at DESC`, [affiliateId])).rows;
 
+// ---------- conta e painel do afiliado (1.2.0) ----------
+const byUser = async (userId) => (/^\d{1,12}$/.test(String(userId)) ? (await db.q('SELECT * FROM affiliates WHERE user_id = $1', [userId])).rows[0] || null : null);
+
+// Nome abreviado ("Ana L."): o afiliado nunca vê o nome completo, e-mail, telefone ou CPF do comprador.
+function shortName(n) {
+  const p = String(n || '').normalize('NFC').trim().split(/\s+/).filter(Boolean);
+  if (!p.length) return 'Aluno';
+  return p.length > 1 ? `${p[0]} ${Array.from(p[p.length - 1])[0].toLocaleUpperCase('pt-BR')}.` : p[0];
+}
+
+// Só os campos que o afiliado pode ver (lista fechada). Nada de pedido, comprador completo, e-mail ou observação interna.
+async function panelSales(affiliateId, limit = 200) {
+  const rows = await salesOf(affiliateId, limit);
+  return rows.map((s) => ({ approved_at: s.approved_at, course_title: s.course_title, coupon_code: s.coupon_code, buyer: shortName(s.buyer_name),
+    base_cents: s.base_cents, pct: s.pct, amount_cents: s.amount_cents, release_at: s.release_at, status: s.status, order_status: s.order_status, refund_open: s.refund_open, cancel_reason: null }));
+}
+async function panelPayouts(affiliateId) {
+  return (await db.q('SELECT paid_on, amount_cents FROM affiliate_payouts WHERE affiliate_id = $1 AND voided_at IS NULL ORDER BY paid_on DESC, id DESC LIMIT 200', [affiliateId])).rows;
+}
+const panelCoupons = async (affiliateId) => (await db.q(`SELECT k.id, k.code, k.status, k.commission_pct, k.kind, k.percent, k.amount_cents,
+    (SELECT count(*)::int FROM commissions m WHERE m.coupon_id = k.id) AS sales FROM coupons k WHERE k.affiliate_id = $1 ORDER BY k.created_at DESC`, [affiliateId])).rows;
+
+// Situação do acesso ao painel, para a tela do administrador.
+async function accessInfo(a) {
+  if (!a.user_id) return null;
+  const u = (await db.q('SELECT id, email, must_change_password, status FROM users WHERE id = $1', [a.user_id])).rows[0];
+  if (!u) return null;
+  const doc = (await db.q("SELECT 1 FROM legal_documents WHERE doc_type = 'affiliate' AND status = 'published' LIMIT 1")).rowCount > 0;
+  const acc = (await db.q("SELECT version, accepted_at FROM acceptances WHERE user_id = $1 AND doc_type = 'affiliate' ORDER BY accepted_at DESC LIMIT 1", [a.user_id])).rows[0] || null;
+  const student = (await db.q("SELECT 1 FROM enrollments WHERE user_id = $1 AND status = 'active' LIMIT 1", [a.user_id])).rowCount > 0;
+  return { user: u, firstAccessPending: !!u.must_change_password, termPublished: doc, term: acc, alsoStudent: student };
+}
+
+// Comissões que acabaram de ser liberadas e ainda não avisaram o afiliado (só de quem já tem conta e só depois do convite).
+// A chave do aviso garante um único aviso por comissão, mesmo que a rotina rode várias vezes.
+async function notifyReleased(notify, now = new Date()) {
+  const rows = (await db.q(`SELECT m.id, m.amount_cents, a.user_id, co.title AS course_title
+    FROM commissions m JOIN orders o ON o.id = m.order_id JOIN affiliates a ON a.id = m.affiliate_id JOIN courses co ON co.id = o.course_id
+    WHERE m.status = 'active' AND o.status = 'approved' AND m.release_at <= $1 AND a.user_id IS NOT NULL AND a.status = 'active'
+      AND a.invited_at IS NOT NULL AND m.release_at >= a.invited_at AND m.release_at > $1::timestamptz - interval '30 days' AND NOT ${OPEN_REFUND}
+      AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = a.user_id AND n.ref_key = 'affcom:' || m.id)
+    ORDER BY m.id LIMIT 500`, [now.toISOString()])).rows;
+  let n = 0;
+  for (const r of rows) {
+    const id = await notify.add(r.user_id, { kind: 'affiliate', title: 'Comissão liberada', body: `${C.brl(r.amount_cents)} · ${r.course_title}`, link: '/afiliado', key: `affcom:${r.id}` });
+    if (id) n++;
+  }
+  return n;
+}
+
 // ---------- repasses ----------
 function parsePayout(b, today) {
   const errors = {};
@@ -139,4 +189,4 @@ function csv(rows, cell, { withAffiliate = false } = {}) {
   return '﻿' + lines.join('\r\n') + '\r\n';
 }
 
-module.exports = { pctLabel, parse, parsePct, parsePayout, byId, activeList, emailTaken, commissionOf, onApproved, cancelFor, phaseOf, daysLeft, PHASE_LABEL, list, detail, salesOf, salesAll, payoutsOf, couponsOf, csv };
+module.exports = { accessInfo, byUser, shortName, panelSales, panelPayouts, panelCoupons, notifyReleased, pctLabel, parse, parsePct, parsePayout, byId, activeList, emailTaken, commissionOf, onApproved, cancelFor, phaseOf, daysLeft, PHASE_LABEL, list, detail, salesOf, salesAll, payoutsOf, couponsOf, csv };
