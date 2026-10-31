@@ -81,6 +81,7 @@ ${couponBanner(coupon)}
       <h2 class="t-sec">Erick Torritezi</h2>
       <p class="lead">Psicanalista, psicoterapeuta integrativo e master hipnoterapeuta, com mais de 15 anos de experiência em treinamentos e liderança de equipes. Dedica-se ao desenvolvimento humano e à transformação das pessoas, por meio do autoconhecimento. Autor dos livros <i>Vivendo GenuinaMENTE</i> e <i>Diálogo com o Criador</i>, é criador do Programa 4F de Desenvolvimento Humano.</p>
       <ul class="chips"><li>ABRAPH</li><li>ATH</li></ul>
+      <p class="prof__more"><a href="https://www.ericktorritezi.com.br" target="_blank" rel="noopener noreferrer">Saiba mais sobre o psicoterapeuta Erick Torritezi <span aria-hidden="true">→</span><span class="sr-only"> (abre em nova aba)</span></a></p>
     </div>
   </div>
 </section>
