@@ -245,3 +245,8 @@ test('migração 016: roda duas vezes sem erro e mantém o índice único', asyn
   await q(sql); await q(sql);
   assert.equal((await q("SELECT count(*)::int n FROM pg_indexes WHERE indexname='affiliates_user_uq'")).rows[0].n, 1);
 });
+
+test('1.2.1: link do criador na página inicial abre o site do Erick em nova aba, com rel seguro', async () => {
+  const home = await new Browser(t.base).get('/');
+  assert.match(home.text, /<a href="https:\/\/www\.ericktorritezi\.com\.br" target="_blank" rel="noopener noreferrer">Saiba mais sobre o psicoterapeuta Erick Torritezi/);
+});

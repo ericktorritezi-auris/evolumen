@@ -444,3 +444,6 @@ tr.is-focus td{background:rgba(255,178,87,.12)}
 .igbox__card p{margin:0}
 .igbox__stage{max-width:540px;margin:0 auto}
 .igbox__stage .instagram-media{max-width:540px;min-width:0!important;width:100%!important}
+
+.prof__more{margin:14px 0 0}.prof__more a{color:var(--ambar);font-weight:600;text-decoration:underline;text-underline-offset:3px}.prof__more a:hover{text-decoration-thickness:2px}
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
