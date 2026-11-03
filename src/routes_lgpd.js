@@ -9,6 +9,7 @@ const emails = require('./emails');
 const notify = require('./notify');
 const { audit } = require('./audit');
 const views = require('./views/lgpd');
+const Cockpit = require('./cockpit');
 
 const ID = /^\d{1,12}$/;
 const PAGE = 30;
@@ -87,10 +88,17 @@ function build(cfg, h) {
     return {
       version: cfg.version.version, env: cfg.appEnv, baseUrl: cfg.baseUrl,
       mail: cfg.mailTransport === 'memory' || !!(cfg.resendApiKey && cfg.resendFrom),
+      panelUrl: Cockpit.urlFor(cfg, (await Cockpit.ensure()).token),
       payments: cfg.paymentProvider === 'mercadopago' ? (cfg.mpAccessToken ? 'Mercado Pago ligado' : 'Mercado Pago sem token') : 'Simulador (somente teste)',
       paymentsOn: cfg.paymentProvider === 'mercadopago' ? !!cfg.mpAccessToken : false, legal: l.rows[0].n,
     };
   };
+  // Troca a chave do cockpit: o link antigo deixa de funcionar na hora.
+  r.post('/admin/configuracoes/painel/atualizar', async (req, res) => {
+    await Cockpit.rotate(req.user.id);
+    await audit(req, 'cockpit_key_rotated', {});
+    flashBack(req, res, 'success', 'Pronto. O endereço do painel mudou e o link antigo já não funciona.', '/admin/configuracoes');
+  });
   r.get('/admin/configuracoes', async (req, res) => res.send(views.configuracoes(ctx(req, res), { settings: await Set_.all(), status: await statusInfo() })));
   r.post('/admin/configuracoes', async (req, res) => {
     const b = req.body; const errors = {};
