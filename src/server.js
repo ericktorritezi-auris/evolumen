@@ -52,7 +52,7 @@ function createApp(cfg) {
     catch { res.status(503).json({ status: 'erro', db: 'falhou' }); }
   });
   app.get('/version', (req, res) => res.json({ version: cfg.version.version, display: cfg.version.display, phase: cfg.version.phase, env: cfg.appEnv }));
-  app.get('/robots.txt', (req, res) => res.type('text/plain').send(cfg.isProd ? 'User-agent: *\nDisallow: /admin\nDisallow: /perfil\nDisallow: /meus-cursos\n' : 'User-agent: *\nDisallow: /\n'));
+  app.get('/robots.txt', (req, res) => res.type('text/plain').send(cfg.isProd ? 'User-agent: *\nDisallow: /admin\nDisallow: /perfil\nDisallow: /meus-cursos\nDisallow: /painel\n' : 'User-agent: *\nDisallow: /\n'));
 
   app.get('/manifest.webmanifest', (req, res) => {
     res.type('application/manifest+json').json({
@@ -102,6 +102,7 @@ function createApp(cfg) {
   app.use(require('./routes_affiliates').build(cfg, main.helpers));
   app.use(require('./routes_afiliado').build(cfg, main.helpers));
   app.use(require('./routes_downloads').build(cfg, main.helpers));
+  app.use(require('./routes_cockpit').build(cfg));
 
   app.use((req, res) => {
     res.status(404).send(authViews.errorPage({ cfg, status: 404, message: 'O endereço não existe ou foi movido.', loggedIn: !!req.user }));
@@ -109,7 +110,7 @@ function createApp(cfg) {
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {
     const status = err.status && err.status >= 400 && err.status < 600 ? err.status : 500;
-    if (status >= 500) log.error('erro_nao_tratado', { error: err.message, path: req.path });
+    if (status >= 500) log.error('erro_nao_tratado', { error: err.message, path: req.path.replace(/^\/painel\/[^/]+/, '/painel/[oculto]') });
     const message = err.expose ? err.message : 'Tivemos um problema do nosso lado. Tente de novo em instantes.';
     res.status(status).send(authViews.errorPage({ cfg, status, message, loggedIn: !!req.user }));
   });
