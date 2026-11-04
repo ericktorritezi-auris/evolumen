@@ -239,7 +239,7 @@ test('certificado editável: texto, carga horária e assinatura valem para os pr
   const c = (await q('SELECT cert_hours, cert_signer FROM courses WHERE id=$1', [course])).rows[0]; assert.equal(c.cert_hours, 40); assert.equal(c.cert_signer, 'Dra. Fulana');
   const ex = await admin.req('GET', `/admin/cursos/${course}/certificado-exemplo.pdf`); assert.equal(ex.status, 200); assert.match(ex.headers.get('content-type'), /pdf/);
   assert.equal(certs.fill('Oi {nome}, {curso}{carga}. {x}', { name: 'Ana', course: 'Z', hours: 1, date: new Date('2026-10-19T15:00:00Z') }), 'Oi Ana, Z, com carga horária de 1 hora.');
-  assert.equal(certs.fill('', { name: 'Ana', course: 'Z', hours: null, date: new Date('2026-10-19T15:00:00Z') }), 'Certificamos que Ana concluiu o curso Z, em 19 de outubro de 2026, atendendo aos requisitos de avaliação e de conclusão da plataforma EvoLumen Academy.');
+  assert.equal(certs.fill('', { name: 'Ana', course: 'Z', hours: null, date: new Date('2026-10-19T15:00:00Z') }), 'Certificamos que Ana concluiu o curso Z, em 19 de outubro de 2026, atendendo aos requisitos de avaliação e de conclusão da plataforma EvoLumen Academy. Esta formação foi conduzida pelo Método EPI - Escuta, Pausa e Integração, onde o conhecimento ganha significado, a reflexão desperta consciência e a aprendizagem se transforma em atitude.');
   // o certificado já emitido não muda
   assert.match((await q('SELECT body_text FROM certificates')).rows[0].body_text, /Certificamos que Paula Provas/);
 });

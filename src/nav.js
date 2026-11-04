@@ -7,6 +7,7 @@ const NAV = {
     { href: '/#sobre', icon: 'compass', label: 'Sobre', fase: 2 },
     { href: '/#idealizador', icon: 'user', label: 'Idealizador', fase: 2 },
     { href: '/#cursos', icon: 'book', label: 'Produtos', fase: 2 },
+    { href: '/metodo-epi', icon: 'star', label: 'Método EPI', fase: 2 },
     { href: '/#perguntas', icon: 'chat', label: 'Perguntas', fase: 2 },
   ],
   aluno: [

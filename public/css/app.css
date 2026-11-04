@@ -447,3 +447,25 @@ tr.is-focus td{background:rgba(255,178,87,.12)}
 
 .prof__more{margin:14px 0 0}.prof__more a{color:var(--ambar);font-weight:600;text-decoration:underline;text-underline-offset:3px}.prof__more a:hover{text-decoration-thickness:2px}
 .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* Método EPI (1.4.0) */
+.epi-seal{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;color:inherit;text-decoration:none;margin:12px 0}
+.epi-seal:hover{border-color:var(--ambar)}
+.epi-seal img{width:56px;height:56px;flex:none}
+.epi-seal span{display:grid;gap:2px;min-width:0}.epi-seal b{font-weight:600}.epi-seal small{color:var(--bruma);font-size:13px;line-height:1.35}
+.epi-seal--sm img{width:44px;height:44px}.epi-seal--sm{padding:8px 10px}
+.buy__epi{margin-top:14px;border-top:1px solid var(--line);padding-top:6px}
+.epi__head{display:grid;justify-items:center;text-align:center;gap:6px;margin:8px 0 18px}
+.epi__seal{width:140px;height:140px;max-width:40vw;height:auto}
+.epi__sub{font-size:clamp(18px,4vw,24px);letter-spacing:.06em;color:var(--ambar);margin:0}
+.epi__tag{color:var(--bruma);max-width:46ch;margin:0}
+.epi__art{margin:0 0 24px}.epi__art img{width:100%;height:auto;border-radius:16px;display:block}
+.epi__txt{max-width:65ch;margin:0 auto;line-height:1.7}
+.epi__txt h2{margin:28px 0 8px}
+.epi__lead{font-size:1.1em}
+.epi__steps{list-style:none;padding:0;margin:14px 0;display:grid;gap:10px}
+.epi__steps li{display:grid;gap:2px;padding:12px 14px;border-left:3px solid var(--ambar);background:rgba(128,128,128,.07);border-radius:0 12px 12px 0}
+.epi__steps b{font-weight:600}.epi__steps span{color:var(--bruma)}
+.epi__quote{font-style:italic;font-size:1.1em;border-left:3px solid var(--ambar);padding-left:14px}
+.epi__close{margin-top:28px;text-align:center}
+.epi__cta{text-align:center;margin:26px 0 0}

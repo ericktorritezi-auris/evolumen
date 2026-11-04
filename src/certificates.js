@@ -10,7 +10,7 @@ const A = require('./assess');
 
 const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 const CODE_RE = /^EVL-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}$/;
-const DEFAULT_TEXT = 'Certificamos que {nome} concluiu o curso {curso}{carga}, em {data}, atendendo aos requisitos de avaliação e de conclusão da plataforma EvoLumen Academy.';
+const DEFAULT_TEXT = 'Certificamos que {nome} concluiu o curso {curso}{carga}, em {data}, atendendo aos requisitos de avaliação e de conclusão da plataforma EvoLumen Academy. Esta formação foi conduzida pelo Método EPI - Escuta, Pausa e Integração, onde o conhecimento ganha significado, a reflexão desperta consciência e a aprendizagem se transforma em atitude.';
 const DEFAULT_SIGNER = 'Erick Torritezi';
 const DEFAULT_ROLE = 'Psicanalista e Psicoterapeuta Integrativo';
 
@@ -66,6 +66,7 @@ const byCode = async (code) => (CODE_RE.test(normalize(code)) ? (await db.q('SEL
 // ---------- PDF ----------
 const FONT = (w) => path.join(__dirname, '..', 'assets', 'fonts', `Quicksand_${w}.ttf`);
 const SEAL = path.join(__dirname, '..', 'assets', 'selo-evolumen-480.png');
+const SEAL_EPI = path.join(__dirname, '..', 'assets', 'selo-epi-440.png');
 const SIGN = path.join(__dirname, '..', 'assets', 'assinatura-erick.png');
 const MASCOT = path.join(__dirname, '..', 'assets', 'mascote-lumen.png');
 
@@ -105,7 +106,7 @@ async function pdf(cfg, cert) {
   // Corpo: ajusta o tamanho das fontes até caber acima da assinatura. Nome destacado na primeira ocorrência isolada.
   const esc = cert.student_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const m = new RegExp(`(^|[^\\p{L}])${esc}(?![\\p{L}])`, 'u').exec(cert.body_text);
-  const limit = H - 140;
+  const limit = H - 214; // o corpo termina acima do selo do Método EPI e do mascote
   let nameSize = 34; let bodySize = 15;
   const pre = m ? cert.body_text.slice(0, m.index + m[1].length).trim() : '';
   const post = m ? cert.body_text.slice(m.index + m[0].length).trim() : '';
@@ -133,6 +134,8 @@ async function pdf(cfg, cert) {
   // assinatura manuscrita só para o signatário padrão (a imagem é do Erick)
   if (cert.signer === DEFAULT_SIGNER) doc.image(SIGN, CX - 80, sy - 52, { width: 160 });
   doc.image(MASCOT, CX + 175, sy - 78, { width: 84 });
+  // selo do Método EPI: do lado oposto ao mascote, ao lado da assinatura
+  doc.image(SEAL_EPI, CX - 267, sy - 92, { width: 92 });
   doc.lineWidth(1).strokeColor(NAVY).moveTo(W / 2 - 120, sy).lineTo(W / 2 + 120, sy).stroke();
   doc.fillColor(NAVY).font('q7').fontSize(13).text(cert.signer, 0, sy + 6, { width: W, align: 'center' });
   doc.fillColor(SOFT).font('q5').fontSize(10).text(cert.signer_role, 0, sy + 23, { width: W, align: 'center' });
