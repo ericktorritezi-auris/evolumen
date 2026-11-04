@@ -24,4 +24,11 @@ function shortName(n) {
   if (!p.length) return 'Aluno';
   return p.length > 1 ? `${p[0]} ${Array.from(p[p.length - 1])[0].toLocaleUpperCase('pt-BR')}.` : p[0];
 }
-module.exports = { field, csrfInput, shortName };
+// Selo do Método EPI (curso/treinamento). Imagem estática: a CSP só aceita imagens próprias.
+function epiSeal({ size = 'md', note = true } = {}) {
+  return html`<a class="epi-seal epi-seal--${size}" href="/metodo-epi" aria-label="Este curso segue o Método EPI: Escuta, Pausa e Integração. Saiba mais">
+    <img src="/static/img/selo-epi-360.webp" srcset="/static/img/selo-epi-360.webp 1x, /static/img/selo-epi-720.webp 2x" width="72" height="72" alt="" loading="lazy">
+    <span><b>Método EPI</b>${note ? html`<small>Escuta, Pausa e Integração. Este curso segue o método.</small>` : ''}</span></a>`;
+}
+
+module.exports = { field, csrfInput, shortName, epiSeal };

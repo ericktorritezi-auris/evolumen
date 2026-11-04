@@ -1,6 +1,6 @@
 'use strict';
 const { html, raw } = require('../html');
-const { shortName } = require('./ui');
+const { shortName, epiSeal } = require('./ui');
 const { shellPublic, lumen } = require('../layout');
 const { icon } = require('../header');
 const C = require('../courses');
@@ -185,6 +185,7 @@ ${preview ? html`<div class="alert alert--info">Pré-visualização: ${dl ? 'est
     ${C.effectivePrice(c).cents > 0 && c.max_installments > 1 ? html`<p class="muted small">ou até ${c.max_installments}x no cartão</p>` : ''}
     ${cta}
     <ul class="buy__list"><li>${icon('lock', 16)} Pagamento único, sem mensalidade</li><li>${icon('clock', 16)} Acesso: ${C.accessLabel(c)}</li><li>${icon('shield', 16)} Reembolso em até 7 dias</li></ul>
+    ${dl ? '' : html`<div class="buy__epi">${epiSeal({ size: 'md' })}</div>`}
   </div></aside>
 </article>`;
   return shellPublic({ cfg, user, title: c.title, description: c.summary || '', content });
@@ -201,4 +202,40 @@ function legalPage({ cfg, user, doc, title }) {
   return shellPublic({ cfg, user, title, content });
 }
 
-module.exports = { landing, coursePage, legalPage, priceBlock, coverBox, dur, plural };
+function metodoPage({ cfg, user }) {
+  const content = html`<article class="sec epi"><div class="sec__in sec__in--narrow">
+    <a class="back" href="/">← Início</a>
+    <header class="epi__head">
+      <img class="epi__seal" src="/static/img/selo-epi-720.webp" width="140" height="140" alt="Selo do Método EPI">
+      <span class="eyebrow">Selo de metodologia EvoLumen</span>
+      <h1 class="t-display">Método <b>EPI</b></h1>
+      <p class="epi__sub">Escuta. Pausa. Integração.</p>
+      <p class="epi__tag">O conhecimento precisa de espaço para se transformar em atitude.</p>
+    </header>
+    <figure class="epi__art"><img src="/static/img/metodo-epi.jpg" width="1280" height="853" alt="Arte do Método EPI: Escuta, Pausa e Integração. Todos os treinamentos da EvoLumen Academy seguem o Método EPI." loading="eager"></figure>
+    <div class="epi__txt">
+      <p class="epi__lead">Você já terminou um curso, sentiu que aprendeu algo importante e, pouco tempo depois, percebeu que quase nada havia mudado na sua rotina? Isso pode acontecer porque receber informações é apenas uma parte da aprendizagem. É preciso compreender, refletir, relacionar e praticar.</p>
+      <p>Foi a partir dessa visão que nasceu o Método EPI — Escuta, Pausa e Integração, uma proposta metodológica desenvolvida para orientar experiências educacionais mais conscientes, flexíveis e conectadas à vida real.</p>
+      <h2 class="t-card">Aprender também exige tempo para refletir</h2>
+      <p>O Método EPI organiza a aprendizagem em três momentos complementares:</p>
+      <ul class="epi__steps">
+        <li><b>Escuta</b><span>O contato com conhecimentos e reflexões apresentados de forma clara e acessível.</span></li>
+        <li><b>Pausa</b><span>O tempo dedicado a compreender o conteúdo e relacioná-lo à própria história.</span></li>
+        <li><b>Integração</b><span>A oportunidade de colocar em prática os aprendizados, por meio de exercícios, decisões e atitudes conscientes.</span></li>
+      </ul>
+      <h2 class="t-card">Uma metodologia que respeita sua rotina</h2>
+      <p>Sabemos que nem sempre é possível reservar longos períodos para estudar diante de uma tela. Por isso, os conteúdos que utilizam o Método EPI podem combinar aulas narradas, vídeos com recursos visuais, exercícios e materiais complementares. O objetivo é proporcionar flexibilidade sem abrir mão da profundidade.</p>
+      <p>Quando o conteúdo permitir, você poderá acompanhar as explicações pela escuta. Quando a atividade exigir maior atenção, será importante reservar um momento apropriado para se dedicar a ela.</p>
+      <h2 class="t-card">Não é sobre terminar primeiro</h2>
+      <p>É sobre criar condições para aprender com significado. Na “Masterclass: O Despertar de Sua Essência”, por exemplo, recomendamos a realização de um módulo por dia, permitindo que cada etapa seja acompanhada por momentos de reflexão e aplicação. O ritmo pode ser adaptado à sua realidade.</p>
+      <h2 class="t-card">Da informação à ação</h2>
+      <p>O Método EPI não promete transformações instantâneas. Ele oferece uma estrutura para que você participe ativamente do seu processo de aprendizagem.</p>
+      <p class="epi__quote">Porque uma reflexão pode despertar uma pergunta. Uma pergunta pode provocar uma decisão. E uma decisão consciente pode abrir caminho para uma nova atitude.</p>
+      <p class="epi__close"><b>Método EPI — Escuta, Pausa e Integração.</b><br>Uma experiência de aprendizagem que respeita seu tempo e valoriza aquilo que você faz com o conhecimento.</p>
+    </div>
+    <p class="epi__cta"><a class="btn btn--primary" href="/#cursos">Conheça os cursos</a></p>
+  </div></article>`;
+  return shellPublic({ cfg, user, title: 'Método EPI: Escuta, Pausa e Integração', description: 'Conheça o Método EPI da EvoLumen Academy: Escuta, Pausa e Integração. O conhecimento precisa de espaço para se transformar em atitude.', content });
+}
+
+module.exports = { metodoPage, landing, coursePage, legalPage, priceBlock, coverBox, dur, plural };

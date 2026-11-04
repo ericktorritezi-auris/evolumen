@@ -4,7 +4,7 @@ const IG = require('../instagram');
 const { shellApp, lumen } = require('../layout');
 const { icon } = require('../header');
 const { forumSection, reviewCard } = require('./community');
-const { csrfInput } = require('./ui');
+const { csrfInput, epiSeal } = require('./ui');
 const { coverBox, dur, plural } = require('./public');
 const files = require('../files');
 
@@ -118,6 +118,7 @@ function cursoHome({ cfg, user, csrf, flash, course, cur, progress, next, access
     <p class="muted">${progress.count} de ${progress.total} ${progress.total === 1 ? 'aula concluída' : 'aulas concluídas'} · ${progress.pct}%</p>${bar(progress.pct)}
     <p class="muted small">${access.expires_at ? 'Acesso até ' + fmtDate(access.expires_at) : 'Acesso vitalício'}</p></div>
     ${next ? html`<a class="btn btn--primary" href="/curso/${course.slug}/aula/${next.id}">${progress.count ? 'Continuar' : 'Começar o curso'}</a>` : ''}</div></section>
+  ${epiSeal({ size: 'sm' })}
   ${ov && user.role !== 'admin' ? examCard(course, ov) : ''}
   ${review ? reviewCard({ csrf, course, review: review.id ? review : null }) : ''}
   ${cur.length ? html`<h2 class="t-card">Conteúdo do curso</h2>${curriculumList(course, cur, { progress, current: null, ov, admin: user.role === 'admin' })}`
@@ -175,7 +176,7 @@ function aula({ cfg, user, csrf, flash, course, cur, lesson, flat, progress, acc
           <a class="btn btn--outline btn--sm" href="/arquivos/${f.file_id}">${icon('download', 16)} Baixar</a></li>`)}</ul></section>` : ''}
       ${forum ? forumSection({ csrf, user, course, lesson, posts: forum.posts, enabled: forum.enabled }) : ''}
     </div>
-    <aside class="lesson__side"><div class="card"><span class="eyebrow">Seu progresso</span><p class="muted small">${progress.pct}% concluído</p>${bar(progress.pct)}</div>
+    <aside class="lesson__side">${epiSeal({ size: 'sm', note: false })}<div class="card"><span class="eyebrow">Seu progresso</span><p class="muted small">${progress.pct}% concluído</p>${bar(progress.pct)}</div>
       <h2 class="t-card">Conteúdo do curso</h2>${curriculumList(course, cur, { progress, current: lesson, ov, admin: user.role === 'admin' })}</aside>
   </div>`;
   return shellApp({ cfg, user, csrf, flash, path: navPath(user), title: lesson.title, content });

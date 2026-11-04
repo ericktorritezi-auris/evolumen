@@ -71,6 +71,7 @@ function build(cfg, h) {
     const doc = (await db.q("SELECT * FROM legal_documents WHERE doc_type = $1 AND status = 'published' ORDER BY published_at DESC, id DESC LIMIT 1", [type])).rows[0];
     res.send(pub.legalPage({ cfg, user: req.user, doc, title }));
   };
+  r.get('/metodo-epi', (req, res) => res.send(pub.metodoPage({ cfg, user: req.user })));
   r.get('/termos', legal('terms', 'Termos de uso'));
   r.get('/privacidade', legal('privacy', 'Política de privacidade'));
   return r;
