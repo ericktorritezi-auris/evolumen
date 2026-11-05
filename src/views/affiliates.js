@@ -55,7 +55,14 @@ function affiliateFields(v, errors = {}) {
   return html`${field({ id: 'name', label: 'Nome completo', value: v.name || '', error: errors.name, autocomplete: 'off', maxlength: 120, required: true })}
     ${field({ id: 'email', label: 'E-mail', type: 'email', value: v.email || '', error: errors.email, autocomplete: 'off', required: true, note: 'É o login do afiliado no painel.' })}
     ${field({ id: 'phone', label: 'Telefone com DDD', value: v.phone ? phoneFmt(v.phone) : '', error: errors.phone, inputmode: 'tel', autocomplete: 'off', required: true })}
-    <div class="span2">${field({ id: 'note', label: 'Anotação interna (opcional)', value: v.note || '', maxlength: 300, note: 'Só você vê. Ex.: dados para o repasse (Pix).' })}</div>`;
+    <div class="span2"><div class="field"><label for="dest_kind">Dados para o repasse (saem no recibo)</label>
+      <select id="dest_kind" name="dest_kind"><option value=""${!v.dest_kind ? raw(' selected') : ''}>Ainda não informado</option><option value="pix"${v.dest_kind === 'pix' ? raw(' selected') : ''}>Chave Pix</option><option value="conta"${v.dest_kind === 'conta' ? raw(' selected') : ''}>Conta bancária</option></select>
+      <div class="field__msg" id="dest_kind-msg">Preencha o que for usar. O recibo mostra só a opção escolhida aqui. São dados internos: só você os vê, e o afiliado os vê apenas no próprio recibo.</div></div></div>
+    <div class="span2">${field({ id: 'pix_key', label: 'Chave Pix', value: v.pix_key || '', error: errors.pix_key, maxlength: 140, autocomplete: 'off', note: 'CPF, e-mail, telefone ou chave aleatória.' })}</div>
+    <div class="span2">${field({ id: 'bank_name', label: 'Banco', value: v.bank_name || '', error: errors.bank_name, maxlength: 80, autocomplete: 'off' })}</div>
+    ${field({ id: 'bank_agency', label: 'Agência', value: v.bank_agency || '', maxlength: 20, autocomplete: 'off', inputmode: 'text' })}
+    ${field({ id: 'bank_account', label: 'Conta', value: v.bank_account || '', maxlength: 30, autocomplete: 'off', inputmode: 'text' })}
+    <div class="span2">${field({ id: 'note', label: 'Anotação interna (opcional)', value: v.note || '', maxlength: 300, note: 'Só você vê.' })}</div>`;
 }
 
 function form(ctx, { values = {}, errors = {} }) {
@@ -105,7 +112,7 @@ function detail(ctx, { a, sales, payouts, coupons, access = null, errors = {}, v
     : html`<p class="muted">Nenhuma venda com cupom deste afiliado ainda.</p>`}</section>
 
   <section class="card"><h2 class="t-card">Repasses</h2>
-    <p class="muted small">Registre aqui cada pagamento feito ao afiliado (Pix, por exemplo). O sistema só registra: o dinheiro é enviado por você. O saldo a repassar considera apenas as comissões já liberadas.</p>
+    <p class="muted small">Registre aqui cada pagamento feito ao afiliado (Pix, por exemplo). O sistema só registra: o dinheiro é enviado por você. O saldo a repassar considera apenas as comissões já liberadas. Cada repasse tem um recibo em PDF; o Pix ou a conta que saem nele são os que estão no cadastro do afiliado no dia do lançamento.</p>
     <form method="post" action="/admin/afiliados/${a.id}/repasses" class="form form--grid" novalidate>${csrfInput(ctx.csrf)}
       ${field({ id: 'pay_amount', name: 'amount', label: 'Valor repassado (R$)', value: payValues.amount || '', inputmode: 'decimal', error: payErrors.amount, required: true, placeholder: a.balance > 0 ? C.brlInput(a.balance) : '' })}
       ${field({ id: 'pay_date', name: 'paid_on', label: 'Data do repasse', type: 'date', value: payValues.paid_on || today, error: payErrors.paid_on, required: true })}
@@ -115,7 +122,7 @@ function detail(ctx, { a, sales, payouts, coupons, access = null, errors = {}, v
       ${payouts.map((p) => html`<tr><td data-l="Data"><span class="cell">${fmtDate(p.paid_on + 'T12:00:00')}</span></td><td data-l="Valor"><span class="cell">${p.voided_at ? html`<s>${brl(p.amount_cents)}</s>` : brl(p.amount_cents)}</span></td>
         <td data-l="Observação"><span class="cell">${p.note || '—'}${p.voided_at ? html`<br><span class="pill pill--draft">Anulado</span> <span class="muted small">${p.void_reason}</span>` : ''}</span></td>
         <td data-l="Lançado por" class="small"><span class="cell">${p.by_name || '—'}<br><span class="muted">${fmtDate(p.created_at)}</span></span></td>
-        <td class="tbl__act">${p.voided_at ? '' : html`<details class="inline-pop"><summary class="btn btn--ghost btn--sm">Anular</summary><form method="post" action="/admin/afiliados/${a.id}/repasses/${p.id}/anular" class="form">${csrfInput(ctx.csrf)}
+        <td class="tbl__act">${p.voided_at ? '' : html`<a class="btn btn--outline btn--sm" href="/admin/afiliados/${a.id}/repasses/${p.id}/recibo.pdf">Baixar recibo</a> <details class="inline-pop"><summary class="btn btn--ghost btn--sm">Anular</summary><form method="post" action="/admin/afiliados/${a.id}/repasses/${p.id}/anular" class="form">${csrfInput(ctx.csrf)}
           <div class="field"><label for="v${p.id}">Motivo</label><input id="v${p.id}" name="reason" maxlength="200" placeholder="Ex.: valor lançado errado" required></div><button class="btn btn--primary btn--sm" type="submit">Confirmar anulação</button></form></details>`}</td></tr>`)}</tbody></table></div>`
     : ''}</section>
 
