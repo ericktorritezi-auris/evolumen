@@ -1,7 +1,7 @@
 {
-  "version": "1.5.0",
-  "display": "1.2",
+  "version": "1.6.0",
+  "display": "1.3",
   "phase": 6,
   "released": "2026-10-30",
-  "note": "Recibo de repasse de comissionamento em PDF e destino (Pix ou conta) do afiliado."
+  "note": "Lead Parceiros: funil interno com médias de tempo por etapa e por lead."
 }

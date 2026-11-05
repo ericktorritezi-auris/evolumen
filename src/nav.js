@@ -31,6 +31,7 @@ const NAV = {
     { href: '/admin/cortesias', icon: 'star', label: 'Cortesias', fase: 2 },
     { href: '/admin/cupons', icon: 'card', label: 'Cupons', fase: 2 },
     { href: '/admin/afiliados', icon: 'users', label: 'Afiliados', fase: 6 },
+    { href: '/admin/lead-parceiros', icon: 'chart', label: 'Lead Parceiros', fase: 6 },
     { href: '/admin/financeiro', icon: 'chart', label: 'Cockpit financeiro', fase: 4 },
     { href: '/admin/vendas', icon: 'cash', label: 'Vendas e renovações', fase: 4 },
     { href: '/admin/forum', icon: 'chat', label: 'Fórum e avaliações', fase: 5 },
