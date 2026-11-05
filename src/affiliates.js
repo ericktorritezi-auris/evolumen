@@ -26,7 +26,20 @@ function parse(b) {
   if (!email) errors.email = 'Informe um e-mail válido.';
   const phone = V.digits(b.phone);
   if (phone.length < 10 || phone.length > 11) errors.phone = 'Telefone com DDD, 10 ou 11 números.';
-  return { errors, values: { name, email, phone, note: String(b.note || '').trim().slice(0, 300) } };
+  // Destino do repasse (1.5.0): texto livre e interno. O tipo escolhido decide o que sai no recibo.
+  const one = (v, n) => String(v || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
+  const dest_kind = ['pix', 'conta'].includes(b.dest_kind) ? b.dest_kind : '';
+  const pix_key = one(b.pix_key, 140); const bank_name = one(b.bank_name, 80); const bank_agency = one(b.bank_agency, 20); const bank_account = one(b.bank_account, 30);
+  if (dest_kind === 'pix' && !pix_key) errors.pix_key = 'Informe a chave Pix, ou escolha outra opção.';
+  if (dest_kind === 'conta' && !(bank_name && bank_agency && bank_account)) errors.bank_name = 'Preencha banco, agência e conta, ou escolha outra opção.';
+  return { errors, values: { name, email, phone, note: String(b.note || '').trim().slice(0, 300), dest_kind, pix_key, bank_name, bank_agency, bank_account } };
+}
+
+// Texto do destino como sai no recibo ('' se não há destino cadastrado).
+function destText(a) {
+  if (a.dest_kind === 'pix' && a.pix_key) return `na chave Pix ${a.pix_key}`;
+  if (a.dest_kind === 'conta' && a.bank_name && a.bank_agency && a.bank_account) return `na conta bancária: banco ${a.bank_name}, agência ${a.bank_agency}, conta ${a.bank_account}`;
+  return '';
 }
 
 // Percentual da comissão: 0,01 a 100, até duas casas. Aceita vírgula.
@@ -135,7 +148,7 @@ async function panelSales(affiliateId, limit = 200) {
     base_cents: s.base_cents, pct: s.pct, amount_cents: s.amount_cents, release_at: s.release_at, status: s.status, order_status: s.order_status, refund_open: s.refund_open, cancel_reason: null }));
 }
 async function panelPayouts(affiliateId) {
-  return (await db.q('SELECT paid_on, amount_cents FROM affiliate_payouts WHERE affiliate_id = $1 AND voided_at IS NULL ORDER BY paid_on DESC, id DESC LIMIT 200', [affiliateId])).rows;
+  return (await db.q('SELECT id, paid_on, amount_cents FROM affiliate_payouts WHERE affiliate_id = $1 AND voided_at IS NULL ORDER BY paid_on DESC, id DESC LIMIT 200', [affiliateId])).rows;
 }
 const panelCoupons = async (affiliateId) => (await db.q(`SELECT k.id, k.code, k.status, k.commission_pct, k.kind, k.percent, k.amount_cents,
     (SELECT count(*)::int FROM commissions m WHERE m.coupon_id = k.id) AS sales FROM coupons k WHERE k.affiliate_id = $1 ORDER BY k.created_at DESC`, [affiliateId])).rows;
@@ -189,4 +202,4 @@ function csv(rows, cell, { withAffiliate = false } = {}) {
   return '﻿' + lines.join('\r\n') + '\r\n';
 }
 
-module.exports = { accessInfo, byUser, shortName, panelSales, panelPayouts, panelCoupons, notifyReleased, pctLabel, parse, parsePct, parsePayout, byId, activeList, emailTaken, commissionOf, onApproved, cancelFor, phaseOf, daysLeft, PHASE_LABEL, list, detail, salesOf, salesAll, payoutsOf, couponsOf, csv };
+module.exports = { destText, accessInfo, byUser, shortName, panelSales, panelPayouts, panelCoupons, notifyReleased, pctLabel, parse, parsePct, parsePayout, byId, activeList, emailTaken, commissionOf, onApproved, cancelFor, phaseOf, daysLeft, PHASE_LABEL, list, detail, salesOf, salesAll, payoutsOf, couponsOf, csv };

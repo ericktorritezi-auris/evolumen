@@ -1,7 +1,7 @@
 {
-  "version": "1.4.0",
+  "version": "1.5.0",
   "display": "1.2",
   "phase": 6,
   "released": "2026-10-30",
-  "note": "Método EPI: selo no certificado, página própria e selo nos cursos."
+  "note": "Recibo de repasse de comissionamento em PDF e destino (Pix ou conta) do afiliado."
 }

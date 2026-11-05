@@ -48,8 +48,8 @@ function painel(ctx, { a, coupons, sales, payouts }) {
     : html`<section class="empty">${lumen('pensa', 80)}<p class="muted">Nenhuma venda com os seus cupons ainda. Quando alguém comprar com um deles, a venda aparece aqui.</p></section>`}</section>
 
   <section class="card"><h2 class="t-card">Repasses recebidos</h2>
-    ${payouts.length ? html`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Data</th><th>Valor</th></tr></thead><tbody>
-      ${payouts.map((p) => html`<tr><td data-l="Data"><span class="cell">${fmtDate(p.paid_on + 'T12:00:00')}</span></td><td data-l="Valor"><span class="cell"><b>${brl(p.amount_cents)}</b></span></td></tr>`)}</tbody></table></div>`
+    ${payouts.length ? html`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Data</th><th>Valor</th><th></th></tr></thead><tbody>
+      ${payouts.map((p) => html`<tr><td data-l="Data"><span class="cell">${fmtDate(p.paid_on + 'T12:00:00')}</span></td><td data-l="Valor"><span class="cell"><b>${brl(p.amount_cents)}</b></span></td><td class="tbl__act"><a class="btn btn--outline btn--sm" href="/afiliado/repasses/${p.id}/recibo.pdf">Baixar recibo</a></td></tr>`)}</tbody></table></div>`
     : html`<p class="muted">Nenhum repasse registrado ainda.</p>`}</section>`;
   return shellApp({ cfg: ctx.cfg, user: ctx.user, csrf: ctx.csrf, flash: ctx.flash, path: '/afiliado', title: 'Painel do afiliado', content });
 }

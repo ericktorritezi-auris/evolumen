@@ -11,6 +11,7 @@ const A = require('./affiliates');
 const C = require('./courses');
 const L = require('./lgpd');
 const { audit } = require('./audit');
+const R = require('./receipts');
 const views = require('./views/affiliates');
 
 const ID = /^\d{1,12}$/;
@@ -33,7 +34,7 @@ function build(cfg, h) {
     if (Object.keys(errors).length) return res.status(422).send(views.form(ctx(req, res), { values: { ...req.body, phone: values.phone }, errors }));
     let id;
     try {
-      id = (await db.q('INSERT INTO affiliates (name, email, phone, note, created_by) VALUES ($1,$2,$3,$4,$5) RETURNING id', [values.name, values.email, values.phone, values.note, req.user.id])).rows[0].id;
+      id = (await db.q('INSERT INTO affiliates (name, email, phone, note, dest_kind, pix_key, bank_name, bank_agency, bank_account, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id', [values.name, values.email, values.phone, values.note, values.dest_kind, values.pix_key, values.bank_name, values.bank_agency, values.bank_account, req.user.id])).rows[0].id;
     } catch (e) {
       if (e.code !== '23505') throw e;
       return res.status(422).send(views.form(ctx(req, res), { values: { ...req.body, phone: values.phone }, errors: { email: 'Já existe um afiliado com este e-mail.' } }));
@@ -68,8 +69,10 @@ function build(cfg, h) {
     if (!errors.email && await A.emailTaken(values.email, a.id)) errors.email = 'Já existe outro afiliado com este e-mail.';
     if (!errors.email && a.user_id && values.email !== String(a.email).toLowerCase()) errors.email = 'Este afiliado já tem conta. O e-mail dele (que é o login) só muda pela tela de Alunos.';
     if (Object.keys(errors).length) return render(req, res, a, { errors, values: { ...req.body, phone: values.phone } }, 422);
+    // Envio sem os campos de destino (script, formulário antigo) não apaga o que já está cadastrado.
+    if (req.body.dest_kind === undefined) Object.assign(values, { dest_kind: a.dest_kind, pix_key: a.pix_key, bank_name: a.bank_name, bank_agency: a.bank_agency, bank_account: a.bank_account });
     try {
-      await db.q('UPDATE affiliates SET name = $2, email = $3, phone = $4, note = $5, updated_at = now() WHERE id = $1', [a.id, values.name, values.email, values.phone, values.note]);
+      await db.q('UPDATE affiliates SET name = $2, email = $3, phone = $4, note = $5, dest_kind = $6, pix_key = $7, bank_name = $8, bank_agency = $9, bank_account = $10, updated_at = now() WHERE id = $1', [a.id, values.name, values.email, values.phone, values.note, values.dest_kind, values.pix_key, values.bank_name, values.bank_agency, values.bank_account]);
     } catch (e) {
       if (e.code !== '23505') throw e;
       return render(req, res, a, { errors: { email: 'Já existe outro afiliado com este e-mail.' }, values: { ...req.body, phone: values.phone } }, 422);
@@ -144,7 +147,7 @@ function build(cfg, h) {
     // Duplo clique ou reenvio do formulário: o mesmo repasse (valor, data e quem lançou) nos últimos 30 segundos não grava de novo.
     const dupe = (await db.q("SELECT 1 FROM affiliate_payouts WHERE affiliate_id = $1 AND amount_cents = $2 AND paid_on = $3 AND created_by = $4 AND voided_at IS NULL AND created_at > now() - interval '30 seconds'", [a.id, values.cents, values.paid_on, req.user.id])).rowCount;
     if (dupe) return flashBack(req, res, 'info', 'Este repasse acabou de ser registrado. Não gravei de novo.', `/admin/afiliados/${a.id}`);
-    const p = (await db.q('INSERT INTO affiliate_payouts (affiliate_id, amount_cents, paid_on, note, created_by) VALUES ($1,$2,$3,$4,$5) RETURNING id', [a.id, values.cents, values.paid_on, values.note, req.user.id])).rows[0];
+    const p = (await db.q('INSERT INTO affiliate_payouts (affiliate_id, amount_cents, paid_on, note, dest_text, created_by) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id', [a.id, values.cents, values.paid_on, values.note, A.destText(a), req.user.id])).rows[0];
     await audit(req, 'affiliate_payout_recorded', { entity: 'affiliate', entityId: a.id, meta: { payout: p.id, valor: values.cents, data: values.paid_on } });
     if (a.user_id && a.status === 'active') {
       await notify.add(a.user_id, { kind: 'affiliate', title: 'Repasse registrado', body: `${C.brl(values.cents)} · ${new Date(values.paid_on + 'T12:00:00').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`, link: '/afiliado', key: `affpay:${p.id}` });
@@ -153,6 +156,16 @@ function build(cfg, h) {
     }
     const over = values.cents > a.balance;
     flashBack(req, res, over ? 'info' : 'success', over ? `Repasse registrado. Atenção: o valor é maior que o saldo liberado (${C.brl(Math.max(0, a.balance))}), então o saldo ficou negativo.` : 'Repasse registrado.', `/admin/afiliados/${a.id}`);
+  });
+
+  // Recibo em PDF (só de repasse não anulado).
+  r.get('/admin/afiliados/:id/repasses/:pid/recibo.pdf', async (req, res, next) => {
+    const a = await load(req, next); if (!a) return;
+    const rec = ID.test(String(req.params.pid)) ? await R.forPayout(req.params.pid, a.id) : null;
+    if (!rec) return flashBack(req, res, 'error', 'Este repasse não existe ou foi anulado: não há recibo.', `/admin/afiliados/${a.id}`);
+    const buf = await R.pdf(rec);
+    await audit(req, 'affiliate_receipt_downloaded', { entity: 'affiliate', entityId: a.id, meta: { payout: rec.id } });
+    res.set('Content-Type', 'application/pdf').set('Content-Disposition', `attachment; filename="${R.fileName(rec)}"`).set('Cache-Control', 'private, no-store').send(buf);
   });
 
   r.post('/admin/afiliados/:id/repasses/:pid/anular', async (req, res, next) => {
