@@ -499,3 +499,28 @@ tr.is-focus td{background:rgba(255,178,87,.12)}
   .lp-col.is-closed .lp-chev{transform:rotate(-90deg)}.lp-col.is-closed .lp-col__b{display:none}.lp-card{cursor:default}
   .lp-bar{grid-template-columns:1fr auto}.lp-bar__t{grid-column:1/-1;order:3}
 }
+
+/* 1.7.0: acompanhamento de alunos */
+.stats--4{grid-template-columns:repeat(2,1fr)}@media (min-width:900px){.stats--4{grid-template-columns:repeat(4,1fr)}}
+.tk-kpis .stat b{font:700 24px Quicksand,sans-serif;color:var(--nevoa)}.tk-kpis .stat b.tk-s{font-size:15px;line-height:1.3;overflow-wrap:anywhere}
+.stat--warn{border-color:var(--ambar)}.stat--warn b{color:var(--ambar)}
+.tk-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin:12px 0}
+.tk-search{flex:1 1 220px}.tk-search input{width:100%}
+.tk-days{display:flex;gap:8px;align-items:center;color:var(--bruma);font-size:13px}
+.tk-chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 16px}
+.tk-chip{font-size:13px;padding:5px 14px;border:1px solid var(--line);border-radius:999px;color:var(--light);text-decoration:none}
+.tk-chip.is-active{border-color:var(--ambar);color:var(--ambar);background:rgba(255,178,87,.12)}
+.tk-bar{min-width:110px;margin:0 0 4px}
+.tk-mod{margin:16px 0}.tk-mod .t-card .small{font-weight:400;margin-left:6px}
+.tk-lessons{list-style:none;padding:0;margin:8px 0;display:grid;gap:0}
+.tk-l{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--line)}
+.tk-l__ico{text-align:center;color:var(--bruma)}.tk-l--done .tk-l__ico{color:var(--good)}.tk-l--part .tk-l__ico{color:var(--ambar)}
+.tk-l__t{min-width:0;overflow-wrap:anywhere}.tk-l__s{text-align:right}
+.tk-eval{margin:10px 0 0}
+@media (max-width:639px){.tk-l{grid-template-columns:22px 1fr}.tk-l__s{grid-column:2;text-align:left}.tk-days{width:100%}}
+.tk-search input,.tk-days select{min-height:40px;padding:6px 12px;border-radius:12px;border:1px solid var(--line);background:var(--profundo);color:var(--nevoa);font:400 15px Nunito,sans-serif}
+.tk-search input:focus,.tk-days select:focus{border-color:var(--aurora);outline:2px solid rgba(142,155,255,.45);outline-offset:0}
+.tk-tools .btn{min-height:40px}
+.tk-cell{display:grid;gap:2px;min-width:0}@media (max-width:639px){.tk-cell{justify-items:end;text-align:right}}
+.tk-chip{min-height:36px;display:inline-flex;align-items:center}
+@media (min-width:640px) and (max-width:899px){.stats--5{grid-template-columns:repeat(3,1fr)}}

@@ -7,6 +7,7 @@ const { titleRow } = require('./student');
 const C = require('../courses');
 const files = require('../files');
 const { sanitizeHtml } = require('../legal');
+const tviews = require('./tracking');
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '');
 const isoDate = (d) => (d ? new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : '');
@@ -247,11 +248,12 @@ function enrollActions(ctx, r, to) {
     ${r.any_progress === 0 ? html`<form method="post" action="/admin/matriculas/${r.id}/excluir" class="inline" data-confirm="Excluir esta matrícula? Só é possível porque o aluno ainda não fez nenhuma aula.">${csrfInput(ctx.csrf)}<input type="hidden" name="to" value="${to}"><button class="btn btn--ghost btn--sm" type="submit">Excluir</button></form>` : ''}`;
 }
 
-function matriculas(ctx, { course, rows, created = null, errors = {}, email = '' }) {
+function matriculas(ctx, { course, rows, track, created = null, errors = {}, email = '' }) {
   const content = html`<a class="back" href="/admin/cursos">← Cursos</a>${titleRow(course.title, 'Matrículas')}${tabs(course, 'matriculas')}
   ${created ? html`<section class="card card--ok"><h2 class="t-card">${created.newUser ? 'Aluno criado e matriculado' : (created.already ? 'Esta pessoa já tinha acesso' : 'Matrícula criada')}</h2>
     <p>${created.newUser ? html`Conta criada para <b>${created.email}</b>. A senha provisória também foi enviada por e-mail:` : html`<b>${created.email}</b> ${created.already ? 'já tinha acesso vigente a este curso. O prazo nunca diminui, e nenhum e-mail foi enviado.' : 'já tinha conta e agora tem acesso ao curso.'}`}</p>
     ${created.password ? html`<p class="secret">${created.password}</p><p class="muted small">Anote agora: por segurança, ela não aparece de novo. No primeiro acesso o aluno escolhe a própria senha.</p>` : ''}</section>` : ''}
+  ${C.typeOf(course) === 'download' ? tviews.compradores(ctx, { rows, actions: enrollActions }) : tviews.lista(ctx, { course, track: { ...track, rows }, actions: enrollActions })}
   ${avisoCard(ctx, course, { buyers: rows.filter((x) => x.status === 'active' && !x.expired).length, to: 'matriculas' })}
   <section class="card"><h2 class="t-card">Liberar acesso</h2>
     <p class="muted">Use para testes, cortesias e alunos que pagaram fora da plataforma. Se o e-mail ainda não tem conta, o aluno é criado e recebe a senha provisória por e-mail. A compra online abre na Fase 4.</p>
@@ -259,16 +261,7 @@ function matriculas(ctx, { course, rows, created = null, errors = {}, email = ''
       ${field({ id: 'email', label: 'E-mail do aluno', type: 'email', value: email, error: errors.email, required: true })}
       ${field({ id: 'name', label: 'Nome (só se a conta for nova)', error: errors.name, autocomplete: 'off' })}
       ${field({ id: 'until', label: 'Acesso até (opcional)', type: 'date', error: errors.until, note: `Vazio = regra do curso (${C.accessLabel(course).toLowerCase()}).` })}
-      <div class="span2 row"><button class="btn btn--primary" type="submit">Liberar acesso</button></div></form></section>
-  <h2 class="t-card">Matrículas · ${rows.length}</h2>
-  ${rows.length ? html`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Aluno</th><th>Origem</th><th>Acesso até</th><th>Progresso</th><th>Situação</th><th></th></tr></thead><tbody>${rows.map((r) => html`<tr>
-    <td data-l="Aluno"><b>${r.name}</b><br><span class="muted small">${r.email}</span></td>
-    <td data-l="Origem">${ORIGIN[r.origin] || r.origin}</td>
-    <td data-l="Acesso até">${r.expires_at ? fmtDate(r.expires_at) + (r.expired ? ' (vencido)' : '') : 'Vitalício'}</td>
-    <td data-l="Progresso">${r.done}/${r.total}</td>
-    <td data-l="Situação">${r.status === 'cancelled' ? html`<span class="pill pill--draft">Cancelada</span>` : (r.expired ? html`<span class="pill">Vencida</span>` : html`<span class="pill pill--ok">Ativa</span>`)}</td>
-    <td class="tbl__act">${enrollActions(ctx, r, 'curso')}</td></tr>`)}</tbody></table></div>`
-    : html`<p class="muted">Ninguém matriculado ainda.</p>`}`;
+      <div class="span2 row"><button class="btn btn--primary" type="submit">Liberar acesso</button></div></form></section>`;
   return shell(ctx, 'Matrículas', content);
 }
 

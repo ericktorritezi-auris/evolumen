@@ -14,6 +14,8 @@ const Dup = require('./duplicate');
 const views = require('./views/admin');
 const notify = require('./notify');
 const mailer = require('./mailer');
+const T = require('./tracking');
+const tviews = require('./views/tracking');
 const emails = require('./emails');
 
 const ID = /^\d{1,12}$/;
@@ -432,21 +434,35 @@ function build(cfg, h) {
   });
 
   // ---- matrículas (liberação manual) ----
-  const enrollRows = async (courseId) => (await db.q(`
-    SELECT e.id, e.expires_at, e.status, e.origin, (e.expires_at IS NOT NULL AND e.expires_at <= now()) AS expired, u.name, u.email,
-      (SELECT count(*)::int FROM lessons l WHERE l.course_id = e.course_id AND ${C.COUNTED}) AS total,
-      (SELECT count(*)::int FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = e.user_id AND l.course_id = e.course_id AND ${C.COUNTED}) AS done,
-      (SELECT count(*)::int FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = e.user_id AND l.course_id = e.course_id) AS any_progress
-    FROM enrollments e JOIN users u ON u.id = e.user_id WHERE e.course_id = $1 ORDER BY e.created_at DESC`, [courseId])).rows;
+  const enrollRows = (courseId, days) => T.list(courseId, { days });
+  const trackView = (req, rows) => {
+    const days = T.parseDays(req.query.dias); const f = T.parseFilter(req.query.f);
+    const q = String(req.query.q || '').slice(0, 100);
+    return { days, f, q };
+  };
 
   r.get('/admin/cursos/:id/matriculas', async (req, res, next) => {
     const course = await courseOr404(req, next); if (!course) return;
-    res.send(views.matriculas(ctx(req, res), { course, rows: await enrollRows(course.id) }));
+    const t = trackView(req);
+    const rows = await enrollRows(course.id, t.days);
+    res.send(views.matriculas(ctx(req, res), { course, rows, track: { ...t, kpis: T.kpis(rows), shown: T.filter(rows, t) } }));
+  });
+
+  // Acompanhamento de um aluno: o curso inteiro, aula a aula (somente leitura).
+  r.get('/admin/matriculas/:id/progresso', async (req, res, next) => {
+    const e = await enrollment(req, next); if (!e) return;
+    const course = await C.byId(e.course_id); if (!course) return next();
+    const user = (await db.q('SELECT id, name, email FROM users WHERE id = $1', [e.user_id])).rows[0]; if (!user) return next();
+    if (C.typeOf(course) === 'download') return next();
+    const days = T.parseDays(req.query.dias);
+    const d = await T.detail(e, course);
+    const expired = !!(e.expires_at && new Date(e.expires_at) <= new Date());
+    res.send(tviews.progresso(ctx(req, res), { course, enr: e, user, d, expired, days }));
   });
 
   r.post('/admin/cursos/:id/matriculas', async (req, res, next) => {
     const course = await courseOr404(req, next); if (!course) return;
-    const render = async (status, extra) => res.status(status).send(views.matriculas(ctx(req, res), { course, rows: await enrollRows(course.id), ...extra }));
+    const render = async (status, extra) => { const rows = await enrollRows(course.id, T.DEFAULT_DAYS); return res.status(status).send(views.matriculas(ctx(req, res), { course, rows, track: { days: T.DEFAULT_DAYS, f: 'todos', q: '', kpis: T.kpis(rows), shown: rows }, ...extra })); };
     const checked = await access.check(req.body);
     if (Object.keys(checked.errors).length) return render(422, { errors: checked.errors, email: String(req.body.email || '').slice(0, 254) });
     const out = await access.grant(cfg, h, req, { course, checked, origin: 'manual' });

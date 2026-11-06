@@ -1,7 +1,7 @@
 {
-  "version": "1.6.0",
+  "version": "1.7.0",
   "display": "1.3",
   "phase": 6,
-  "released": "2026-10-30",
-  "note": "Lead Parceiros: funil interno com médias de tempo por etapa e por lead."
+  "released": "2026-11-06",
+  "note": "Acompanhamento de alunos na aba Matrículas de cada curso."
 }
