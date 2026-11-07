@@ -34,9 +34,22 @@ function stats(a) {
 }
 
 // ---------- cockpit ----------
+// Simulador de comissão (só conta na tela; nada é gravado). Os cálculos ficam em public/js/simulador.js.
+const simulador = () => html`<dialog id="sim-modal" class="modal sim" aria-labelledby="sim-t"><div class="sim__in">
+  <div class="sim__head"><h2 id="sim-t" class="t-card">Simulação de comissão</h2><button type="button" class="btn btn--ghost btn--sm" data-modal-close>Fechar</button></div>
+  <p class="muted small">Só uma conta: nada é gravado. Vale para cupom de desconto em percentual. A comissão é calculada sobre o preço com desconto (sem juros de parcelamento), como nas vendas reais.</p>
+  <div class="field"><label for="sim-v">Valor do produto</label><div class="sim__in-f"><span>R$</span><input id="sim-v" aria-describedby="sim-msg" inputmode="decimal" autocomplete="off" value="249,90"></div></div>
+  <div class="field"><label for="sim-d">Desconto do cupom</label><div class="sim__in-f"><input id="sim-d" aria-describedby="sim-msg" inputmode="decimal" autocomplete="off" value="10"><span>%</span></div></div>
+  <div aria-live="polite"><div class="sim__row"><span>Valor com desconto<small>o que o aluno paga</small></span><b id="sim-paid">R$ 0,00</b></div>
+  <div class="field"><label for="sim-a">Percentual do afiliado</label><div class="sim__in-f"><input id="sim-a" aria-describedby="sim-msg" inputmode="decimal" autocomplete="off" value="20"><span>%</span></div></div>
+  <div class="sim__row"><span>Comissão do afiliado<small>percentual sobre o valor pago</small></span><b id="sim-com">R$ 0,00</b></div>
+  <div class="sim__res"><span>Valor do produto para a plataforma<small id="sim-pct"></small></span><b id="sim-plat">R$ 0,00</b></div></div>
+  <p class="field__msg field__msg--err" id="sim-msg" role="alert" hidden></p>
+</div></dialog><script src="/static/js/simulador.js" defer></script>`;
+
 function cockpit(ctx, { rows, totals }) {
   const content = html`${titleRow('Afiliados', 'Quem divulga cupons, o que já vendeu e o que falta repassar. A comissão fica em carência até acabar o prazo de reembolso.')}
-  <div class="row row--top"><a class="btn btn--primary" href="/admin/afiliados/novo">Novo afiliado</a>${totals.sales ? html`<a class="btn btn--outline" href="/admin/afiliados/vendas.csv">Baixar todas as vendas (CSV)</a>` : ''}</div>
+  <div class="row row--top"><a class="btn btn--primary" href="/admin/afiliados/novo">Novo afiliado</a><button type="button" class="btn btn--outline" data-modal-open="sim-modal">Simulação</button>${totals.sales ? html`<a class="btn btn--outline" href="/admin/afiliados/vendas.csv">Baixar todas as vendas (CSV)</a>` : ''}</div>
   ${rows.length ? html`
   ${stats(totals)}
   ${totals.negative ? html`<div class="alert alert--error" role="alert">${totals.negative} ${totals.negative === 1 ? 'afiliado está' : 'afiliados estão'} com saldo negativo: houve estorno depois do repasse. Veja em vermelho abaixo.</div>` : ''}
@@ -47,7 +60,7 @@ function cockpit(ctx, { rows, totals }) {
       <td data-l="Saldo a repassar"><span class="cell"><b>${money(a.balance)}</b></span></td>
       <td class="tbl__act"><a class="btn btn--outline btn--sm" href="/admin/afiliados/${a.id}">Abrir</a></td></tr>`)}</tbody></table></div>`
     : html`<section class="card empty">${lumen('pensa', 96)}<div><h2 class="t-card">Nenhum afiliado ainda</h2><p class="muted">Cadastre o primeiro afiliado e depois escolha-o em um cupom, na tela de Cupons. As vendas com esse cupom geram a comissão sozinhas.</p></div></section>`}`;
-  return shell(ctx, 'Afiliados', content);
+  return shell(ctx, 'Afiliados', html`${content}${simulador()}`);
 }
 
 // ---------- cadastro ----------

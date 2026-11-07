@@ -524,3 +524,12 @@ tr.is-focus td{background:rgba(255,178,87,.12)}
 .tk-cell{display:grid;gap:2px;min-width:0}@media (max-width:639px){.tk-cell{justify-items:end;text-align:right}}
 .tk-chip{min-height:36px;display:inline-flex;align-items:center}
 @media (min-width:640px) and (max-width:899px){.stats--5{grid-template-columns:repeat(3,1fr)}}
+
+/* 1.8.0: simulador de comissão */
+.sim{width:min(460px,94vw)}.sim__in{padding:20px;display:grid;gap:12px}.sim__head{display:flex;justify-content:space-between;align-items:center;gap:12px}.sim__head h2{margin:0}
+.sim__in-f{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:var(--profundo)}
+.sim__in-f:focus-within{border-color:var(--aurora);outline:2px solid rgba(142,155,255,.45)}.sim__in-f input{flex:1;min-width:0;background:none;border:0;color:var(--nevoa);font:400 16px Nunito,sans-serif;padding:10px 0;outline:none}.sim__in-f span{color:var(--bruma)}
+.sim__row,.sim__res{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.sim small{display:block;color:var(--bruma);font-size:12px}.sim__row b{font-size:18px}
+.sim__res{border:1px solid var(--good);border-radius:12px;padding:12px;background:rgba(111,224,168,.08)}.sim__res b{font-size:22px;color:var(--good)}
+.sim__in-f input,.sim__in-f input:focus{outline:0;box-shadow:none;border:0;background:none;min-height:0}
