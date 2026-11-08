@@ -88,7 +88,7 @@ async function cancelFor(c, orderId, reason) {
 }
 
 // ---------- situação e totais ----------
-const phaseOf = (cm, now = new Date()) => (cm.status === 'cancelled' || ['refunded', 'charged_back'].includes(cm.order_status) ? 'cancelled' : cm.refund_open ? 'review' : new Date(cm.release_at) > now ? 'grace' : 'released');
+const phaseOf = (cm, now = new Date()) => (cm.status === 'cancelled' || ['refunded', 'charged_back'].includes(cm.order_status) ? 'cancelled' : cm.refund_open ? 'review' : (cm.released !== undefined ? !cm.released : new Date(cm.release_at) > now) ? 'grace' : 'released');
 const daysLeft = (cm, now = new Date()) => Math.max(1, Math.ceil((new Date(cm.release_at) - now) / DAY));
 const PHASE_LABEL = { grace: 'Em carência', review: 'Em análise (reembolso pedido)', released: 'Liberada', cancelled: 'Cancelada' };
 
@@ -121,7 +121,7 @@ async function detail(id) {
 }
 
 const SALES_SQL = `SELECT m.*, o.public_id, o.approved_at, o.status AS order_status, co.title AS course_title, cp.code AS coupon_code,
-    a.name AS affiliate_name, o.buyer->>'name' AS buyer_name,
+    a.name AS affiliate_name, o.buyer->>'name' AS buyer_name, (m.release_at <= now()) AS released,
     EXISTS (SELECT 1 FROM refund_requests rr WHERE rr.order_id = m.order_id AND rr.status IN ('requested','failed')) AS refund_open
   FROM commissions m JOIN orders o ON o.id = m.order_id JOIN courses co ON co.id = o.course_id JOIN coupons cp ON cp.id = m.coupon_id JOIN affiliates a ON a.id = m.affiliate_id`;
 const salesOf = async (affiliateId, limit = 300) => (await db.q(`${SALES_SQL} WHERE m.affiliate_id = $1 ORDER BY m.created_at DESC, m.id DESC LIMIT $2`, [affiliateId, limit])).rows;
@@ -166,19 +166,35 @@ async function accessInfo(a) {
 
 // Comissões que acabaram de ser liberadas e ainda não avisaram o afiliado (só de quem já tem conta e só depois do convite).
 // A chave do aviso garante um único aviso por comissão, mesmo que a rotina rode várias vezes.
-async function notifyReleased(notify, now = new Date()) {
+async function notifyReleased(notify, now = new Date(), { ids = null } = {}) {
   const rows = (await db.q(`SELECT m.id, m.amount_cents, a.user_id, co.title AS course_title
     FROM commissions m JOIN orders o ON o.id = m.order_id JOIN affiliates a ON a.id = m.affiliate_id JOIN courses co ON co.id = o.course_id
-    WHERE m.status = 'active' AND o.status = 'approved' AND m.release_at <= $1 AND a.user_id IS NOT NULL AND a.status = 'active'
+    WHERE ($2::bigint[] IS NULL OR m.id = ANY($2::bigint[])) AND m.status = 'active' AND o.status = 'approved' AND m.release_at <= $1 AND a.user_id IS NOT NULL AND a.status = 'active'
       AND a.invited_at IS NOT NULL AND m.release_at >= a.invited_at AND m.release_at > $1::timestamptz - interval '30 days' AND NOT ${OPEN_REFUND}
       AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = a.user_id AND n.ref_key = 'affcom:' || m.id)
-    ORDER BY m.id LIMIT 500`, [now.toISOString()])).rows;
+    ORDER BY m.id LIMIT 500`, [now.toISOString(), ids])).rows;
   let n = 0;
   for (const r of rows) {
     const id = await notify.add(r.user_id, { kind: 'affiliate', title: 'Comissão liberada', body: `${C.brl(r.amount_cents)} · ${r.course_title}`, link: '/afiliado', key: `affcom:${r.id}` });
     if (id) n++;
   }
   return n;
+}
+
+// ---------- liberação antecipada da carência (1.9.0) ----------
+// Só o que está em carência de verdade: comissão valendo, pedido aprovado, prazo ainda correndo e sem pedido de reembolso aberto.
+const RELEASABLE = `m.affiliate_id = $1 AND m.status = 'active' AND m.release_at > now()
+  AND EXISTS (SELECT 1 FROM orders o WHERE o.id = m.order_id AND o.status = 'approved')
+  AND NOT EXISTS (SELECT 1 FROM refund_requests rr WHERE rr.order_id = m.order_id AND rr.status IN ('requested','failed','approved'))`;
+async function releasable(affiliateId) {
+  const r = (await db.q(`SELECT count(*)::int AS n, COALESCE(sum(m.amount_cents),0)::bigint AS cents FROM commissions m WHERE ${RELEASABLE}`, [affiliateId])).rows[0];
+  return { n: r.n, cents: num(r.cents) };
+}
+// Adianta a data de liberação para agora. Uma única instrução: ou libera tudo o que cabe, ou nada. Guarda a data original e quem liberou.
+async function releaseGrace(affiliateId, byUserId) {
+  const rows = (await db.q(`UPDATE commissions m SET release_at_original = m.release_at, release_at = now(), released_early_at = now(), released_early_by = $2
+    WHERE ${RELEASABLE} RETURNING m.id, m.amount_cents`, [affiliateId, byUserId || null])).rows;
+  return { n: rows.length, cents: rows.reduce((s, x) => s + x.amount_cents, 0), ids: rows.map((x) => x.id) };
 }
 
 // ---------- repasses ----------
@@ -202,4 +218,4 @@ function csv(rows, cell, { withAffiliate = false } = {}) {
   return '﻿' + lines.join('\r\n') + '\r\n';
 }
 
-module.exports = { destText, accessInfo, byUser, shortName, panelSales, panelPayouts, panelCoupons, notifyReleased, pctLabel, parse, parsePct, parsePayout, byId, activeList, emailTaken, commissionOf, onApproved, cancelFor, phaseOf, daysLeft, PHASE_LABEL, list, detail, salesOf, salesAll, payoutsOf, couponsOf, csv };
+module.exports = { destText, accessInfo, byUser, shortName, panelSales, panelPayouts, panelCoupons, notifyReleased, pctLabel, parse, parsePct, parsePayout, byId, activeList, emailTaken, commissionOf, releasable, releaseGrace, onApproved, cancelFor, phaseOf, daysLeft, PHASE_LABEL, list, detail, salesOf, salesAll, payoutsOf, couponsOf, csv };

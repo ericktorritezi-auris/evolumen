@@ -21,7 +21,7 @@ function phase(cm) {
   if (ph === 'review') return html`<span class="pill">Em análise</span><br><span class="muted small">reembolso pedido: aguarda a decisão</span>`;
   if (ph === 'cancelled') return html`<span class="pill pill--draft">Cancelada</span>${cm.cancel_reason ? html`<br><span class="muted small">${cm.cancel_reason}</span>` : (cm.order_status !== 'approved' ? html`<br><span class="muted small">pedido ${cm.order_status === 'charged_back' ? 'estornado' : 'reembolsado'}</span>` : '')}`;
   if (ph === 'grace') { const d = A.daysLeft(cm); return html`<span class="pill">Em carência</span><br><span class="muted small">falta ${d} ${d === 1 ? 'dia' : 'dias'} para liberar</span>`; }
-  return html`<span class="pill pill--ok">Liberada</span>`;
+  return html`<span class="pill pill--ok">Liberada</span>${cm.released_early_at ? html`<br><span class="muted small">liberada antecipadamente em ${fmtDate(cm.released_early_at)}</span>` : ''}`;
 }
 
 function stats(a) {
@@ -99,11 +99,17 @@ function accessCard(ctx, a, access) {
     ${access.firstAccessPending ? html`<div class="row">${form('Reenviar convite (nova senha provisória)', 'btn btn--outline btn--sm')}</div>` : ''}</section>`;
 }
 
-function detail(ctx, { a, sales, payouts, coupons, access = null, errors = {}, values = null, payErrors = {}, payValues = {}, today }) {
+function detail(ctx, { a, sales, payouts, coupons, releasable = { n: 0, cents: 0 }, access = null, errors = {}, values = null, payErrors = {}, payValues = {}, today }) {
   const v = values || a;
   const active = a.status === 'active';
   const content = html`<a class="back" href="/admin/afiliados">← Afiliados</a>${titleRow(a.name, `${a.email} · ${phoneFmt(a.phone)}`)}
-  <p>${statusPill(a)}</p>
+  <div class="row row--top">${statusPill(a)}${releasable.n ? html`<button type="button" class="btn btn--outline btn--sm" data-modal-open="liberar-modal">Liberar carência</button>` : ''}</div>
+  ${releasable.n ? html`<dialog id="liberar-modal" class="modal sim" aria-labelledby="lib-t"><div class="sim__in">
+    <h2 id="lib-t" class="t-card">Liberar carência</h2>
+    <p>Liberar <b>${brl(releasable.cents)}</b> de ${releasable.n} ${releasable.n === 1 ? 'venda' : 'vendas'} em carência de <b>${a.name}</b>? Esse valor passa a entrar no saldo a repassar agora.</p>
+    <p class="muted small">Vendas com reembolso em análise continuam retidas. Se o aluno pedir reembolso depois da liberação, a comissão é cancelada e, se já tiver sido repassada, o saldo do afiliado fica negativo.</p>
+    <form method="post" action="/admin/afiliados/${a.id}/liberar-carencia" class="row">${csrfInput(ctx.csrf)}<button class="btn btn--primary" type="submit">Liberar agora</button><button type="button" class="btn btn--ghost" data-modal-close>Cancelar</button></form>
+  </div></dialog>` : ''}
   ${Object.keys(errors).length || Object.keys(payErrors).length ? html`<div class="alert alert--error" role="alert">Confira os campos destacados.</div>` : ''}
   ${stats(a)}
   ${a.balance < 0 ? html`<div class="alert alert--error" role="alert">O saldo está negativo em ${brl(Math.abs(a.balance))}: houve reembolso ou estorno de uma venda cuja comissão já tinha sido repassada. Desconte nos próximos repasses ou combine a devolução com o afiliado.</div>` : ''}

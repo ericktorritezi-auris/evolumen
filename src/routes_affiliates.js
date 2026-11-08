@@ -51,7 +51,7 @@ function build(cfg, h) {
   });
 
   const render = async (req, res, a, extra = {}, status = 200) => res.status(status).send(views.detail(ctx(req, res), {
-    a, sales: await A.salesOf(a.id), payouts: await A.payoutsOf(a.id), coupons: await A.couponsOf(a.id), access: await A.accessInfo(a), today: today(), ...extra }));
+    a, sales: await A.salesOf(a.id), payouts: await A.payoutsOf(a.id), coupons: await A.couponsOf(a.id), access: await A.accessInfo(a), releasable: await A.releasable(a.id), today: today(), ...extra }));
 
   r.get('/admin/afiliados/:id', async (req, res, next) => { const a = await load(req, next); if (a) await render(req, res, a); });
 
@@ -81,6 +81,15 @@ function build(cfg, h) {
     flashBack(req, res, 'success', 'Dados salvos.', `/admin/afiliados/${a.id}`);
   });
 
+  // Libera de uma vez tudo o que está em carência deste afiliado (1.9.0). Reembolso em análise, cancelada e já liberada ficam como estão.
+  r.post('/admin/afiliados/:id/liberar-carencia', async (req, res, next) => {
+    const a = await load(req, next); if (!a) return;
+    const out = await A.releaseGrace(a.id, req.user.id);
+    if (!out.n) return flashBack(req, res, 'info', 'Nada para liberar: não há comissão em carência que possa ser liberada agora.', `/admin/afiliados/${a.id}`);
+    await audit(req, 'affiliate_grace_released', { entity: 'affiliate', entityId: a.id, meta: { sales: out.n, cents: out.cents, commissions: out.ids.slice(0, 200) } });
+    try { await A.notifyReleased(notify, new Date(Date.now() + 60000), { ids: out.ids }); } catch (e) { /* o aviso também sai na rotina diária */ }
+    flashBack(req, res, 'success', `Carência liberada: ${C.brl(out.cents)} de ${out.n} ${out.n === 1 ? 'venda' : 'vendas'} já ${out.n === 1 ? 'está' : 'estão'} no saldo a repassar.`, `/admin/afiliados/${a.id}`);
+  });
   r.post('/admin/afiliados/:id/inativar', async (req, res, next) => {
     const a = await load(req, next); if (!a) return;
     await db.q("UPDATE affiliates SET status = 'inactive', inactivated_at = now(), updated_at = now() WHERE id = $1 AND status = 'active'", [a.id]);

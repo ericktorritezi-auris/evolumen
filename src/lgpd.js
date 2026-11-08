@@ -28,7 +28,7 @@ async function exportFor(userId) {
     pedidos_de_download: await q('SELECT file_id, course_id, reason, status, response, created_at, decided_at FROM download_requests WHERE user_id = $1 ORDER BY id'),
     downloads_de_arquivos: await q('SELECT file_id, used, extra, last_at FROM file_quota WHERE user_id = $1'),
     afiliado: await q("SELECT name, email, phone, dest_kind, pix_key, bank_name, bank_agency, bank_account, status, invited_at, created_at FROM affiliates WHERE user_id = $1"),
-    afiliado_comissoes: await q(`SELECT co.title AS produto, m.base_cents, m.pct, m.amount_cents, m.status, m.created_at, m.release_at FROM commissions m JOIN orders o ON o.id = m.order_id JOIN courses co ON co.id = o.course_id
+    afiliado_comissoes: await q(`SELECT co.title AS produto, m.base_cents, m.pct, m.amount_cents, m.status, m.created_at, m.release_at, m.release_at_original, m.released_early_at FROM commissions m JOIN orders o ON o.id = m.order_id JOIN courses co ON co.id = o.course_id
       JOIN affiliates a ON a.id = m.affiliate_id WHERE a.user_id = $1 ORDER BY m.id`),
     afiliado_repasses: await q('SELECT p.paid_on, p.amount_cents, p.voided_at FROM affiliate_payouts p JOIN affiliates a ON a.id = p.affiliate_id WHERE a.user_id = $1 ORDER BY p.id'),
     registro_de_atividade: await q('SELECT at, action, ip FROM audit_log WHERE actor_user_id = $1 ORDER BY id'),
