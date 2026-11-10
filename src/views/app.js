@@ -27,6 +27,7 @@ function adminHome({ cfg, user, csrf, flash, status, health, dash }) {
         <div class="kvs">${health.items.map((i) => html`<div class="kv"><span>${i.label}</span><span class="health__txt health__txt--${i.level}"><span class="health__dot health__dot--${i.level}" aria-hidden="true"></span>${i.text}</span></div>`)}</div>
         <p class="muted small">Tempo de resposta e tarefas automáticas são medidos desde o último reinício do sistema.</p>
       </section>
+      <section class="card an-cta"><div><h2 class="t-card">Quer entender de onde vêm as visitas e onde as vendas se perdem?</h2><p class="muted">Visitas, origem, regiões, funil até a compra e afiliados.</p></div><a class="btn btn--primary" href="/admin/analytics">EvoLumen Analytics</a></section>
       ${dash.error ? html`<div class="alert alert--error" role="alert">Não foi possível carregar os números agora. Veja a saúde do sistema acima.</div>` : ''}
       <div class="stats">
         ${stat('Vendas no mês', dash.month.n, brl(dash.month.gross))}

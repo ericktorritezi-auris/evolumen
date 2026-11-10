@@ -52,6 +52,14 @@ function mount(cfg) {
 function build(cfg, h) {
   const r = express.Router();
   r.use('/admin/analytics', h.needUser, h.gate, h.needAdmin);
+  r.get('/admin/analytics', async (req, res, next) => {
+    try {
+      res.set('Cache-Control', 'no-store');
+      const R = require('./analytics_report');
+      const data = await R.report({ days: R.parseDays(req.query.dias), site: R.parseSite(req.query.onde) });
+      res.send(require('./views/analytics').tela(h.appCtx(req, res), { r: data, cfg }));
+    } catch (e) { next(e); }
+  });
   r.get('/admin/analytics/verificacao', async (req, res, next) => {
     try { res.send(require('./views/analytics').verificacao(h.appCtx(req, res), { data: await A.check(), cfg })); } catch (e) { next(e); }
   });
