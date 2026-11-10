@@ -73,11 +73,17 @@ function createApp(cfg) {
   });
   app.get('/offline', (req, res) => res.set('Cache-Control', 'no-cache').sendFile(path.join(PUBLIC, 'offline.html')));
   app.get('/favicon.ico', (req, res) => res.redirect(301, '/static/icons/favicon-32.png'));
+  // Script de medição (EvoLumen Analytics): as landings, em outro endereço, o carregam daqui.
+  const eaSource = fs.readFileSync(path.join(PUBLIC, 'js', 'ea.js'), 'utf8');
+  app.get('/static/js/ea.js', (req, res) => {
+    res.set({ 'Cross-Origin-Resource-Policy': 'cross-origin', 'Cache-Control': 'public, max-age=3600' }).type('application/javascript').send(eaSource);
+  });
   app.use('/static', express.static(PUBLIC, { maxAge: cfg.isProd ? '7d' : 0, index: false }));
 
   // Webhook do gateway: antes de sessão e CSRF (a autenticidade vem da assinatura).
   const hooks = express.Router();
   app.use('/webhooks', express.json({ limit: '100kb' }), hooks);
+  app.use(require('./routes_analytics').mount(cfg)); // coleta de visitas: antes da sessão e do CSRF
   app.use(express.urlencoded({ extended: false, limit: '100kb' }));
   app.use(sec.sessionMiddleware(cfg));
   app.use(sec.csrfMiddleware(cfg));
@@ -101,6 +107,7 @@ function createApp(cfg) {
   app.use(require('./routes_launch').build(cfg, main.helpers));
   app.use(require('./routes_affiliates').build(cfg, main.helpers));
   app.use(require('./routes_leads').build(cfg, main.helpers));
+  app.use(require('./routes_analytics').build(cfg, main.helpers));
   app.use(require('./routes_afiliado').build(cfg, main.helpers));
   app.use(require('./routes_downloads').build(cfg, main.helpers));
   app.use(require('./routes_cockpit').build(cfg));
@@ -138,6 +145,10 @@ async function start() {
   // Campainha: aniversários, prazos e lembretes. Uma vez por hora (cada aviso tem chave e não se repete).
   const daily = () => require('./reminders').run(cfg, (pr) => Promise.resolve(pr).catch((e) => log.warn('email_falhou', { error: e.message })));
   setTimeout(daily, 60 * 1000).unref(); setInterval(daily, 3600 * 1000).unref();
+  // Limpeza das visitas com mais de 13 meses (uma vez por dia, de madrugada); os totais por dia ficam guardados.
+  const purgeAn = () => { if (new Date().getHours() === 3) require('./analytics').purge(cfg).catch((e) => log.warn('analytics_limpeza_falhou', { error: e.message })); };
+  setInterval(purgeAn, 3600 * 1000).unref();
+  if (cfg.analytics.enabled) setTimeout(() => require('./analytics').geo('8.8.8.8'), 2000).unref(); // carrega a base de localização fora do caminho de uma visita
   const app = createApp(cfg);
   const server = app.listen(cfg.port, () => log.info('servidor_no_ar', { porta: cfg.port, ambiente: cfg.appEnv, versao: cfg.version.version, volume: require('./files').volumeOn() }));
   server.requestTimeout = 20 * 60 * 1000; // envio de arquivo grande em conexão lenta

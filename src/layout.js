@@ -10,7 +10,7 @@ function lumen(pose, size, alt = '') {
   return html`<img class="lumen lumen--${pose}" src="/static/img/lumen-${pose}.svg" width="${size}" alt="${alt}">`;
 }
 
-function documentShell({ cfg, title, body, robots = 'noindex, nofollow', bodyClass = '', description = '' }) {
+function documentShell({ cfg, title, body, robots = 'noindex, nofollow', bodyClass = '', description = '', track = true }) {
   const v = cfg.version.version;
   return '<!doctype html>' + html`<html lang="pt-BR">
 <head>
@@ -31,6 +31,7 @@ ${description ? html`<meta name="description" content="${description}">` : ''}
 <link rel="preload" href="/static/fonts/nunito-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/css/app.css?v=${v}">
 <script src="/static/js/app.js?v=${v}" defer></script>
+${cfg.analytics && cfg.analytics.enabled && track ? html`<script src="/static/js/ea.js?v=${v}" defer></script>` : ''}
 </head>
 <body class="${bodyClass}">
 ${cfg.isProd ? '' : html`<div class="env-banner" role="status">Ambiente de testes (${cfg.appEnv}). Nada aqui é real.</div>`}
@@ -100,7 +101,7 @@ function shellApp({ cfg, user, path, title, content, flash: f, csrf }) {
   ${bellPanel()}
   ${renderFooter(cfg)}
 </div>`;
-  return documentShell({ cfg, title, body });
+  return documentShell({ cfg, title, body, track: user.role !== 'admin' });
 }
 
 // Tela de autenticação: duas colunas no computador, empilhada no celular.
@@ -147,7 +148,7 @@ function shellPublic({ cfg, user, title, content, flash: f, description = '', og
 </div>
 <main id="conteudo" class="p-main">${flash(f)}${content}</main>
 ${renderFooter(cfg)}`;
-  return documentShell({ cfg, title, body, robots, bodyClass: 'is-public', description });
+  return documentShell({ cfg, title, body, robots, bodyClass: 'is-public', description, track: !(user && user.role === 'admin') });
 }
 
 module.exports = { documentShell, shellApp, shellAuth, shellPublic, flash, lumen };
