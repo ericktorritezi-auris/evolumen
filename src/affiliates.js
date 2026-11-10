@@ -183,7 +183,7 @@ async function notifyReleased(notify, now = new Date(), { ids = null } = {}) {
 
 // ---------- liberação antecipada da carência (1.9.0) ----------
 // Só o que está em carência de verdade: comissão valendo, pedido aprovado, prazo ainda correndo e sem pedido de reembolso aberto.
-const RELEASABLE = `m.affiliate_id = $1 AND m.status = 'active' AND m.release_at > now()
+const RELEASABLE = `m.affiliate_id = $1 AND m.status = 'active' AND m.release_at > now() AND m.released_early_at IS NULL
   AND EXISTS (SELECT 1 FROM orders o WHERE o.id = m.order_id AND o.status = 'approved')
   AND NOT EXISTS (SELECT 1 FROM refund_requests rr WHERE rr.order_id = m.order_id AND rr.status IN ('requested','failed','approved'))`;
 async function releasable(affiliateId) {

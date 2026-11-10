@@ -89,10 +89,10 @@ async function createOrder(cfg, req, { course, buyer, method, user, coupon, rene
       : `SELECT * FROM orders WHERE course_id = $1 AND lower(buyer->>'email') = $2 AND method = 'card' AND status = 'pending' AND price_cents = $3 AND coupon_id IS NOT DISTINCT FROM $4::bigint AND checkout_url IS NOT NULL AND created_at > now() - interval '30 minutes' ORDER BY id DESC LIMIT 1`,
     [course.id, buyer.email, price.final, price.coupon ? price.coupon.id : null])).rows[0];
     if (dup) return dup;
-    const o = (await c.query(`INSERT INTO orders (public_id, user_id, course_id, kind, buyer, list_cents, price_cents, price_source, coupon_id, method, provider, terms_doc_id, privacy_doc_id, ip, user_agent)
-      VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+    const o = (await c.query(`INSERT INTO orders (public_id, user_id, course_id, kind, buyer, list_cents, price_cents, price_source, coupon_id, method, provider, terms_doc_id, privacy_doc_id, ip, user_agent, visitor_id, session_id)
+      VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
     [publicId, user ? user.id : null, course.id, renewal ? 'renewal' : 'purchase', JSON.stringify(buyer), price.list, price.final, price.source, price.coupon ? price.coupon.id : null, method, cfg.paymentProvider,
-      docs.terms.id, docs.privacy.id, req.ip || null, ua])).rows[0];
+      docs.terms.id, docs.privacy.id, req.ip || null, ua, ...require('./analytics').idsFrom(req)])).rows[0];
     try {
       if (method === 'pix') {
         const r = await gw.createPix(cfg, { order: o, course });

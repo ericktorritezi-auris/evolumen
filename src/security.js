@@ -126,4 +126,4 @@ function safeEqual(a, b) {
   return x.length === y.length && crypto.timingSafeEqual(x, y);
 }
 
-module.exports = { sha256, rand, sessionMiddleware, createSession, destroySession, destroyOtherSessions, csrfMiddleware, requireCsrf, csrfFor, newToken, newCode, hashCode, safeEqual };
+module.exports = { parseCookies, sha256, rand, sessionMiddleware, createSession, destroySession, destroyOtherSessions, csrfMiddleware, requireCsrf, csrfFor, newToken, newCode, hashCode, safeEqual };

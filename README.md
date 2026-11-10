@@ -11,6 +11,9 @@ Mais um produto Belle Planner.
 | 1.7.0 | 6 · Lançamento | 2026-11-06 | **Acompanhamento de alunos** (versão exibida na plataforma continua **1.3**). Na aba *Matrículas* de cada curso: indicadores, busca, filtros (em andamento, parados, não começaram, concluídos), "parado há mais de X dias" ajustável (3/7/14/30), progresso, última aula concluída e situação de cada aluno, e uma página de detalhe com o curso aula a aula, tempo assistido, quizzes, prova final e certificado. Somente leitura: sem tabelas novas e sem efeito para o aluno. |
 | 1.8.0 | 6 · Lançamento | 2026-11-07 | **Simulador de comissão** (versão exibida na plataforma continua **1.3**). Botão *Simulação* em Afiliados (só administrador) abre uma janela onde você informa valor do produto, % de desconto do cupom e % do afiliado e vê o valor com desconto, a comissão e o que sobra para a plataforma. Só faz conta na tela: não grava nada. |
 | 1.9.0 | 6 · Lançamento | 2026-11-08 | **Liberar carência** (versão exibida na plataforma continua **1.3**). Na tela de cada afiliado, o botão *Liberar carência* (com confirmação) libera de uma vez as comissões em carência dele: passam a *Liberada* e entram no *Saldo a repassar*. Reembolso em análise, canceladas e já liberadas não mudam. Guarda a data original, quem liberou e quando; o afiliado com painel recebe o aviso de comissão liberada. Migração 020. |
+| 2.0.0 | 6 · Lançamento | 2026-11-09 | **EvoLumen Analytics, etapa 1 de 3 · coleta e dados** (versão exibida continua **1.3**). Medição própria de visitas, no lugar do Google Analytics, para plataforma e landings: visitante e visita (cookies `ea_v`/`ea_s` no domínio principal), página, origem (Instagram, Google, WhatsApp, direto…), aparelho, navegador, país/estado/cidade (geolocalização embutida; o IP não é guardado), cupom do link e ligação da compra à visita. Respeita "Não rastrear"; dados brutos por 13 meses (totais por dia ficam). Desligada por padrão (`ANALYTICS_ENABLED=1`); aviso de cookies e tela vêm nas etapas 2 e 3. Migração 021; nova dependência `geoip-lite`. Revisão independente aplicada: endereços com segredo (redefinir senha, pedido, certificado) são guardados sem o segredo; "Não rastrear" também no servidor; o número do visitante sai dos pedidos após 13 meses. Corrige corrida na liberação de carência. |
+| 2.1.0 | 6 · Lançamento | 2026-11-10 | **EvoLumen Analytics, etapa 2 de 3 · aviso de cookies** (versão exibida continua **1.3**). Faixa de aviso na plataforma (quando a medição está ligada) com *Entendi* e *Não quero ser medido*; a escolha vale também para as landings (cookie no domínio principal). Nova página pública **Aviso de Privacidade e Cookies** (`/aviso-de-privacidade-e-cookies`, texto-base para sua revisão; a Política de privacidade não muda, então ninguém precisa aceitar de novo), com o controle de recusar/permitir, identificação do controlador/encarregado (Erick Torritezi, com e-mail e telefone) e link *Cookies* no rodapé. Documento `docs/analytics-landing.md` com a linha do script e o texto para a IA da landing. Recusar também apaga as visitas já registradas daquele navegador; a exportação e a exclusão de conta (LGPD) passam a cobrir as visitas. Sem migração. |
+| 2.2.0 | 6 · Lançamento | 2026-11-10 | **EvoLumen Analytics, etapa 3 de 3 · a tela** (versão exibida continua **1.3**). Botão *EvoLumen Analytics* no Dashboard (sem item novo no menu) abre a tela, com *Voltar para o dashboard*. Períodos de 7, 30 e 90 dias e filtro Todos os sites / Plataforma / Landings. Mostra: visitantes, visitas, páginas vistas (com comparação com o período anterior), novos e recorrentes, compras e conversão; gráfico de visitas por dia; funil (visitas → landing → página do curso → checkout → pedido → compra aprovada); origem (Instagram, Google, direto…); aparelhos e navegadores; regiões (Brasil por estado e exterior); páginas mais visitadas com entradas e saídas; landings e afiliados por cupom (visitas, checkout, compras, conversão); acessos dos alunos e faixa etária (pela data de nascimento informada). Só administrador. Migração 022 (índices). |
 
 | 1.5.0 | 6 · Lançamento | 2026-11-05 | **Recibo de repasse de comissionamento.** (1) **Cadastro do afiliado**: acima da anotação interna, o campo *Dados para o repasse* (*Chave Pix* ou *Conta bancária*), com chave Pix, ou banco, agência e conta (texto livre, interno). O recibo mostra só a opção escolhida. (2) **Repasse**: ao lançar, o sistema guarda o Pix ou a conta que valia naquele dia; mudar o cadastro depois não altera recibos já emitidos (repasses anteriores à 1.5.0 usam o cadastro atual). (3) **Recibo em PDF** em papel timbrado EvoLumen, com número, valor e valor por extenso, data por extenso (*Paraná, 24 de outubro de 2026*), destino do pagamento e o seu nome, CPF (o do seu cadastro de administrador) e assinatura. Botão *Baixar recibo* em cada repasse, na tela do afiliado (admin) e no painel do próprio afiliado, que só baixa os dele. Repasse anulado não gera recibo. Cada download fica no registro de atividade. Migração 018 (só acrescenta colunas). |
 | 1.4.0 | 6 · Lançamento | 2026-11-04 | **Método EPI (Escuta, Pausa e Integração).** (1) **Certificado**: o selo do Método EPI aparece no PDF, à esquerda da assinatura, e o texto padrão passa a citar o método. Certificados já emitidos mantêm o texto de quando foram emitidos. Cursos que têm texto próprio (aba de certificado do curso) também mantêm o seu. (2) **Página `/metodo-epi`** com a arte e o texto do método, aberta a todos (sem login), com o novo item **Método EPI** no menu superior (e no menu do celular) e um link no rodapé. (3) **Selo nos cursos**: na página pública do curso, logo abaixo da caixa de valor e matrícula; e na área do aluno, na página do curso e ao lado das aulas. Produtos digitais (e-books, downloads) não recebem o selo. O selo leva à página do método. |
@@ -171,6 +174,43 @@ Lembrete da regra central: login e senha não liberam curso. O acesso nasce de u
 4. **Média de estrelas**: com 3 avaliações, aparece "★ 4,7" na vitrine e na página. Com menos de 3, não aparece.
 5. **Aviso de novidade**: em *Compradores* (ou *Arquivos*) do produto, e em *Matrículas* do curso, escreva uma frase e envie. Vai para a campainha; só vai por e-mail se marcar a caixa.
 6. **Certificados**: a tela do aluno não lista produtos digitais.
+
+## Como testar a 2.2.0
+
+Pré-requisito: `ANALYTICS_ENABLED=1` no ambiente e algumas visitas já medidas (plataforma e landing).
+
+1. Entre como administrador. No **Dashboard** aparece o cartão *Quer entender de onde vêm as visitas…* com o botão **EvoLumen Analytics**. Clique.
+2. Na tela, confira os números de hoje contra `/admin/analytics/verificacao` (link no rodapé da tela). Troque entre **7, 30 e 90 dias** e entre **Todos os sites, Plataforma e Landings**: os números mudam.
+3. Em outra aba anônima, visite a landing com `?cupom=SEU-CUPOM&origem=instagram`, abra o curso e o checkout. Volte à tela: a visita aparece em *De onde vêm* (Instagram), no *Funil* e em *Landings e afiliados*.
+4. Faça uma compra de teste (simulador no staging) pelo mesmo navegador: o funil mostra *Pedido criado* e *Compra aprovada*, e o cupom soma 1 compra.
+5. *Alunos na plataforma* e *Faixa etária* usam o último acesso e a data de nascimento dos alunos.
+6. Clique em **← Voltar para o dashboard**. Confira no celular que a tela não corta nem rola de lado.
+
+## Como testar a 2.1.0
+
+Pré-requisito: `ANALYTICS_ENABLED=1` no staging (a faixa só aparece com a medição ligada). Nada a instalar.
+
+1. Em aba anônima, abra o site: aparece a faixa de aviso embaixo. Clique em *Saiba mais* e leia a página **Aviso de Privacidade e Cookies** (confira o texto: é um rascunho para você revisar).
+2. Clique em *Entendi*: a faixa some e não volta ao navegar nem ao recarregar.
+3. Em outra aba anônima, clique em *Não quero ser medido*. Navegue por algumas páginas e confira em `/admin/analytics/verificacao` que **nenhuma visita nova** sua aparece.
+4. Na página do Aviso, o quadro mostra o seu estado e só o botão que faz sentido (*Não quero ser medido* ou *Permitir a medição*). Recusar apaga também as visitas já registradas daquele navegador.
+5. Rodapé: o link *Cookies* aparece em todas as páginas e leva ao Aviso.
+6. Entre como administrador: o painel não mostra a faixa.
+7. Abra `docs/analytics-landing.md` e passe o conteúdo à IA da landing (linha do script no modelo-mestre e texto do rodapé).
+8. Se tudo estiver certo, a coleta já pode ser ligada em produção (`ANALYTICS_ENABLED=1`).
+
+## Como testar a 2.0.0
+
+Esta etapa só coleta; a tela com os números vem na 2.2.0. **Mantenha desligada em produção até a 2.1.0** (aviso de cookies).
+
+1. Rode `npm install` (entra o `geoip-lite`, cerca de 150 MB) e publique em *staging*.
+2. No Railway (staging), crie a variável `ANALYTICS_ENABLED=1`. Para as landings, `ANALYTICS_ORIGINS=https://masterclass.ericktorritezi.com.br` (várias, separadas por vírgula). Reinicie.
+3. Em uma aba anônima, abra a página inicial, um curso e o checkout do staging, com outro aparelho/celular se puder.
+4. Entre como administrador e abra `/admin/analytics/verificacao`: deve mostrar *Medição ligada*, os contadores de hoje e as últimas visitas com origem, aparelho e localização.
+5. Abra `/cursos/cur-masterclass?o=instagram` e confira a origem "instagram". Faça uma compra de teste pelo simulador e confirme que ela aparece ligada à visita.
+6. Ative "Não rastrear" no navegador, abra o site e confira que nada novo aparece.
+7. Suas visitas como administrador não são contadas.
+8. Abra a tela de redefinir senha e confira, na verificação, que o caminho aparece como `/redefinir-senha/:token` (sem o código).
 
 ## Como testar a 1.9.0
 1. Entre como administrador, abra **Afiliados** e clique em um afiliado que tenha valor em **Em carência**. Ao lado da etiqueta *Ativo* aparece **Liberar carência** (sem valor em carência, o botão não aparece).

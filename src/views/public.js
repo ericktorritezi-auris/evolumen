@@ -202,6 +202,52 @@ function legalPage({ cfg, user, doc, title }) {
   return shellPublic({ cfg, user, title, content });
 }
 
+// Aviso de Privacidade e Cookies (página à parte; a Política de privacidade não muda). Texto-base para revisão do responsável.
+function avisoPage({ cfg, user }) {
+  const on = !!(cfg.analytics && cfg.analytics.enabled);
+  const content = html`<article class="sec"><div class="sec__in sec__in--narrow">
+    <a class="back" href="/">← Início</a>
+    <h1 class="t-display">Aviso de Privacidade e Cookies</h1>
+    <p class="muted small">Vale para a EvoLumen Academy e para as páginas de divulgação dos nossos cursos.</p>
+    <div class="legal legal--page legal--full">
+      ${on ? '' : html`<p class="muted">No momento a medição de visitas está desligada; o texto abaixo vale quando ela for ligada.</p>`}
+      <h2>Para que medimos as visitas</h2>
+      <p>Queremos entender como as pessoas encontram e usam o nosso site: quais páginas são mais vistas, de onde a visita veio e em que aparelho. Isso nos ajuda a melhorar os cursos, as páginas e a forma de explicar o que oferecemos. Fazemos essa medição com um sistema próprio, sem Google Analytics e sem enviar esses dados a empresas de publicidade.</p>
+      <h2>O que guardamos</h2>
+      <ul>
+        <li>As páginas que você abriu e a data e a hora.</li>
+        <li>De onde a visita veio (por exemplo Instagram, Google, WhatsApp ou direto) e, se o link trouxer, o código de cupom.</li>
+        <li>Tipo de aparelho (celular, tablet ou computador), navegador e sistema.</li>
+        <li>Local aproximado: país, estado e cidade, deduzidos do endereço de rede no momento da visita.</li>
+        <li>Se você é aluno e está conectado, ligamos a visita à sua conta para saber como a turma usa a plataforma. Quando você compra, a compra fica ligada à visita para sabermos de onde ela veio (essa ligação também é apagada em 13 meses).</li>
+      </ul>
+      <p><b>Na medição de visitas não guardamos o seu endereço de rede (IP)</b>: ele é usado só no momento da visita para deduzir o local aproximado e é descartado. Também não lemos o seu conteúdo, não usamos cookies de terceiros e não fazemos propaganda direcionada. Em outras situações, como login, aceite dos termos e compra, o sistema registra IP e aparelho por segurança e por obrigação legal, conforme a <a href="/privacidade">Política de privacidade</a>.</p>
+      <p>Os dados ficam na infraestrutura de hospedagem que usamos para manter o site no ar, que só os processa por nossa conta e não os usa para publicidade.</p>
+      <h2>Os cookies que usamos</h2>
+      <div class="ck-tbl"><table><thead><tr><th>Nome</th><th>Para que serve</th><th>Quanto tempo dura</th></tr></thead><tbody>
+        <tr><td><code>ea_v</code></td><td>Reconhece o mesmo visitante em visitas diferentes, sem nome nem e-mail.</td><td>13 meses</td></tr>
+        <tr><td><code>ea_s</code></td><td>Marca uma visita; termina depois de 30 minutos parado.</td><td>30 minutos</td></tr>
+        <tr><td><code>ea_ok</code> ou <code>ea_off</code></td><td>Lembra a sua escolha sobre a medição (<code>ea_off</code> quando você recusa).</td><td>13 meses</td></tr>
+        <tr><td><code>evl_sid</code></td><td>Mantém você conectado na área de membros (necessário para o funcionamento).</td><td>Até 30 dias</td></tr>
+        <tr><td><code>evl_a</code></td><td>Identificador anônimo de segurança, usado nos formulários de entrada (necessário para o funcionamento).</td><td>12 meses</td></tr>
+      </tbody></table></div>
+      <h2>Por que podemos fazer isso</h2>
+      <p>A medição se baseia no nosso legítimo interesse em melhorar o site (Lei Geral de Proteção de Dados, art. 7º, IX), com o cuidado de coletar o mínimo e de deixar você recusar a qualquer momento.</p>
+      <h2>Por quanto tempo guardamos</h2>
+      <p>Os registros de cada visita ficam por <b>13 meses</b> e depois são apagados. Guardamos apenas totais por dia, sem identificar ninguém, para acompanhar a evolução ao longo do tempo.</p>
+      <h2>Como recusar</h2>
+      <p>Você pode recusar no aviso que aparece no site ou aqui nesta página. Também respeitamos o sinal “Não rastrear” e o controle global de privacidade do seu navegador. Ao recusar, apagamos os identificadores e também as visitas já registradas por este navegador, e não medimos mais as suas visitas. Se o seu navegador bloquear os cookies, também não medimos. Você tem direito de se opor a esse uso dos seus dados, de revogar a sua escolha e de pedir a exclusão dos dados ligados à sua conta, a qualquer momento.</p>
+      ${on && !(user && user.role === 'admin') ? html`<div class="ea-box"><p data-ea-status role="status" aria-live="polite"></p><p><button type="button" class="btn btn--outline btn--sm" data-ea-act="off" hidden>Não quero ser medido</button><button type="button" class="btn btn--primary btn--sm" data-ea-act="on" hidden>Permitir a medição</button></p></div>` : ''}
+      <h2>Quem é o responsável</h2>
+      <p>O controlador dos dados e também o encarregado pelo tratamento (DPO) é <b>Erick Torritezi</b>. Para qualquer assunto sobre os seus dados: <a href="mailto:erick.torritezi@gmail.com">erick.torritezi@gmail.com</a> ou telefone/WhatsApp (11) 94985-1250.</p>
+      <h2>Seus direitos e contato</h2>
+      <p>Você pode pedir acesso, correção, exclusão, portabilidade ou a revogação da sua escolha, e esclarecer qualquer dúvida, falando com o responsável acima. Mais detalhes sobre os seus dados estão na <a href="/privacidade">Política de privacidade</a>. Esta página poderá ser atualizada; a data da última revisão aparece abaixo.</p>
+      <p class="muted small">Última atualização: novembro de 2026.</p>
+    </div>
+  </div></article>`;
+  return shellPublic({ cfg, user, title: 'Aviso de Privacidade e Cookies', content, description: 'Como a EvoLumen Academy mede as visitas ao site, que cookies usa e como você pode recusar.' });
+}
+
 function metodoPage({ cfg, user }) {
   const content = html`<article class="sec epi"><div class="sec__in sec__in--narrow">
     <a class="back" href="/">← Início</a>
@@ -238,4 +284,4 @@ function metodoPage({ cfg, user }) {
   return shellPublic({ cfg, user, title: 'Método EPI: Escuta, Pausa e Integração', description: 'Conheça o Método EPI da EvoLumen Academy: Escuta, Pausa e Integração. O conhecimento precisa de espaço para se transformar em atitude.', content });
 }
 
-module.exports = { metodoPage, landing, coursePage, legalPage, priceBlock, coverBox, dur, plural };
+module.exports = { avisoPage, metodoPage, landing, coursePage, legalPage, priceBlock, coverBox, dur, plural };

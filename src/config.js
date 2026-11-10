@@ -50,6 +50,12 @@ function load(env = process.env) {
     // Pasta de arquivos grandes: o volume do Railway (caminho vem sozinho) ou FILES_DIR (testes e desenvolvimento).
     filesDir: (env.FILES_DIR || env.RAILWAY_VOLUME_MOUNT_PATH || '').trim(),
     // Reset de lançamento: só funciona com ALLOW_LAUNCH_RESET=1 no Railway. Depois do lançamento, a variável é removida.
+    // EvoLumen Analytics (2.0.0): só mede quando ANALYTICS_ENABLED=1. ANALYTICS_ORIGINS lista as landings autorizadas (separadas por vírgula).
+    analytics: {
+      enabled: (env.ANALYTICS_ENABLED || '').trim() === '1',
+      origins: (env.ANALYTICS_ORIGINS || 'https://masterclass.ericktorritezi.com.br').split(',').map((x) => x.trim().replace(/\/+$/, '').toLowerCase()).filter(Boolean),
+      retentionMonths: 13,
+    },
     allowLaunchReset: (env.ALLOW_LAUNCH_RESET || '').trim() === '1',
     pixMinutes: 30,
     refundDays: 7,
