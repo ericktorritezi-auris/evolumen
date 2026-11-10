@@ -31,11 +31,15 @@ ${description ? html`<meta name="description" content="${description}">` : ''}
 <link rel="preload" href="/static/fonts/nunito-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/css/app.css?v=${v}">
 <script src="/static/js/app.js?v=${v}" defer></script>
-${cfg.analytics && cfg.analytics.enabled && track ? html`<script src="/static/js/ea.js?v=${v}" defer></script>` : ''}
+${cfg.analytics && cfg.analytics.enabled && track ? html`<script src="/static/js/ea.js?v=${v}" defer></script><script src="/static/js/aviso.js?v=${v}" defer></script>` : ''}
 </head>
 <body class="${bodyClass}">
 ${cfg.isProd ? '' : html`<div class="env-banner" role="status">Ambiente de testes (${cfg.appEnv}). Nada aqui é real.</div>`}
 ${body}
+${cfg.analytics && cfg.analytics.enabled && track ? html`<div class="ea-banner" data-ea-banner role="region" aria-label="Aviso de cookies" hidden>
+  <p>Usamos dois identificadores anônimos para entender como o site é usado (páginas, origem da visita e aparelho), sem cookies de terceiros nem propaganda. Você pode recusar a qualquer momento. <a href="/aviso-de-privacidade-e-cookies">Saiba mais</a></p>
+  <div class="ea-banner__act"><button type="button" class="btn btn--primary btn--sm" data-ea-act="ok">Entendi</button><button type="button" class="btn btn--outline btn--sm" data-ea-act="off">Não quero ser medido</button></div>
+</div>` : ''}
 </body>
 </html>`.s;
 }

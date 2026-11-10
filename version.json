@@ -1,7 +1,7 @@
 {
-  "version": "2.0.0",
+  "version": "2.1.0",
   "display": "1.3",
   "phase": 6,
-  "released": "2026-11-09",
-  "note": "EvoLumen Analytics, etapa 1 de 3: coleta própria de visitas e dados (sem tela ainda)."
+  "released": "2026-11-10",
+  "note": "EvoLumen Analytics, etapa 2 de 3: aviso de cookies e página pública do Aviso de Privacidade e Cookies."
 }

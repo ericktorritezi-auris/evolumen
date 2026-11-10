@@ -40,6 +40,7 @@ img{max-width:100%;height:auto}
 .btn--primary{background:var(--ambar);color:#1b1300}.btn--primary:hover{filter:brightness(1.08)}
 .btn--outline{border-color:var(--aurora);color:var(--nevoa);background:transparent}.btn--outline:hover{background:rgba(142,155,255,.12)}
 .btn--ghost{background:transparent;color:var(--light);border-color:var(--line)}.btn--ghost:hover{background:rgba(255,255,255,.05)}
+.btn[hidden]{display:none!important}
 .btn--lg{min-height:52px;font-size:16px}.btn--sm{min-height:36px;padding:6px 14px;font-size:14px}.btn--block{width:100%}
 .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--nevoa);cursor:pointer}
 
@@ -533,3 +534,9 @@ tr.is-focus td{background:rgba(255,178,87,.12)}
 .sim small{display:block;color:var(--bruma);font-size:12px}.sim__row b{font-size:18px}
 .sim__res{border:1px solid var(--good);border-radius:12px;padding:12px;background:rgba(111,224,168,.08)}.sim__res b{font-size:22px;color:var(--good)}
 .sim__in-f input,.sim__in-f input:focus{outline:0;box-shadow:none;border:0;background:none;min-height:0}
+
+.ea-banner{position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex;gap:12px 20px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--panel);border-top:1px solid var(--line);padding:14px max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));box-shadow:0 -8px 24px rgba(0,0,0,.35)}
+.ea-banner[hidden]{display:none}.ea-banner p{margin:0;flex:1 1 320px;min-width:0;font-size:14px;color:var(--light)}
+.ea-pad{padding-bottom:110px}.ea-banner__act{display:flex;gap:8px;flex-wrap:wrap}
+.ea-box{border:1px solid var(--line);border-radius:12px;background:var(--profundo);padding:14px 16px;margin:16px 0;display:grid;gap:10px}.ea-box p{margin:0}
+.ck-tbl{overflow-x:auto}.ck-tbl table{border-collapse:collapse;width:100%;font-size:14px}.ck-tbl th,.ck-tbl td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}

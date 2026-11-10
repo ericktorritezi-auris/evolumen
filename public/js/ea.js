@@ -1,6 +1,6 @@
 /* EvoLumen Analytics: medição própria de acessos. Sem terceiros: envia um aviso por página ao servidor do EvoLumen.
    Guarda dois identificadores anônimos no navegador (ea_v: visitante, 13 meses; ea_s: visita, 30 minutos).
-   Respeita "Não rastrear", o controle global de privacidade e a recusa da pessoa (ea_off). */
+   Respeita "Não rastrear", o controle global de privacidade e a recusa da pessoa (cookie ea_off). Sem cookies, não mede. */
 (function () {
   'use strict';
   try {
@@ -9,7 +9,6 @@
     var base = me && me.src ? new URL(me.src).origin : w.location.origin;
     var off = n.doNotTrack === '1' || w.doNotTrack === '1' || n.globalPrivacyControl === true;
     var cookie = function (k) { var m = d.cookie.match(new RegExp('(?:^|; )' + k + '=([^;]*)')); return m ? decodeURIComponent(m[1]) : ''; };
-    try { if (w.localStorage.getItem('ea_off') === '1') off = true; } catch (e) { /* sem armazenamento */ }
     if (cookie('ea_off') === '1') off = true;
     if (off) { // recusou: apaga o que já existia
       var host0 = w.location.hostname, p0 = host0.split('.');
@@ -47,6 +46,7 @@
     set('ea_v', v, 395 * 86400);                       // 13 meses
     var s = cookie('ea_s'); if (!ok(s)) s = rnd();
     set('ea_s', s, 30 * 60);                           // renova a cada página: a visita acaba após 30 min parado
+    if (cookie('ea_v') !== v || cookie('ea_s') !== s) return; // cookies bloqueados: não medimos (cada página viraria um visitante novo)
     var q = new URLSearchParams(w.location.search);
     var body = JSON.stringify({
       v: v, s: s, p: w.location.pathname, h: host,
@@ -54,7 +54,7 @@
       q: { c: q.get('cupom') || q.get('coupon') || '', o: q.get('origem') || q.get('utm_source') || '' }
     });
     var url = base + '/ea/c';
-    if (n.sendBeacon) { if (n.sendBeacon(url, new Blob([body], { type: 'text/plain' }))) return; }
-    w.fetch(url, { method: 'POST', body: body, headers: { 'Content-Type': 'text/plain' }, keepalive: true, mode: 'cors', credentials: 'omit' }).catch(function () {});
+    if (w.fetch) { w.fetch(url, { method: 'POST', body: body, headers: { 'Content-Type': 'text/plain' }, keepalive: true, mode: 'cors', credentials: 'omit' }).catch(function () {}); return; }
+    if (n.sendBeacon) n.sendBeacon(url, new Blob([body], { type: 'text/plain' }));
   } catch (e) { /* medir nunca pode quebrar a página */ }
 })();

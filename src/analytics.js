@@ -133,6 +133,13 @@ async function purge(cfg, months = cfg.analytics.retentionMonths) {
   return { pageviews: a.rowCount, sessions: b.rowCount, visitors: c.rowCount };
 }
 
+// Pedido de quem recusou a medição: apaga as visitas já registradas deste navegador e solta o vínculo nos pedidos.
+async function forget(v) {
+  if (!ID_RE.test(v || '')) return;
+  await db.q('DELETE FROM an_pageviews WHERE visitor_id = $1', [v]); await db.q('DELETE FROM an_sessions WHERE visitor_id = $1', [v]); await db.q('DELETE FROM an_visitors WHERE visitor_id = $1', [v]);
+  await db.q('UPDATE orders SET visitor_id = NULL, session_id = NULL WHERE visitor_id = $1', [v]);
+}
+
 // Resumo para a página de verificação da coleta.
 async function check() {
   const one = async (sql) => (await db.q(sql)).rows[0];
@@ -145,4 +152,4 @@ async function check() {
   return { today, last };
 }
 
-module.exports = { ID_RE, isBot, parseUA, classify, geo, cleanPath, cleanCoupon, idsFrom, record, purge, check, hostOf };
+module.exports = { ID_RE, isBot, parseUA, classify, geo, cleanPath, cleanCoupon, idsFrom, record, purge, forget, check, hostOf };

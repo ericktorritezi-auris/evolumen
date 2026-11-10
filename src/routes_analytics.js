@@ -30,6 +30,7 @@ function mount(cfg) {
     if (!origin) return res.status(403).end();
     try {
       let b = {}; try { const j = JSON.parse(typeof req.body === 'string' ? req.body : '{}'); if (j && typeof j === 'object') b = j; } catch { /* corpo inválido */ }
+      if (b.x === 1 && A.ID_RE.test(b.v || '')) { await A.forget(b.v); return res.status(204).end(); } // recusou: apaga o que já foi registrado
       let userId = null;
       if (origin === own) {
         const sid = require('./security').parseCookies(req.headers.cookie).evl_sid || '';

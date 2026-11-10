@@ -32,6 +32,7 @@ async function exportFor(userId) {
       JOIN affiliates a ON a.id = m.affiliate_id WHERE a.user_id = $1 ORDER BY m.id`),
     afiliado_repasses: await q('SELECT p.paid_on, p.amount_cents, p.voided_at FROM affiliate_payouts p JOIN affiliates a ON a.id = p.affiliate_id WHERE a.user_id = $1 ORDER BY p.id'),
     registro_de_atividade: await q('SELECT at, action, ip FROM audit_log WHERE actor_user_id = $1 ORDER BY id'),
+    visitas_ao_site: await q('SELECT started_at, site, source, entry_path, pages, device, browser, os, country, region, city FROM an_sessions WHERE user_id = $1 ORDER BY started_at'),
   };
 }
 
@@ -61,6 +62,12 @@ async function anonymize(userId, client) {
       [userId, `removido-afiliado-${userId}@removido.invalid`]);
     await c.query("UPDATE affiliate_payouts SET dest_text = '' WHERE affiliate_id IN (SELECT id FROM affiliates WHERE user_id = $1)", [userId]);
     await c.query("UPDATE course_reviews SET comment = '', consent_publish = false, published = false, published_at = NULL WHERE user_id = $1", [userId]);
+    // Medição de visitas: as visitas ligadas à conta e o número do visitante nos pedidos são apagados.
+    const vs = (await c.query('SELECT DISTINCT visitor_id FROM an_sessions WHERE user_id = $1', [userId])).rows.map((x) => x.visitor_id);
+    if (vs.length) {
+      await c.query('DELETE FROM an_pageviews WHERE visitor_id = ANY($1)', [vs]); await c.query('DELETE FROM an_sessions WHERE visitor_id = ANY($1)', [vs]); await c.query('DELETE FROM an_visitors WHERE visitor_id = ANY($1)', [vs]);
+    }
+    await c.query('UPDATE orders SET visitor_id = NULL, session_id = NULL WHERE user_id = $1', [userId]);
     return true;
   });
 }
