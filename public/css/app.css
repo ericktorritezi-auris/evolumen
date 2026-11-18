@@ -211,7 +211,7 @@ img{max-width:100%;height:auto}
 /* admin */
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 18px;border-bottom:1px solid var(--line)}
 .tabs a{padding:10px 14px;color:var(--bruma);text-decoration:none;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-1px}
-.tabs a.is-active{color:var(--ambar);border-color:var(--ambar)}.tabs__ext{margin-left:auto;font-size:14px}.tabs__ext+.tabs__ext{margin-left:0}
+.tabs a.is-active{color:var(--ambar);border-color:var(--ambar)}
 .tbl-wrap{overflow-x:auto}.tbl{width:100%;border-collapse:collapse}
 .tbl th{text-align:left;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--bruma);padding:8px 10px;border-bottom:1px solid var(--line)}
 .tbl td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}.tbl__act{text-align:right;white-space:nowrap}
@@ -568,3 +568,10 @@ tr.is-focus td{background:rgba(255,178,87,.12)}
 .grid2{display:grid;gap:14px}@media(min-width:900px){.grid2{grid-template-columns:1fr 1fr}}.stack>*+*{margin-top:14px}
 .dispense{margin-top:6px}.dispense summary{cursor:pointer;color:var(--aurora)}.dispense form{margin-top:8px;min-width:220px}
 .act textarea,.grid2 textarea{width:100%;min-height:140px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--profundo);color:var(--nevoa);font:inherit}
+
+/* 2.3.1 · Ver página / Ver como aluno viram ícones na mesma linha das abas */
+.tabs__tools{margin-left:auto;align-self:center;display:flex;gap:8px;padding:0 0 4px}
+.tabs .tabs__ico{position:relative;display:grid;place-items:center;width:40px;height:40px;padding:0;margin:0;border:1px solid var(--line);border-radius:12px;background:var(--profundo);color:var(--bruma)}
+.tabs .tabs__ico:hover,.tabs .tabs__ico:focus-visible{border-color:var(--ambar);color:var(--ambar);background:rgba(255,178,87,.12)}
+.tabs__ico:after{content:attr(data-tip);position:absolute;top:48px;right:0;z-index:20;white-space:nowrap;background:#000;color:var(--nevoa);font-size:13px;font-weight:600;padding:6px 10px;border-radius:8px;border:1px solid var(--line);opacity:0;pointer-events:none;transition:opacity .12s}
+.tabs__ico:hover:after,.tabs__ico:focus-visible:after{opacity:1}
