@@ -23,6 +23,7 @@ async function exportFor(userId) {
     emails_enviados: await q('SELECT subject, template, status, created_at FROM email_log WHERE lower(to_email) = lower((SELECT email FROM users WHERE id = $1)) ORDER BY id'),
     aulas_concluidas: await q('SELECT l.title AS aula, p.completed_at FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE p.user_id = $1 ORDER BY p.completed_at'),
     atividades_complementares: await q('SELECT l.title AS aula, s.status, s.attempt_no AS envio, s.links, s.grade AS nota, s.summary AS resumo_do_professor, s.created_at, s.evaluated_at FROM activity_submissions s JOIN lessons l ON l.id = s.lesson_id WHERE s.user_id = $1 ORDER BY s.id'),
+    lembretes_recebidos: await q('SELECT kind, created_at FROM reminder_log WHERE user_id = $1 ORDER BY id'),
     avisos_da_campainha: await q('SELECT kind, title, body, created_at, read_at FROM notifications WHERE user_id = $1 ORDER BY id'),
     mensagens_do_forum: await q('SELECT lesson_id, body, status, created_at FROM forum_posts WHERE user_id = $1 ORDER BY id'),
     avaliacoes_de_cursos: await q('SELECT course_id, stars, nps, comment, consent_publish, published, created_at, updated_at FROM course_reviews WHERE user_id = $1 ORDER BY id'),
@@ -59,6 +60,7 @@ async function anonymize(userId, client) {
     await c.query("UPDATE download_requests SET reason = '[removido a pedido do titular]', response = '', status = CASE WHEN status = 'pending' THEN 'denied' ELSE status END, decided_at = COALESCE(decided_at, now()) WHERE user_id = $1", [userId]);
     await c.query('DELETE FROM file_quota WHERE user_id = $1', [userId]);
     await c.query('DELETE FROM activity_submissions WHERE user_id = $1', [userId]);
+    await c.query('DELETE FROM reminder_log WHERE user_id = $1 OR lower(email) = lower($2)', [userId, u.email]);
     // Afiliado: os dados pessoais saem; vendas, comissões e repasses ficam (registro financeiro, 5 anos) sem identificar a pessoa.
     await c.query("UPDATE affiliates SET name = 'Afiliado removido', email = $2, phone = '', note = '', dest_kind = '', pix_key = '', bank_name = '', bank_agency = '', bank_account = '', status = 'inactive', inactivated_at = COALESCE(inactivated_at, now()), updated_at = now() WHERE user_id = $1",
       [userId, `removido-afiliado-${userId}@removido.invalid`]);

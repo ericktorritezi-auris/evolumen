@@ -336,5 +336,11 @@
     });
     refresh();
   })();
+  // Lembretes (2.4.0): marcar e desmarcar todos.
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-check-all]'); if (!b) return;
+    var on = b.getAttribute('data-check-all') === '1';
+    Array.prototype.forEach.call(document.querySelectorAll('[data-nudge-sel]'), function (c) { if (!c.disabled) c.checked = on; });
+  });
   if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function () {}); });
 })();

@@ -259,6 +259,7 @@ function matriculas(ctx, { course, rows, track, created = null, errors = {}, ema
     ${created.password ? html`<p class="secret">${created.password}</p><p class="muted small">Anote agora: por segurança, ela não aparece de novo. No primeiro acesso o aluno escolhe a própria senha.</p>` : ''}</section>` : ''}
   ${C.typeOf(course) === 'download' ? tviews.compradores(ctx, { rows, actions: enrollActions }) : tviews.lista(ctx, { course, track: { ...track, rows }, actions: enrollActions })}
   ${avisoCard(ctx, course, { buyers: rows.filter((x) => x.status === 'active' && !x.expired).length, to: 'matriculas' })}
+  ${C.typeOf(course) === 'download' ? '' : html`<section class="card an-cta"><div><h2 class="t-card">Alunos que não começaram ou pararam?</h2><p class="muted">Mande um lembrete por e-mail e campainha perguntando como ajudar. Você escolhe quem recebe e confirma antes de enviar.</p></div><a class="btn btn--outline btn--sm" href="/admin/cursos/${course.id}/lembretes">Chamar quem não começou</a></section>`}
   <section class="card"><h2 class="t-card">Liberar acesso</h2>
     <p class="muted">Use para testes, cortesias e alunos que pagaram fora da plataforma. Se o e-mail ainda não tem conta, o aluno é criado e recebe a senha provisória por e-mail. A compra online abre na Fase 4.</p>
     <form method="post" action="/admin/cursos/${course.id}/matriculas" class="form form--grid" novalidate>${csrfInput(ctx.csrf)}

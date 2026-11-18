@@ -200,6 +200,18 @@ function activityResult(cfg, { name, course, lesson, result, grade, summary, url
   };
 }
 
+// Lembretes enviados pelo administrador (2.4.0). O texto vem do administrador: vai escapado, com parágrafos e quebras de linha.
+function reminder(cfg, { kind, name, subject, message, cta, unsubUrl, why }) {
+  const paras = String(message).split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6">${esc(p).replace(/\n/g, '<br>')}</p>`).join('');
+  const title = kind === 'afiliado' ? 'Como posso te ajudar?' : 'Sentimos a sua falta por aqui';
+  return {
+    subject, template: kind === 'afiliado' ? 'lembrete_afiliado' : 'lembrete_aluno',
+    html: layout({ cfg, title, intro: '', bodyHtml: paras, cta,
+      outro: `${esc(why)} <a href="${esc(unsubUrl)}" style="color:#4B58C9">Não quero mais receber lembretes</a>` }),
+    text: `${message}\n\n${cta.label}: ${cta.url}\n\n${why} Para não receber mais lembretes: ${unsubUrl}`,
+  };
+}
+
 // Programa de afiliados (1.2.0).
 function affiliateInvite(cfg, { name, email, password }) {
   const url = `${cfg.baseUrl}/entrar`;
@@ -312,4 +324,4 @@ function dataRequestDone(cfg, { name, kind, ok, note }) {
   };
 }
 
-module.exports = { activityResult, affiliateInvite, affiliateLinked, payoutRecorded, courseNews, productUpdated, accessExpiring, forumQuestion, forumAnswer, dataRequestDone, purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, attemptsGranted, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };
+module.exports = { reminder, activityResult, affiliateInvite, affiliateLinked, payoutRecorded, courseNews, productUpdated, accessExpiring, forumQuestion, forumAnswer, dataRequestDone, purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, attemptsGranted, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };

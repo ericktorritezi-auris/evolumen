@@ -47,6 +47,7 @@ async function preview(emails, c) {
     certificados: await n('SELECT count(*)::int AS n FROM certificates WHERE user_id = ANY($1::bigint[])', [ids]),
     aceites: await n('SELECT count(*)::int AS n FROM acceptances WHERE user_id = ANY($1::bigint[])', [ids]),
     tentativas: await n('SELECT count(*)::int AS n FROM assessment_attempts WHERE user_id = ANY($1::bigint[])', [ids]),
+    lembretes: await n('SELECT count(*)::int AS n FROM reminder_log WHERE user_id = ANY($1::bigint[]) OR lower(email) = ANY($2::text[])', [ids, mails]),
     atividades: await n('SELECT count(*)::int AS n FROM activity_submissions WHERE user_id = ANY($1::bigint[])', [ids]),
     progresso: await n('SELECT count(*)::int AS n FROM lesson_progress WHERE user_id = ANY($1::bigint[])', [ids]),
     forum: await n('SELECT count(*)::int AS n FROM forum_posts WHERE user_id = ANY($1::bigint[]) OR parent_id IN (SELECT id FROM forum_posts WHERE user_id = ANY($1::bigint[]))', [ids]),
@@ -91,6 +92,7 @@ async function run(emails, sig) {
     await del('cupons_usados', 'DELETE FROM coupon_redemptions WHERE user_id = ANY($1::bigint[])', [ids]);
     await del('certificados', 'DELETE FROM certificates WHERE user_id = ANY($1::bigint[])', [ids]);
     await del('tentativas', 'DELETE FROM assessment_attempts WHERE user_id = ANY($1::bigint[])', [ids]);
+    await del('lembretes', 'DELETE FROM reminder_log WHERE user_id = ANY($1::bigint[]) OR lower(email) = ANY($2::text[])', [ids, mails]);
     await del('atividades', 'DELETE FROM activity_submissions WHERE user_id = ANY($1::bigint[])', [ids]);
     await del('respostas_do_forum', 'DELETE FROM forum_posts WHERE parent_id IN (SELECT id FROM forum_posts WHERE user_id = ANY($1::bigint[]))', [ids]);
     await del('forum', 'DELETE FROM forum_posts WHERE user_id = ANY($1::bigint[])', [ids]);
