@@ -47,10 +47,10 @@ function cleanText(subject, message) {
 }
 
 // ---- quem pode receber ----
-async function annotate(rows) {
+async function annotate(rows, kind) {
   const mails = rows.map((r) => r.email.toLowerCase());
   const out = new Set((await db.q('SELECT email FROM email_optouts WHERE email = ANY($1::text[])', [mails])).rows.map((r) => r.email));
-  const last = new Map((await db.q('SELECT lower(email) AS email, max(created_at) AS at FROM reminder_log WHERE lower(email) = ANY($1::text[]) GROUP BY 1', [mails])).rows.map((r) => [r.email, r.at]));
+  const last = new Map((await db.q('SELECT lower(email) AS email, max(created_at) AS at FROM reminder_log WHERE kind = $2 AND lower(email) = ANY($1::text[]) GROUP BY 1', [mails, kind])).rows.map((r) => [r.email, r.at]));
   return rows.map((r) => {
     const e = r.email.toLowerCase(); const at = last.get(e) || null;
     const recent = at && Date.now() - new Date(at).getTime() < MIN_DAYS * 86400000;
@@ -64,7 +64,7 @@ async function studentsOf(course, group) {
   const rows = (await T.list(course.id, { days })).filter((r) => r.state === want && (want !== 'new' || r.since_days >= NEW_GRACE_DAYS));
   if (!rows.length) return [];
   const ok = new Set((await db.q("SELECT id FROM users WHERE id = ANY($1::bigint[]) AND status = 'active' AND role = 'student'", [rows.map((r) => r.user_id)])).rows.map((r) => String(r.id)));
-  return annotate(rows.filter((r) => ok.has(String(r.user_id))).map((r) => ({ id: String(r.user_id), userId: r.user_id, name: r.name, email: r.email, since: r.created_at, lastAt: r.last_at, lastDays: r.last_days })));
+  return annotate(rows.filter((r) => ok.has(String(r.user_id))).map((r) => ({ id: String(r.user_id), userId: r.user_id, name: r.name, email: r.email, since: r.created_at, lastAt: r.last_at, lastDays: r.last_days })), 'aluno');
 }
 
 async function affiliatesOf(group) {
@@ -77,7 +77,7 @@ async function affiliatesOf(group) {
   const age = (d) => (Date.now() - new Date(d).getTime()) / 86400000;
   // Sem venda: conta a partir do cadastro do afiliado (um afiliado novo não entra).
   const pick = rows.filter((a) => (days === null ? a.sales === 0 && age(a.created_at) >= AFF_GRACE_DAYS : age(a.last_sale || a.created_at) > days));
-  return annotate(pick.map((a) => ({ id: String(a.id), affiliateId: a.id, userId: a.user_id, name: a.name, email: a.email, lastSale: a.last_sale, code: a.code })));
+  return annotate(pick.map((a) => ({ id: String(a.id), affiliateId: a.id, userId: a.user_id, name: a.name, email: a.email, lastSale: a.last_sale, code: a.code })), 'afiliado');
 }
 
 const counts = (people, selected) => {
@@ -109,7 +109,7 @@ async function sendBatch(cfg, h, { kind, course, group, selected, subject, messa
   for (const p of pick) {
     // Reserva a pessoa só se ninguém a avisou nos últimos 10 dias e ela não se descadastrou (vale também para dois envios ao mesmo tempo).
     const row = (await db.q(`INSERT INTO reminder_log (batch_token, kind, email, user_id, affiliate_id)
-      SELECT $1,$2,lower($3),$4,$5 WHERE NOT EXISTS (SELECT 1 FROM reminder_log x WHERE lower(x.email) = lower($3) AND x.created_at > now() - make_interval(days => $6))
+      SELECT $1,$2,lower($3),$4,$5 WHERE NOT EXISTS (SELECT 1 FROM reminder_log x WHERE x.kind = $2 AND lower(x.email) = lower($3) AND x.created_at > now() - make_interval(days => $6))
         AND NOT EXISTS (SELECT 1 FROM email_optouts o WHERE o.email = lower($3)) RETURNING id`, [token, kind, p.email, p.userId || null, p.affiliateId || null, MIN_DAYS])).rows[0];
     if (!row) continue;
     sent++;
