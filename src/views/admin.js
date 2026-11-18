@@ -13,11 +13,13 @@ const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('pt-BR', { timeZone: 
 const isoDate = (d) => (d ? new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : '');
 const shell = (ctx, title, content, path = '/admin/cursos') => shellApp({ cfg: ctx.cfg, user: ctx.user, csrf: ctx.csrf, flash: ctx.flash, path, title, content });
 
+const EYE = raw('<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>');
+const CAP = raw('<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9l10-5 10 5-10 5L2 9z"/><path d="M6 11.5V16c0 1.4 2.7 3 6 3s6-1.6 6-3v-4.5"/><path d="M22 9v5"/></svg>');
 function tabs(course, active) {
   const dl = C.typeOf(course) === 'download';
   const t = dl ? [['dados', 'Dados do produto', `/admin/cursos/${course.id}`], ['arquivos', 'Arquivos', `/admin/cursos/${course.id}/arquivos`], ['matriculas', 'Compradores', `/admin/cursos/${course.id}/matriculas`]] : [['dados', 'Dados do curso', `/admin/cursos/${course.id}`], ['conteudo', 'Módulos e aulas', `/admin/cursos/${course.id}/conteudo`], ['avaliacoes', 'Avaliações e certificado', `/admin/cursos/${course.id}/avaliacoes`], ['atividades', 'Atividades', `/admin/cursos/${course.id}/atividades`], ['matriculas', 'Matrículas', `/admin/cursos/${course.id}/matriculas`]];
   return html`<nav class="tabs" aria-label="Seções do curso">${t.map(([k, label, href]) => html`<a href="${href}" class="${k === active ? 'is-active' : ''}"${k === active ? raw(' aria-current="page"') : ''}>${label}${k === 'atividades' && course.act_pending > 0 ? html` <span class="pill pill--warn">${course.act_pending}</span>` : ''}</a>`)}
-    <a href="/cursos/${course.slug}" class="tabs__ext">Ver página ↗</a><a href="/curso/${course.slug}" class="tabs__ext">Ver como aluno ↗</a></nav>`;
+    <span class="tabs__tools"><a href="/cursos/${course.slug}" class="tabs__ico" data-tip="Ver página" aria-label="Ver página (abre em nova aba)" target="_blank" rel="noopener">${EYE}</a><a href="/curso/${course.slug}" class="tabs__ico" data-tip="Ver como aluno" aria-label="Ver como aluno (abre em nova aba)" target="_blank" rel="noopener">${CAP}</a></span></nav>`;
 }
 
 // Onde guardar o arquivo: banco (até 20 MB) ou volume do Railway (até 350 MB).
