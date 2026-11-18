@@ -1,7 +1,7 @@
 {
-  "version": "2.3.1",
+  "version": "2.4.0",
   "display": "1.3",
   "phase": 6,
   "released": "2026-11-18",
-  "note": "Abas do curso: Ver página e Ver como aluno viram ícones."
+  "note": "Lembretes do administrador para alunos que não começaram e afiliados parados, com descadastro."
 }

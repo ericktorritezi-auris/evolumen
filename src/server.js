@@ -106,6 +106,7 @@ function createApp(cfg) {
   app.use(require('./routes_lgpd').build(cfg, main.helpers));
   app.use(require('./routes_notify').build(cfg, main.helpers));
   app.use(require('./routes_launch').build(cfg, main.helpers));
+  app.use(require('./routes_nudges').build(cfg, main.helpers));
   app.use(require('./routes_affiliates').build(cfg, main.helpers));
   app.use(require('./routes_leads').build(cfg, main.helpers));
   app.use(require('./routes_analytics').build(cfg, main.helpers));

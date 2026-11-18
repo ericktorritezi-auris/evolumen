@@ -49,7 +49,7 @@ const simulador = () => html`<dialog id="sim-modal" class="modal sim" aria-label
 
 function cockpit(ctx, { rows, totals }) {
   const content = html`${titleRow('Afiliados', 'Quem divulga cupons, o que já vendeu e o que falta repassar. A comissão fica em carência até acabar o prazo de reembolso.')}
-  <div class="row row--top"><a class="btn btn--primary" href="/admin/afiliados/novo">Novo afiliado</a><button type="button" class="btn btn--outline" data-modal-open="sim-modal">Simulação</button>${totals.sales ? html`<a class="btn btn--outline" href="/admin/afiliados/vendas.csv">Baixar todas as vendas (CSV)</a>` : ''}</div>
+  <div class="row row--top"><a class="btn btn--primary" href="/admin/afiliados/novo">Novo afiliado</a><a class="btn btn--outline" href="/admin/afiliados/lembretes">Reativar afiliados</a><button type="button" class="btn btn--outline" data-modal-open="sim-modal">Simulação</button>${totals.sales ? html`<a class="btn btn--outline" href="/admin/afiliados/vendas.csv">Baixar todas as vendas (CSV)</a>` : ''}</div>
   ${rows.length ? html`
   ${stats(totals)}
   ${totals.negative ? html`<div class="alert alert--error" role="alert">${totals.negative} ${totals.negative === 1 ? 'afiliado está' : 'afiliados estão'} com saldo negativo: houve estorno depois do repasse. Veja em vermelho abaixo.</div>` : ''}
