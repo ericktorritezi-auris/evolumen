@@ -187,3 +187,32 @@ test('envio que falha não bloqueia a pessoa por 10 dias', async () => {
   void orig;
   assert.equal((await q("SELECT count(*)::int AS n FROM reminder_log WHERE lower(email)='novo2@example.com'")).rows[0].n, 0);
 });
+
+test('regra dos 10 dias vale só dentro do mesmo tipo (curso x afiliado)', async () => {
+  await q('DELETE FROM reminder_log'); await q('DELETE FROM email_optouts');
+  const u = await makeStudent(t, { email: 'duplo@example.com', name: 'Duplo Papel' });
+  await q("INSERT INTO acceptances (user_id, legal_document_id, doc_type, version, origin) SELECT $1, d.id, d.doc_type, d.version, 'login' FROM legal_documents d WHERE d.status='published' ON CONFLICT DO NOTHING", [u.id]);
+  await q("INSERT INTO enrollments (user_id, course_id, origin, status, created_at) VALUES ($1,$2,'manual','active',$3)", [u.id, course, ago(10)]);
+  await q("INSERT INTO affiliates (name, email, user_id, status, created_at) VALUES ('Duplo Papel','duplo@example.com',$1,'active',$2)", [u.id, ago(30)]);
+  const st = async (fn) => (await fn()).find((p) => p.email === 'duplo@example.com');
+  assert.equal((await st(() => N.studentsOf(courseRow, 'novos'))).status, 'send');
+  assert.equal((await st(() => N.affiliatesOf('nunca'))).status, 'send');
+  // lembrete de CURSO: bloqueia o curso, não o afiliado
+  const course_ = { kind: 'aluno', course: courseRow, group: 'novos', selected: new Set([String(u.id)]), subject: 'Assunto de teste', message: 'Mensagem de teste longa o bastante.', adminId: null };
+  const mm = require('../src/mailer'); const real = mm.send; mm.send = async () => ({ ok: true });
+  try {
+    await N.sendBatch(t.cfg, null, { ...course_, token: 'd'.repeat(24) });
+    assert.equal((await st(() => N.studentsOf(courseRow, 'novos'))).status, 'recent');
+    assert.equal((await st(() => N.affiliatesOf('nunca'))).status, 'send');
+    assert.equal((await st(() => N.affiliatesOf('nunca'))).lastReminder, null);
+    // lembrete de AFILIADO: agora bloqueia o afiliado, e o curso segue como estava
+    const aff = (await q("SELECT id FROM affiliates WHERE email='duplo@example.com'")).rows[0].id;
+    await N.sendBatch(t.cfg, null, { kind: 'afiliado', course: null, group: 'nunca', selected: new Set([String(aff)]), subject: 'Assunto de teste', message: 'Mensagem de teste longa o bastante.', token: 'e'.repeat(24), adminId: null });
+    assert.equal((await st(() => N.affiliatesOf('nunca'))).status, 'recent');
+    assert.notEqual((await st(() => N.affiliatesOf('nunca'))).lastReminder, null);
+    assert.equal((await st(() => N.studentsOf(courseRow, 'novos'))).status, 'recent'); // o do curso segue com o prazo próprio
+    // um segundo envio de afiliado com outro token é barrado (mesma regra dentro do tipo)
+    await assert.rejects(() => N.sendBatch(t.cfg, null, { kind: 'afiliado', course: null, group: 'nunca', selected: new Set([String(aff)]), subject: 'Assunto de teste', message: 'Mensagem de teste longa o bastante.', token: 'f'.repeat(24), adminId: null }), /Ninguém para receber/);
+  } finally { mm.send = real; }
+  assert.equal((await q("SELECT count(*)::int AS n FROM reminder_log WHERE lower(email)='duplo@example.com'")).rows[0].n, 2);
+});
