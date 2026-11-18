@@ -62,12 +62,16 @@ async function overview(userId, course) {
     const limit = a.max_attempts + s.extra;
     return { ...a, ...s, limit, left: Math.max(0, limit - s.used), pass: num(a.pass_score) };
   };
+  const act = await activityState(userId, course.id, flat);
+  // Quem já recebeu o certificado não é bloqueado depois: marcar uma aula como atividade não muda o que já foi conquistado.
+  const issued = (await db.q("SELECT 1 FROM certificates WHERE user_id = $1 AND course_id = $2 AND status = 'valid'", [userId, course.id])).rowCount > 0;
+  if (issued) { act.blocked.clear(); act.gate = null; act.allOk = true; }
   const modules = {}; let blocked = false; let blockedBy = null;
   for (const m of cur) {
     const q = asm.find((a) => a.kind === 'quiz' && a.module_id === m.id);
     const quiz = q ? withState(q) : null;
     const allDone = m.lessons.every((l) => l.is_bonus || progress.done.has(String(l.id)));
-    modules[m.id] = { locked: blocked, blockedBy, quiz, allDone, quizAvailable: !!quiz && !blocked && allDone };
+    modules[m.id] = { locked: blocked, blockedBy, quiz, allDone, quizAvailable: !!quiz && !blocked && allDone && !m.lessons.some((l) => act.blocked.has(String(l.id))) };
     if (quiz && !quiz.passed && !blocked) { blocked = true; blockedBy = { id: m.id, title: m.title }; }
   }
   // prova final
@@ -78,6 +82,7 @@ async function overview(userId, course) {
     const last = flat.filter((l) => !l.is_bonus).pop(); // a última aula que vale para o certificado (bônus não conta)
     let unlocked = false; let why = ''; let watchPct = 0;
     if (final.manual_unlock) unlocked = true;
+    else if (!act.allOk) why = `Conclua a atividade complementar “${act.gate.title}” e aguarde a aprovação do professor para liberar a prova.`;
     else if (!last) why = 'O curso ainda não tem aulas.';
     else if (modules[last.module_id] && modules[last.module_id].locked) why = 'Passe no quiz do módulo anterior para chegar à última aula.';
     else if (last.has_video) {
@@ -97,12 +102,35 @@ async function overview(userId, course) {
   const examOk = !needExam || (!!final && final.passed);
   const missing = Math.max(0, Math.ceil((CERT_PCT * progress.total) / 100) - progress.count);
   // Com certificado válido, o progresso só pode subir: desmarcar aulas fica bloqueado.
-  const issued = (await db.q("SELECT 1 FROM certificates WHERE user_id = $1 AND course_id = $2 AND status = 'valid'", [userId, course.id])).rowCount > 0;
-  const cert = { needExam, examOk, pctOk, pct: progress.pct, missing, eligible: pctOk && examOk, issued };
-  return { cur, flat, progress, modules, final, cert };
+  const cert = { needExam, examOk, pctOk, actOk: act.allOk, pct: progress.pct, missing, eligible: pctOk && examOk && act.allOk, issued };
+  return { cur, flat, progress, modules, final, cert, act };
 }
 
-const lessonLocked = (ov, moduleId) => !!(ov.modules[moduleId] && ov.modules[moduleId].locked);
+// Bloqueio por quiz do módulo anterior ou por atividade complementar pendente (lessonId opcional; sem ele, só o quiz).
+const lessonLocked = (ov, moduleId, lessonId) => !!(ov.modules[moduleId] && ov.modules[moduleId].locked) || !!(lessonId != null && ov.act && ov.act.blocked.has(String(lessonId)));
+
+// Atividade complementar (2.3.0): estado do aluno por aula. A última linha de activity_submissions define o estado;
+// aprovada ou dispensada em qualquer momento vale como concluída. A primeira atividade não concluída bloqueia todas as aulas seguintes.
+async function activityState(userId, courseId, flat) {
+  const lessons = flat.filter((l) => l.is_activity);
+  const act = { lessons: {}, blocked: new Set(), gate: null, allOk: true, count: lessons.length };
+  if (!lessons.length) return act;
+  const rows = (await db.q('SELECT * FROM activity_submissions WHERE user_id = $1 AND course_id = $2 ORDER BY id', [userId, courseId])).rows;
+  for (const l of lessons) {
+    const mine = rows.filter((r) => String(r.lesson_id) === String(l.id));
+    const last = mine[mine.length - 1] || null;
+    const ok = mine.some((r) => r.status === 'approved' || r.status === 'waived');
+    const state = ok ? (mine.filter((r) => r.status === 'approved' || r.status === 'waived').pop().status === 'waived' ? 'waived' : 'approved')
+      : !last ? 'none' : last.status === 'reopened' ? 'adjust' : last.status;
+    act.lessons[l.id] = { state, ok, last, rows: mine, sent: mine.filter((r) => Array.isArray(r.links) && r.links.length).length };
+  }
+  for (const l of flat) {
+    if (act.gate) { act.blocked.add(String(l.id)); continue; }
+    if (l.is_activity && !act.lessons[l.id].ok) act.gate = l;
+  }
+  act.allOk = lessons.every((l) => act.lessons[l.id].ok);
+  return act;
+}
 
 // ---------- tempo assistido ----------
 // O navegador informa quanto tempo de vídeo foi tocado desde o último envio. O servidor limita pelo tempo real decorrido.
@@ -194,4 +222,4 @@ async function review(attempt, { reveal }) {
   });
 }
 
-module.exports = { HALF, CERT_PCT, byId, ofCourse, questions, overview, lessonLocked, addWatch, start, submit, review, attemptStats };
+module.exports = { activityState, HALF, CERT_PCT, byId, ofCourse, questions, overview, lessonLocked, addWatch, start, submit, review, attemptStats };

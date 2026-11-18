@@ -28,6 +28,7 @@ function adminHome({ cfg, user, csrf, flash, status, health, dash }) {
         <p class="muted small">Tempo de resposta e tarefas automáticas são medidos desde o último reinício do sistema.</p>
       </section>
       <section class="card an-cta"><div><h2 class="t-card">Quer entender de onde vêm as visitas e onde as vendas se perdem?</h2><p class="muted">Visitas, origem, regiões, funil até a compra e afiliados.</p></div><a class="btn btn--primary" href="/admin/analytics">EvoLumen Analytics</a></section>
+      ${dash.activities > 0 ? html`<section class="card an-cta"><div><h2 class="t-card">${dash.activities} ${dash.activities === 1 ? 'atividade aguardando' : 'atividades aguardando'} sua avaliação</h2><p class="muted">Envios de alunos nas atividades complementares dos cursos, do mais antigo para o mais novo.</p></div><a class="btn btn--primary btn--sm" href="/admin/atividades?filtro=pendentes">Avaliar atividades</a></section>` : ''}
       ${dash.error ? html`<div class="alert alert--error" role="alert">Não foi possível carregar os números agora. Veja a saúde do sistema acima.</div>` : ''}
       <div class="stats">
         ${stat('Vendas no mês', dash.month.n, brl(dash.month.gross))}

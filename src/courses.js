@@ -156,14 +156,14 @@ async function bySlug(slug, { includeDrafts = false } = {}) {
 }
 async function byId(id) {
   if (!/^\d{1,12}$/.test(String(id))) return null;
-  return (await db.q('SELECT * FROM courses WHERE id = $1', [id])).rows[0] || null;
+  return (await db.q("SELECT c.*, (SELECT count(*)::int FROM activity_submissions a WHERE a.course_id = c.id AND a.status = 'pending') AS act_pending FROM courses c WHERE c.id = $1", [id])).rows[0] || null;
 }
 
 // Módulos com aulas (e arquivos). Sem ids de vídeo quando `withVideo` é falso (páginas públicas).
 // `all` (só o painel do administrador) inclui módulos e aulas inativos.
 async function curriculum(courseId, { withVideo = false, withFiles = false, all = false } = {}) {
   const mods = (await db.q('SELECT id, title, position, active FROM modules WHERE course_id = $1 AND ($2 OR active) ORDER BY position, id', [courseId, all])).rows;
-  const les = (await db.q(`SELECT l.id, l.module_id, l.title, l.description, ${withVideo ? 'l.youtube_id, l.instagram_url' : '(l.youtube_id IS NOT NULL) AS has_video, (l.instagram_url IS NOT NULL) AS has_instagram'}, l.is_bonus, l.duration_min, l.position, l.active,
+  const les = (await db.q(`SELECT l.id, l.module_id, l.title, l.description, ${withVideo ? 'l.youtube_id, l.instagram_url' : '(l.youtube_id IS NOT NULL) AS has_video, (l.instagram_url IS NOT NULL) AS has_instagram'}, l.is_bonus, l.is_activity, l.duration_min, l.position, l.active,
                            (SELECT count(*)::int FROM lesson_progress p WHERE p.lesson_id = l.id) AS progress_count
                            FROM lessons l WHERE l.course_id = $1 AND ($2 OR (${LIVE})) ORDER BY l.position, l.id`, [courseId, all])).rows;
   let files = [];

@@ -554,3 +554,17 @@ tr.is-focus td{background:rgba(255,178,87,.12)}
 .an-legend{display:flex;gap:14px;color:var(--bruma);font-size:13px;margin-top:6px}.an-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}.an-dot--v{background:var(--aurora)}.an-dot--u{background:var(--ambar)}
 .tbl .num,.tbl th.num{text-align:right}
 .an-kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}.an-kv b{font-variant-numeric:tabular-nums}.an-chip{min-height:40px;display:inline-flex;align-items:center}.tbl td[data-l]{overflow-wrap:anywhere}
+
+/* Atividade complementar (2.3.0) */
+.act{margin-top:16px}.act .t-sub{margin:14px 0 6px}
+.lk{display:grid;grid-template-columns:1fr;gap:8px;margin:10px 0;padding:12px;background:var(--profundo);border:1px solid var(--line);border-radius:14px}
+@media(min-width:700px){.lk{grid-template-columns:220px minmax(0,1fr) auto;align-items:start}.lk>.btn{margin-top:26px}}
+.lklist{list-style:none;margin:8px 0;padding:0;display:grid;gap:8px}.lklist li{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;background:var(--profundo);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.lklist li>div{min-width:0;flex:1 1 220px}.lklist b{display:block}.lklist span{display:block;overflow-wrap:anywhere;color:var(--bruma);font-size:14px}
+.opts{display:grid;gap:8px;margin:8px 0 14px}@media(min-width:700px){.opts{grid-template-columns:repeat(3,1fr)}}
+.opt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:14px;padding:12px;cursor:pointer;margin:0;font-weight:600}.opt input{margin-top:5px}.opt:has(input:checked){border-color:var(--ambar);background:rgba(255,178,87,.1)}.opt small{display:block;font-weight:400;color:var(--bruma)}
+.hist{list-style:none;margin:0;padding:0;border-left:2px solid var(--line)}.hist li{padding:0 0 14px 16px;position:relative}.hist li:before{content:"";position:absolute;left:-6px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--aurora)}
+.achips{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}.achip{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:7px 15px;color:var(--nevoa);font-weight:600;font-size:14px;text-decoration:none}.achip.on{border-color:var(--ambar);color:var(--ambar);background:rgba(255,178,87,.12)}
+.grid2{display:grid;gap:14px}@media(min-width:900px){.grid2{grid-template-columns:1fr 1fr}}.stack>*+*{margin-top:14px}
+.dispense{margin-top:6px}.dispense summary{cursor:pointer;color:var(--aurora)}.dispense form{margin-top:8px;min-width:220px}
+.act textarea,.grid2 textarea{width:100%;min-height:140px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--profundo);color:var(--nevoa);font:inherit}

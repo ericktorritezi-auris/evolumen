@@ -15,8 +15,8 @@ const shell = (ctx, title, content, path = '/admin/cursos') => shellApp({ cfg: c
 
 function tabs(course, active) {
   const dl = C.typeOf(course) === 'download';
-  const t = dl ? [['dados', 'Dados do produto', `/admin/cursos/${course.id}`], ['arquivos', 'Arquivos', `/admin/cursos/${course.id}/arquivos`], ['matriculas', 'Compradores', `/admin/cursos/${course.id}/matriculas`]] : [['dados', 'Dados do curso', `/admin/cursos/${course.id}`], ['conteudo', 'Módulos e aulas', `/admin/cursos/${course.id}/conteudo`], ['avaliacoes', 'Avaliações e certificado', `/admin/cursos/${course.id}/avaliacoes`], ['matriculas', 'Matrículas', `/admin/cursos/${course.id}/matriculas`]];
-  return html`<nav class="tabs" aria-label="Seções do curso">${t.map(([k, label, href]) => html`<a href="${href}" class="${k === active ? 'is-active' : ''}"${k === active ? raw(' aria-current="page"') : ''}>${label}</a>`)}
+  const t = dl ? [['dados', 'Dados do produto', `/admin/cursos/${course.id}`], ['arquivos', 'Arquivos', `/admin/cursos/${course.id}/arquivos`], ['matriculas', 'Compradores', `/admin/cursos/${course.id}/matriculas`]] : [['dados', 'Dados do curso', `/admin/cursos/${course.id}`], ['conteudo', 'Módulos e aulas', `/admin/cursos/${course.id}/conteudo`], ['avaliacoes', 'Avaliações e certificado', `/admin/cursos/${course.id}/avaliacoes`], ['atividades', 'Atividades', `/admin/cursos/${course.id}/atividades`], ['matriculas', 'Matrículas', `/admin/cursos/${course.id}/matriculas`]];
+  return html`<nav class="tabs" aria-label="Seções do curso">${t.map(([k, label, href]) => html`<a href="${href}" class="${k === active ? 'is-active' : ''}"${k === active ? raw(' aria-current="page"') : ''}>${label}${k === 'atividades' && course.act_pending > 0 ? html` <span class="pill pill--warn">${course.act_pending}</span>` : ''}</a>`)}
     <a href="/cursos/${course.slug}" class="tabs__ext">Ver página ↗</a><a href="/curso/${course.slug}" class="tabs__ext">Ver como aluno ↗</a></nav>`;
 }
 
@@ -198,7 +198,7 @@ function cursoForm(ctx, { course, values, errors = {} }) {
 
 function conteudo(ctx, { course, cur, errors = {} }) {
   const move = (base, id) => html`<span class="mv"><form method="post" action="${base}/${id}/mover" class="inline">${csrfInput(ctx.csrf)}<input type="hidden" name="dir" value="up"><button class="icon-btn icon-btn--sm" aria-label="Subir" title="Subir">↑</button></form><form method="post" action="${base}/${id}/mover" class="inline">${csrfInput(ctx.csrf)}<input type="hidden" name="dir" value="down"><button class="icon-btn icon-btn--sm" aria-label="Descer" title="Descer">↓</button></form></span>`;
-  const lessonForm = (l) => html`<details class="lcard"><summary><span class="lcard__t">${l.title}${l.active ? '' : html` <span class="pill pill--draft">Inativa</span>`}</span><span class="muted small">${l.is_bonus ? 'bônus · ' : ''}${l.instagram_url ? 'Instagram' : l.has_video || l.youtube_id ? 'vídeo' : 'sem vídeo'} · ${l.files.length} ${l.files.length === 1 ? 'arquivo' : 'arquivos'}</span></summary>
+  const lessonForm = (l) => html`<details class="lcard"><summary><span class="lcard__t">${l.title}${l.active ? '' : html` <span class="pill pill--draft">Inativa</span>`}</span><span class="muted small">${l.is_bonus ? 'bônus · ' : ''}${l.is_activity ? 'atividade · ' : ''}${l.instagram_url ? 'Instagram' : l.has_video || l.youtube_id ? 'vídeo' : 'sem vídeo'} · ${l.files.length} ${l.files.length === 1 ? 'arquivo' : 'arquivos'}</span></summary>
     <div class="lcard__body">
       <form method="post" action="/admin/aulas/${l.id}" class="form form--grid">${csrfInput(ctx.csrf)}
         <div class="span2">${field({ id: `lt${l.id}`, name: 'title', label: 'Título da aula', value: l.title, required: true })}</div>
@@ -206,6 +206,8 @@ function conteudo(ctx, { course, cur, errors = {} }) {
         <div class="span2">${area(`lig${l.id}`, 'Vídeo do Instagram (link ou código de incorporação)', l.instagram_url || '', { rows: 2, name: 'instagram', placeholder: 'Cole o link do reel/post ou o código de incorporação do Instagram. Use no lugar do YouTube, nunca os dois.' })}
           <p class="muted small">O sistema guarda só o endereço da publicação (o código colado não é guardado). Só funciona com publicações públicas.</p></div>
         <div class="span2"><label class="check"><input type="checkbox" name="is_bonus" value="1"${l.is_bonus ? raw(' checked') : ''}><span>Aula bônus<br><small class="muted">Aparece no curso, mas não conta no percentual nem no certificado.</small></span></label></div>
+        <div class="span2"><label class="check"><input type="checkbox" name="is_activity" value="1"${l.is_activity ? raw(' checked') : ''}><span>Atividade complementar<br><small class="muted">O aluno envia de 1 a 5 links e só o professor conclui a aula, aprovando ou dispensando. Até lá, as aulas seguintes, a prova final e o certificado ficam bloqueados. Não combina com aula bônus nem com quiz no mesmo módulo.</small></span></label>
+          ${l.is_activity ? '' : html`<p class="muted small">Ao marcar, alunos que já passaram desta aula ficam bloqueados nas aulas seguintes até a atividade ser aprovada ou dispensada.</p>`}</div>
         ${field({ id: `ld${l.id}`, name: 'duration_min', label: 'Duração (minutos)', value: l.duration_min || '', inputmode: 'numeric' })}
         <div class="span2">${area(`ldesc${l.id}`, 'Sobre a aula', l.description, { rows: 3, name: 'description' })}</div>
         <div class="span2 row"><button class="btn btn--primary btn--sm" type="submit">Salvar aula</button></div></form>

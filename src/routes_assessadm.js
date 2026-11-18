@@ -41,6 +41,7 @@ function build(cfg, h) {
       if (!ID.test(String(req.body.module_id || ''))) return flashBack(req, res, 'error', 'Escolha o módulo.', back);
       mod = (await db.q('SELECT * FROM modules WHERE id = $1 AND course_id = $2', [req.body.module_id, course.id])).rows[0];
       if (!mod) return flashBack(req, res, 'error', 'Módulo não encontrado.', back);
+      if ((await db.q('SELECT 1 FROM lessons WHERE module_id = $1 AND is_activity AND active', [mod.id])).rowCount) return flashBack(req, res, 'error', 'Este módulo tem uma atividade complementar, e um módulo com atividade não pode ter quiz. Desmarque a atividade na aula ou escolha outro módulo.', back);
     }
     try {
       const a = (await db.q('INSERT INTO assessments (course_id, module_id, kind, title) VALUES ($1,$2,$3,$4) RETURNING *', [course.id, mod ? mod.id : null, kind, mod ? mod.title : 'Prova final'])).rows[0];
@@ -106,6 +107,7 @@ function build(cfg, h) {
       const mod = a.module_id ? (await db.q('SELECT * FROM modules WHERE id = $1', [a.module_id])).rows[0] : null;
       return res.status(422).send(views.editor(ctx(req, res), { a: { ...a, title: String(req.body.title || ''), pass_score: req.body.pass_score, max_attempts: req.body.max_attempts, active: req.body.active === '1' }, course, module: mod, questions: await A.questions(a.id, { all: true }), attempts: await attemptsCount(a.id), errors }));
     }
+    if (a.kind === 'quiz' && a.module_id && req.body.active !== '0' && !a.active && (await db.q('SELECT 1 FROM lessons WHERE module_id = $1 AND is_activity AND active', [a.module_id])).rowCount) return flashBack(req, res, 'error', 'Este módulo tem uma atividade complementar, e um módulo com atividade não pode ter quiz ativo.', `/admin/avaliacoes/${a.id}`);
     await db.q('UPDATE assessments SET title = $2, pass_score = $3, max_attempts = $4, active = $5, updated_at = now() WHERE id = $1', [a.id, String(req.body.title || '').trim().slice(0, 80), Math.round(ps * 10) / 10, ma, req.body.active !== '0']);
     await audit(req, 'assessment_updated', { entity: 'assessment', entityId: a.id });
     flashBack(req, res, 'success', 'Configuração salva.', `/admin/avaliacoes/${a.id}`);

@@ -105,7 +105,8 @@ async function detail(enr, course) {
       const wpct = dur > 0 ? Math.min(100, Math.floor((watched / dur) * 100)) : 0;
       if (!l.is_bonus && dur > 0) { totalSec += dur; watchedSec += watched; }
       if (at && (!last || new Date(at) > new Date(last.at))) last = { title: l.title, at };
-      return { id: l.id, title: l.title, bonus: !!l.is_bonus, doneAt: at, wpct, state: at ? 'done' : (watched > 0 ? 'part' : 'none') };
+      const ac = l.is_activity && ov.act ? ov.act.lessons[l.id] : null;
+      return { id: l.id, title: l.title, bonus: !!l.is_bonus, activity: ac ? { state: ac.state, grade: ac.rows.filter((r) => r.status === 'approved').pop()?.grade ?? (ac.last && ac.last.grade) ?? null } : null, doneAt: at, wpct, state: at ? 'done' : (watched > 0 ? 'part' : 'none') };
     });
     const counted = lessons.filter((l) => !l.bonus);
     const mo = ov.modules[m.id] || {};

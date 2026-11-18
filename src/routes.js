@@ -209,7 +209,7 @@ function build(cfg, app) {
     const one = async (sql) => (await db.q(sql)).rows[0].n;
     let dash; let status;
     try {
-      const [m, l, sum, students, pubs, refunds, lgpd, forum, dls, testi] = await Promise.all([
+      const [m, l, sum, students, pubs, refunds, lgpd, forum, dls, testi, acts] = await Promise.all([
         db.q('SELECT count(*)::int AS n FROM schema_migrations'),
         db.q("SELECT count(*)::int AS n FROM legal_documents WHERE status = 'published' AND doc_type IN ('terms','privacy')"),
         F.summary(F.period({})),
@@ -219,9 +219,10 @@ function build(cfg, app) {
         one("SELECT count(*)::int AS n FROM data_requests WHERE status = 'open'"),
         Co.openCount(), dl.pendingCount(),
         one("SELECT count(*)::int AS n FROM course_reviews WHERE consent_publish AND NOT published AND comment <> ''"),
+        one("SELECT count(*)::int AS n FROM activity_submissions WHERE status = 'pending'"),
       ]);
       dash = {
-        month: { n: sum.sales.n, gross: sum.sales.gross, refunds: sum.refunds.n, net: sum.net }, students, pubs: pubs.rows[0],
+        month: { n: sum.sales.n, gross: sum.sales.gross, refunds: sum.refunds.n, net: sum.net }, students, pubs: pubs.rows[0], activities: acts,
         pending: [
           { n: refunds, label: 'Pedidos de reembolso', href: '/admin/vendas' },
           { n: lgpd, label: 'Pedidos de dados (LGPD)', href: '/admin/lgpd' },

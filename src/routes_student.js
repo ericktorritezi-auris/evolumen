@@ -13,6 +13,7 @@ const Co = require('./community');
 const Set_ = require('./settings');
 const notify = require('./notify');
 const dl = require('./downloads');
+const AV = require('./views/activities');
 
 function build(cfg, h) {
   const r = express.Router();
@@ -55,13 +56,13 @@ function build(cfg, h) {
     const cur = await C.curriculum(course.id, { all: isAdmin });
     const progress = await C.progressFor(req.user.id, course.id);
     const ov = await A.overview(req.user.id, course);
-    const open = (l) => isAdmin || !A.lessonLocked(ov, l.module_id);
+    const open = (l) => isAdmin || !A.lessonLocked(ov, l.module_id, l.id);
     const next_ = C.flatLessons(cur).find((l) => open(l) && !l.is_bonus && !progress.done.has(String(l.id))) || C.flatLessons(cur).find((l) => open(l) && !progress.done.has(String(l.id))) || C.flatLessons(cur).find(open);
     const review = !isAdmin && ov && ov.cert && ov.cert.issued ? (await Co.reviewOf(req.user.id, course.id)) || {} : null;
     res.send(views.cursoHome({ ...h.appCtx(req, res), course, cur, progress, next: next_, access, ov, review }));
   });
 
-  r.get('/curso/:slug/aula/:lessonId', ...guard, async (req, res, next) => {
+  async function renderAula(req, res, next, draft = null) {
     const { course, access } = await load(req);
     if (!course || C.typeOf(course) === 'download' || !/^\d{1,12}$/.test(req.params.lessonId)) return next();
     const cur = await C.curriculum(course.id, { withVideo: true, withFiles: true, all: req.user.role === 'admin' });
@@ -70,19 +71,36 @@ function build(cfg, h) {
     if (!lesson) return next();
     const progress = await C.progressFor(req.user.id, course.id);
     const ov = await A.overview(req.user.id, course);
-    if (req.user.role !== 'admin' && A.lessonLocked(ov, lesson.module_id)) { h.setFlash(res, 'info', `Passe no quiz do módulo “${ov.modules[lesson.module_id].blockedBy.title}” para avançar.`); return res.redirect(303, `/curso/${course.slug}`); }
+    if (req.user.role !== 'admin' && A.lessonLocked(ov, lesson.module_id, lesson.id)) {
+      const byQuiz = ov.modules[lesson.module_id] && ov.modules[lesson.module_id].locked;
+      h.setFlash(res, 'info', byQuiz ? `Passe no quiz do módulo “${ov.modules[lesson.module_id].blockedBy.title}” para avançar.` : `Conclua a atividade complementar “${ov.act.gate.title}” (aprovada pelo professor) para avançar.`);
+      return res.redirect(303, byQuiz ? `/curso/${course.slug}` : `/curso/${course.slug}/aula/${ov.act.gate.id}`);
+    }
     if (lesson.instagram_url) res.setHeader('Content-Security-Policy', IG.allowCsp(res.getHeader('Content-Security-Policy')));
     const st = await Set_.all();
     const posts = st.forum_enabled === '1' ? await Co.listLesson(lesson.id, { admin: req.user.role === 'admin' }) : [];
-    res.send(views.aula({ ...h.appCtx(req, res), course, cur, lesson, flat, progress, access, ov, forum: { enabled: st.forum_enabled === '1', posts } }));
-  });
+    let actPanel = null;
+    if (lesson.is_activity) {
+      const ctx = h.appCtx(req, res);
+      actPanel = req.user.role === 'admin' ? AV.adminNote(course, lesson) : AV.studentPanel(ctx, { course, lesson, st: ov.act.lessons[lesson.id], ...(draft || {}) });
+    }
+    if (draft) res.status(422);
+    res.send(views.aula({ ...h.appCtx(req, res), course, cur, lesson, flat, progress, access, ov, actPanel, forum: { enabled: st.forum_enabled === '1', posts } }));
+  }
+  h.renderAula = renderAula;
+  r.get('/curso/:slug/aula/:lessonId', ...guard, (req, res, next) => renderAula(req, res, next));
 
   r.post('/curso/:slug/aula/:lessonId/concluir', ...guard, async (req, res, next) => {
     const { course } = await load(req);
     if (!course || !/^\d{1,12}$/.test(req.params.lessonId)) return next();
-    const l = await db.q(`SELECT l.id, l.module_id FROM lessons l WHERE l.id = $1 AND l.course_id = $2 AND ${C.LIVE}`, [req.params.lessonId, course.id]);
+    const l = await db.q(`SELECT l.id, l.module_id, l.is_activity FROM lessons l WHERE l.id = $1 AND l.course_id = $2 AND ${C.LIVE}`, [req.params.lessonId, course.id]);
     if (!l.rowCount) return next();
-    if (req.user.role !== 'admin' && A.lessonLocked(await A.overview(req.user.id, course), l.rows[0].module_id)) return res.redirect(303, `/curso/${course.slug}`);
+    if (req.user.role !== 'admin' && A.lessonLocked(await A.overview(req.user.id, course), l.rows[0].module_id, l.rows[0].id)) return res.redirect(303, `/curso/${course.slug}`);
+    // Atividade complementar: só o professor conclui (aprovando ou dispensando).
+    if (l.rows[0].is_activity && req.user.role !== 'admin') {
+      h.setFlash(res, 'info', 'Esta aula é uma atividade complementar: ela é concluída pelo professor, depois que ele avaliar o seu envio.');
+      return res.redirect(303, `/curso/${course.slug}/aula/${l.rows[0].id}`);
+    }
     if (req.body.done !== '1' && req.user.role === 'student' && (await A.overview(req.user.id, course)).cert.issued) {
       h.setFlash(res, 'info', 'Você já recebeu o certificado deste curso. O progresso não pode mais diminuir.');
       return res.redirect(303, `/curso/${course.slug}/aula/${l.rows[0].id}`);
@@ -107,7 +125,7 @@ function build(cfg, h) {
     let dest = `/curso/${course.slug}/aula/${nxt ? nxt.id : l.rows[0].id}`;
     if (nxt && req.user.role !== 'admin') {
       const ov = await A.overview(req.user.id, course);
-      if (A.lessonLocked(ov, nxt.module_id)) { const prevMod = ov.modules[l.rows[0].module_id]; dest = prevMod && prevMod.quizAvailable ? `/curso/${course.slug}/avaliacao/${prevMod.quiz.id}` : `/curso/${course.slug}`; }
+      if (A.lessonLocked(ov, nxt.module_id, nxt.id)) { const prevMod = ov.modules[l.rows[0].module_id]; dest = ov.act && ov.act.gate && !(ov.modules[nxt.module_id] && ov.modules[nxt.module_id].locked) ? `/curso/${course.slug}/aula/${ov.act.gate.id}` : prevMod && prevMod.quizAvailable ? `/curso/${course.slug}/avaliacao/${prevMod.quiz.id}` : `/curso/${course.slug}`; }
     }
     res.redirect(303, dest);
   });
@@ -122,9 +140,9 @@ function build(cfg, h) {
     if (!access.ok) throw deny();
     const isProduct = (await db.q('SELECT 1 FROM product_files WHERE file_id = $1', [req.params.id])).rowCount > 0;
     if (req.user.role !== 'admin' && !isProduct) {
-      const lm = (await db.q('SELECT l.module_id FROM lesson_files lf JOIN lessons l ON l.id = lf.lesson_id WHERE lf.file_id = $1', [req.params.id])).rows[0];
+      const lm = (await db.q('SELECT l.id, l.module_id FROM lesson_files lf JOIN lessons l ON l.id = lf.lesson_id WHERE lf.file_id = $1', [req.params.id])).rows[0];
       const course = await C.byId(link.rows[0].course_id);
-      if (lm && A.lessonLocked(await A.overview(req.user.id, course), lm.module_id)) return next();
+      if (lm && A.lessonLocked(await A.overview(req.user.id, course), lm.module_id, lm.id)) return next();
     }
     const f = await files.get(req.params.id);
     if (!f) return next();
