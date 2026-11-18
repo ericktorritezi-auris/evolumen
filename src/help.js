@@ -14,6 +14,7 @@ const STUDENT = [
     'Aperte o play e assista com atenção. O tempo assistido conta para liberar a prova final.',
     'Aulas com vídeo do Instagram pedem um clique em Carregar vídeo. Depois, marque a aula como concluída. Aulas com o selo Bônus não contam para o certificado.',
     'Quando terminar, toque em Marcar como concluída. Depois use Próxima aula.',
+    'Aulas com o selo Atividade complementar pedem o envio de 1 a 5 links (https). O professor avalia, e só então a aula é concluída e as próximas são liberadas.',
     'Apostilas e materiais ficam abaixo do vídeo, no botão Baixar.',
     'Tem dúvida? Escreva em Dúvidas da aula, no fim da página. O professor responde e avisa por e-mail.'] },
   { id: 'avaliacao', match: /^\/curso\/[^/]+\/avaliacao\//, title: 'Quiz e prova final', steps: [

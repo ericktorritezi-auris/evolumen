@@ -11,7 +11,7 @@ const titleRow = (title, sub) => html`<div class="title-row"><h1 class="t-displa
 const LABEL = {
   contas: 'Contas de aluno', matriculas: 'Matrículas', pedidos: 'Pedidos', comissoes: 'Comissões de afiliado',
   reembolsos: 'Pedidos de reembolso', certificados: 'Certificados', aceites: 'Aceites dos termos',
-  tentativas: 'Tentativas de prova', progresso: 'Aulas concluídas', forum: 'Mensagens do fórum', avaliacoes: 'Avaliações', cupons_usados: 'Cupons usados',
+  tentativas: 'Tentativas de prova', atividades: 'Atividades enviadas', progresso: 'Aulas concluídas', forum: 'Mensagens do fórum', avaliacoes: 'Avaliações', cupons_usados: 'Cupons usados',
   pedidos_lgpd: 'Pedidos de dados (LGPD)', notificacoes: 'Notificações', emails_enviados: 'Registros de e-mail', envios_de_cupom: 'Envios de cupom',
 };
 

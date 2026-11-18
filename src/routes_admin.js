@@ -301,7 +301,7 @@ function build(cfg, h) {
     const m = await moduleOr404(req, next); if (!m) return;
     const ok = await db.tx(async (c) => {
       await c.query('SELECT id FROM lessons WHERE module_id = $1 FOR UPDATE', [m.id]);
-      const used = (await c.query('SELECT count(*)::int n FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE l.module_id = $1', [m.id])).rows[0].n;
+      const used = (await c.query('SELECT count(*)::int n FROM lesson_progress p JOIN lessons l ON l.id = p.lesson_id WHERE l.module_id = $1', [m.id])).rows[0].n + (await c.query('SELECT count(*)::int n FROM activity_submissions a JOIN lessons l ON l.id = a.lesson_id WHERE l.module_id = $1', [m.id])).rows[0].n;
       if (used > 0) return false;
       await c.query('DELETE FROM files WHERE id IN (SELECT lf.file_id FROM lesson_files lf JOIN lessons l ON l.id = lf.lesson_id WHERE l.module_id = $1)', [m.id]);
       await c.query('DELETE FROM modules WHERE id = $1', [m.id]);
@@ -319,6 +319,8 @@ function build(cfg, h) {
   });
   r.post('/admin/modulos/:id/reativar', async (req, res, next) => {
     const m = await moduleOr404(req, next); if (!m) return;
+    if ((await db.q("SELECT 1 FROM lessons WHERE module_id = $1 AND is_activity AND active", [m.id])).rowCount && (await db.q("SELECT 1 FROM assessments WHERE module_id = $1 AND kind = 'quiz' AND active", [m.id])).rowCount)
+      return flashBack(req, res, 'error', 'Este módulo tem uma atividade complementar e um quiz ativo, e um módulo com atividade não pode ter quiz. Inative o quiz antes de reativar o módulo.', back(m.course_id));
     await db.q('UPDATE modules SET active = TRUE WHERE id = $1', [m.id]);
     await audit(req, 'module_reactivated', { entity: 'course', entityId: m.course_id });
     flashBack(req, res, 'success', 'Módulo reativado.', back(m.course_id));
@@ -345,11 +347,25 @@ function build(cfg, h) {
     if (yt.id && ig.url) return flashBack(req, res, 'error', 'Use só um vídeo por aula. Para trocar o tipo de vídeo, apague o campo do outro (YouTube ou Instagram) e salve.', back(l.course_id));
     const bonus = req.body.is_bonus === '1';
     if (duration !== null && (!Number.isInteger(duration) || duration < 1 || duration > 1440)) return flashBack(req, res, 'error', 'Duração em minutos inteiros (1 a 1440).', back(l.course_id));
-    await db.q('UPDATE lessons SET title = $2, youtube_id = $3, instagram_url = $6, is_bonus = $7, description = $4, duration_min = $5, updated_at = now() WHERE id = $1',
-      [l.id, t, yt.id || null, String(req.body.description || '').trim().slice(0, 4000), duration, ig.url || null, bonus]);
-    await audit(req, 'lesson_updated', { entity: 'lesson', entityId: l.id, meta: { instagram: !!ig.url, bonus } });
+    const activity = req.body.is_activity === '1';
+    if (activity && bonus) return flashBack(req, res, 'error', 'Uma aula não pode ser bônus e atividade complementar ao mesmo tempo. Desmarque uma das opções.', back(l.course_id));
+    if (activity && !l.is_activity) {
+      const q = await db.q("SELECT 1 FROM assessments WHERE module_id = $1 AND kind = 'quiz' AND active", [l.module_id]);
+      if (q.rowCount) return flashBack(req, res, 'error', 'Este módulo tem um quiz ativo. Um módulo com atividade complementar não pode ter quiz: inative ou troque o quiz, ou use a atividade em outro módulo.', back(l.course_id));
+    }
+    await db.q('UPDATE lessons SET title = $2, youtube_id = $3, instagram_url = $6, is_bonus = $7, is_activity = $8, description = $4, duration_min = $5, updated_at = now() WHERE id = $1',
+      [l.id, t, yt.id || null, String(req.body.description || '').trim().slice(0, 4000), duration, ig.url || null, bonus, activity]);
+    await audit(req, 'lesson_updated', { entity: 'lesson', entityId: l.id, meta: { instagram: !!ig.url, bonus, activity } });
     const issue = await C.lastLessonIssue(l.course_id);
-    flashBack(req, res, issue ? 'info' : 'success', issue ? 'Aula salva. Atenção: ' + issue : 'Aula salva.', back(l.course_id));
+    let msg = 'Aula salva.';
+    if (activity && !l.is_activity) {
+      const n = (await db.q(`SELECT count(DISTINCT e.user_id)::int AS n FROM enrollments e JOIN users u ON u.id = e.user_id AND u.role = 'student'
+        JOIN lesson_progress p ON p.user_id = e.user_id JOIN lessons x ON x.id = p.lesson_id AND x.course_id = e.course_id AND x.active AND NOT x.is_bonus
+        JOIN modules mx ON mx.id = x.module_id AND mx.active JOIN modules ml ON ml.id = $2
+        WHERE e.course_id = $1 AND e.status = 'active' AND x.id <> $4 AND (mx.position > ml.position OR (mx.id = ml.id AND (x.position, x.id) > ($3, $4)))`, [l.course_id, l.module_id, l.position, l.id])).rows[0].n;
+      msg = n ? `Aula salva como atividade complementar. ${n} ${n === 1 ? 'aluno já avançou' : 'alunos já avançaram'} além dela e ${n === 1 ? 'ficará bloqueado' : 'ficarão bloqueados'} nas aulas seguintes até a atividade ser aprovada ou dispensada (aba Atividades do curso).` : 'Aula salva como atividade complementar.';
+    }
+    flashBack(req, res, issue ? 'info' : 'success', issue ? msg + ' Atenção: ' + issue : msg, back(l.course_id));
   });
   r.post('/admin/aulas/:id/mover', async (req, res, next) => {
     const l = await lessonOr404(req, next); if (!l) return;
@@ -361,7 +377,7 @@ function build(cfg, h) {
     const l = await lessonOr404(req, next); if (!l) return;
     const ok = await db.tx(async (c) => {
       await c.query('SELECT id FROM lessons WHERE id = $1 FOR UPDATE', [l.id]);
-      const used = (await c.query('SELECT count(*)::int n FROM lesson_progress WHERE lesson_id = $1', [l.id])).rows[0].n;
+      const used = (await c.query('SELECT count(*)::int n FROM lesson_progress WHERE lesson_id = $1', [l.id])).rows[0].n + (await c.query('SELECT count(*)::int n FROM activity_submissions WHERE lesson_id = $1', [l.id])).rows[0].n;
       if (used > 0) return false;
       await c.query('DELETE FROM files WHERE id IN (SELECT file_id FROM lesson_files WHERE lesson_id = $1)', [l.id]);
       await c.query('DELETE FROM lessons WHERE id = $1', [l.id]);
@@ -380,6 +396,8 @@ function build(cfg, h) {
   });
   r.post('/admin/aulas/:id/reativar', async (req, res, next) => {
     const l = await lessonOr404(req, next); if (!l) return;
+    if (l.is_activity && (await db.q("SELECT 1 FROM assessments WHERE module_id = $1 AND kind = 'quiz' AND active", [l.module_id])).rowCount)
+      return flashBack(req, res, 'error', 'Este módulo tem um quiz ativo, e um módulo com atividade complementar não pode ter quiz. Inative o quiz antes de reativar a aula.', back(l.course_id));
     await db.q('UPDATE lessons SET active = TRUE, updated_at = now() WHERE id = $1', [l.id]);
     await audit(req, 'lesson_reactivated', { entity: 'lesson', entityId: l.id });
     flashBack(req, res, 'success', 'Aula reativada.', back(l.course_id));

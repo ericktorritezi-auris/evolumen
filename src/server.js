@@ -97,6 +97,7 @@ function createApp(cfg) {
   app.use(require('./routes_manage').build(cfg, main.helpers));
   app.use(require('./routes_assess').build(cfg, main.helpers));
   app.use(require('./routes_assessadm').build(cfg, main.helpers));
+  app.use(require('./routes_activities').build(cfg, main.helpers));
   const pay = require('./routes_pay');
   pay.mountWebhook(cfg, main.helpers, hooks);
   app.use(pay.build(cfg, main.helpers));

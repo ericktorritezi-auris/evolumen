@@ -37,10 +37,11 @@ function meusCursos({ cfg, user, csrf, flash, courses, resume }) {
 function lessonRow(course, l, ctx) {
   const done = ctx.progress.done.has(String(l.id));
   const cur = ctx.current && ctx.current.id === l.id;
-  const locked = !!(ctx.ov && ctx.ov.modules[l.module_id] && ctx.ov.modules[l.module_id].locked && !ctx.admin);
+  const byActivity = !!(ctx.ov && ctx.ov.act && ctx.ov.act.blocked.has(String(l.id)) && !ctx.admin);
+  const locked = !!(ctx.ov && ctx.ov.modules[l.module_id] && ctx.ov.modules[l.module_id].locked && !ctx.admin) || byActivity;
   return html`<li class="lrow${done ? ' is-done' : ''}${cur ? ' is-current' : ''}${locked ? ' is-locked' : ''}"><a href="/curso/${course.slug}/aula/${l.id}"${cur ? raw(' aria-current="true"') : ''}>
-    <span class="lrow__st" aria-hidden="true">${locked ? icon('lock', 16) : done ? icon('check', 16) : (cur ? '▶' : '○')}</span><span class="lrow__t">${l.title}${l.is_bonus ? html` <span class="pill pill--bonus">Bônus</span>` : ''}</span>
-    ${l.duration_min ? html`<span class="muted small">${dur(l.duration_min)}</span>` : ''}<span class="sr">${locked ? 'bloqueada até passar no quiz do módulo anterior' : done ? 'concluída' : ''}</span></a></li>`;
+    <span class="lrow__st" aria-hidden="true">${locked ? icon('lock', 16) : done ? icon('check', 16) : (cur ? '▶' : '○')}</span><span class="lrow__t">${l.title}${l.is_bonus ? html` <span class="pill pill--bonus">Bônus</span>` : ''}${l.is_activity ? html` <span class="pill pill--bonus">Atividade</span>` : ''}</span>
+    ${l.duration_min ? html`<span class="muted small">${dur(l.duration_min)}</span>` : ''}<span class="sr">${locked ? (byActivity ? 'bloqueada até o professor aprovar a atividade complementar' : 'bloqueada até passar no quiz do módulo anterior') : done ? 'concluída' : ''}</span></a></li>`;
 }
 
 function quizRow(course, m, ov) {
@@ -138,7 +139,7 @@ function meter(course, lesson, ov, user) {
     <p class="small" data-wmsg>${f.unlocked ? html`<b>Prova final liberada!</b> <a href="${href}">Fazer a prova final</a>` : 'A prova final libera quando você assistir mais da metade (50%) desta aula. Assista sua aula!'}</p></section>`;
 }
 
-function aula({ cfg, user, csrf, flash, course, cur, lesson, flat, progress, access, ov, forum }) {
+function aula({ cfg, user, csrf, flash, course, cur, lesson, flat, progress, access, ov, forum, actPanel }) {
   const idx = flat.findIndex((l) => l.id === lesson.id);
   const prev = flat[idx - 1]; const next = flat[idx + 1];
   const done = progress.done.has(String(lesson.id));
@@ -159,14 +160,15 @@ function aula({ cfg, user, csrf, flash, course, cur, lesson, flat, progress, acc
               <p class="small"><a href="${lesson.instagram_url}" target="_blank" rel="noopener noreferrer" aria-label="Abrir no Instagram (abre em nova aba)">Abrir no Instagram ↗</a></p></div>`
           : html`<div class="player player--empty">${lumen('pensa', 90)}<p class="muted">O vídeo desta aula ainda não foi publicado.</p></div>`}
       ${meter(course, lesson, ov, user)}
-      <h1 class="t-display t-display--sm">${lesson.title}${lesson.is_bonus ? html` <span class="pill pill--bonus">Bônus</span>` : ''}</h1>
+      <h1 class="t-display t-display--sm">${lesson.title}${lesson.is_bonus ? html` <span class="pill pill--bonus">Bônus</span>` : ''}${lesson.is_activity ? html` <span class="pill pill--bonus">Atividade complementar</span>` : ''}</h1>
       ${lesson.is_bonus ? html`<p class="muted small">Aula bônus: ela não conta para o seu percentual nem para o certificado.</p>` : ''}
       ${lesson.instagram_url ? html`<p class="muted small">Este vídeo não mede o tempo assistido. Quando terminar, marque a aula como concluída.</p>` : ''}
+      ${lesson.is_activity && actPanel ? actPanel : ''}
       <div class="lesson__act">
-        <form method="post" action="${link(lesson)}/concluir">${csrfInput(csrf)}<input type="hidden" name="done" value="${done ? '0' : '1'}">
+        ${lesson.is_activity ? '' : html`<form method="post" action="${link(lesson)}/concluir">${csrfInput(csrf)}<input type="hidden" name="done" value="${done ? '0' : '1'}">
           ${done && ov && ov.cert.issued && user.role !== 'admin'
             ? html`<span class="btn btn--ghost" aria-disabled="true">${icon('check', 18)} Concluída</span>`
-            : html`<button class="btn ${done ? 'btn--ghost' : 'btn--primary'}" type="submit">${done ? html`${icon('check', 18)} Concluída (desmarcar)` : 'Marcar como concluída'}</button>`}</form>
+            : html`<button class="btn ${done ? 'btn--ghost' : 'btn--primary'}" type="submit">${done ? html`${icon('check', 18)} Concluída (desmarcar)` : 'Marcar como concluída'}</button>`}</form>`}
         ${prev ? html`<a class="btn btn--ghost" href="${link(prev)}">← Anterior</a>` : ''}
         ${next ? html`<a class="btn btn--outline" href="${link(next)}">Próxima aula →</a>` : ''}
       </div>

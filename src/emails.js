@@ -179,6 +179,27 @@ function attemptsGranted(cfg, { name, course, assessment, count, url }) {
   };
 }
 
+// Atividade complementar (2.3.0): resultado da avaliação do professor, dispensa ou reabertura.
+function activityResult(cfg, { name, course, lesson, result, grade, summary, url }) {
+  const g = grade == null || grade === '' ? null : Number(grade).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const M = {
+    approved: { title: 'Sua atividade foi aprovada', subj: 'Atividade aprovada', lead: 'foi <b>aprovada</b>', cta: 'Continuar o curso', outro: 'As próximas aulas já estão liberadas. Parabéns!' },
+    adjust: { title: 'Sua atividade precisa de ajustes', subj: 'Sua atividade precisa de ajustes', lead: 'precisa de <b>ajustes</b>', cta: 'Corrigir e reenviar', outro: 'Faça os ajustes indicados e envie os links novamente.' },
+    rejected: { title: 'Sua atividade não foi aprovada', subj: 'Atividade não aprovada', lead: '<b>não foi aprovada</b>', cta: 'Ver o resultado', outro: 'Fale com o professor para combinar uma nova chance. Quando ele reabrir a atividade, você poderá enviar de novo.' },
+    waived: { title: 'Atividade dispensada pelo professor', subj: 'Atividade dispensada', lead: 'foi <b>dispensada</b> pelo professor', cta: 'Continuar o curso', outro: 'Você não precisa enviar esta atividade. As próximas aulas já estão liberadas.' },
+    reopened: { title: 'Sua atividade foi reaberta', subj: 'Atividade reaberta para novo envio', lead: 'foi <b>reaberta</b> para um novo envio', cta: 'Enviar novamente', outro: 'Envie os novos links quando estiver pronto.' },
+  }[result];
+  const notaHtml = g ? `<p style="margin:0 0 12px;font-size:15px"><b>Nota:</b> ${esc(g)} de 10</p>` : '';
+  const sumHtml = summary ? `<div style="margin:0 0 6px;padding:12px 14px;background:#EDEFFB;border-radius:12px;font-size:14px;line-height:1.6;white-space:pre-wrap">${esc(summary)}</div>` : '';
+  return {
+    subject: `${M.subj} · ${course.title}`, template: 'atividade_resultado',
+    html: layout({ cfg, title: M.title,
+      intro: `Olá, ${first(name)}. A sua atividade <b>${esc(lesson.title)}</b>, do ${nn(course)} <b>${esc(course.title)}</b>, ${M.lead}.`,
+      bodyHtml: `${notaHtml}${sumHtml}`, cta: { url, label: M.cta }, outro: M.outro }),
+    text: `Olá, ${name}. A sua atividade ${lesson.title}, do ${nn(course)} ${course.title}, ${M.lead.replace(/<[^>]+>/g, '')}.${g ? ` Nota: ${g} de 10.` : ''}${summary ? `\n\n${summary}` : ''}\n\nAcesse: ${url}`,
+  };
+}
+
 // Programa de afiliados (1.2.0).
 function affiliateInvite(cfg, { name, email, password }) {
   const url = `${cfg.baseUrl}/entrar`;
@@ -291,4 +312,4 @@ function dataRequestDone(cfg, { name, kind, ok, note }) {
   };
 }
 
-module.exports = { affiliateInvite, affiliateLinked, payoutRecorded, courseNews, productUpdated, accessExpiring, forumQuestion, forumAnswer, dataRequestDone, purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, attemptsGranted, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };
+module.exports = { activityResult, affiliateInvite, affiliateLinked, payoutRecorded, courseNews, productUpdated, accessExpiring, forumQuestion, forumAnswer, dataRequestDone, purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, attemptsGranted, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };

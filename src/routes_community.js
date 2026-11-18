@@ -31,7 +31,7 @@ function build(cfg, h) {
     const admin = req.user.role === 'admin';
     const lesson = (await db.q(`SELECT l.id, l.title, l.module_id FROM lessons l WHERE l.id = $1 AND l.course_id = $2 ${admin ? '' : 'AND ' + C.LIVE}`, [req.params.lessonId, course.id])).rows[0];
     // Mesma regra da leitura: aula travada por quiz não aceita nem escrita.
-    if (lesson && !admin && A.lessonLocked(await A.overview(req.user.id, course), lesson.module_id)) return {};
+    if (lesson && !admin && A.lessonLocked(await A.overview(req.user.id, course), lesson.module_id, lesson.id)) return {};
     return { course, lesson };
   }
 

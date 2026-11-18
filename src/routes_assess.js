@@ -39,7 +39,7 @@ function build(cfg, h) {
     if (!l) return next();
     if (req.user.role === 'admin') return res.json({ ok: true, admin: true });
     const ov = await A.overview(req.user.id, course);
-    if (A.lessonLocked(ov, l.module_id)) return res.status(403).json({ ok: false });
+    if (A.lessonLocked(ov, l.module_id, l.id)) return res.status(403).json({ ok: false });
     const out = await A.addWatch(req.user.id, l.id, req.body.delta, req.body.duration);
     res.json({ ok: true, ...out });
   });
