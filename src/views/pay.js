@@ -18,7 +18,7 @@ const METHOD = { pix: 'Pix', card: 'Cartão' };
 function priceLines(course, price) {
   return html`<ul class="sumlist">
     <li><span>Valor</span><span>${brl(price.list)}</span></li>
-    ${price.off > 0 ? html`<li class="sumlist__off"><span>${price.source === 'coupon' ? `Cupom ${price.coupon.code}` : price.source === 'renewal' ? 'Preço de renovação' : 'Preço promocional'}</span><span>− ${brl(price.off)}</span></li>` : ''}
+    ${price.off > 0 ? html`<li class="sumlist__off"><span>${price.source === 'coupon' ? `Cupom ${price.coupon.code}` : price.source === 'renewal' ? 'Preço de renovação' : price.source === 'campaign' && price.campaign ? price.campaign.name : 'Preço promocional'}</span><span>− ${brl(price.off)}</span></li>` : ''}
     <li class="sumlist__total"><span>Total</span><b>${brl(price.final)}</b></li></ul>`;
 }
 

@@ -87,6 +87,7 @@ function createApp(cfg) {
   app.use(express.urlencoded({ extended: false, limit: '100kb' }));
   app.use(sec.sessionMiddleware(cfg));
   app.use(sec.csrfMiddleware(cfg));
+  app.use(async (req, res, next) => { try { await require('./promotions').refresh(); } catch (e) { /* sem promoções em cache: o site segue com os preços normais */ } next(); });
   app.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 
   const main = build(cfg, app);
@@ -94,6 +95,7 @@ function createApp(cfg) {
   app.use(main);
   app.use(require('./routes_student').build(cfg, main.helpers));
   app.use(require('./routes_admin').build(cfg, main.helpers));
+  app.use(require('./routes_promos').build(cfg, main.helpers));
   app.use(require('./routes_manage').build(cfg, main.helpers));
   app.use(require('./routes_assess').build(cfg, main.helpers));
   app.use(require('./routes_assessadm').build(cfg, main.helpers));

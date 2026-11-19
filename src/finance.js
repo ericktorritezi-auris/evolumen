@@ -46,7 +46,10 @@ async function summary({ from, to }, courseId, now = new Date(), tipo = null) {
 
   const sales = (await db.q(`SELECT count(*)::int AS n, COALESCE(sum(${money}),0)::bigint AS gross,
       count(*) FILTER (WHERE o.kind = 'purchase')::int AS news, count(*) FILTER (WHERE o.kind = 'renewal')::int AS renewals,
-      count(*) FILTER (WHERE o.price_source = 'coupon')::int AS with_coupon
+      count(*) FILTER (WHERE o.price_source = 'coupon')::int AS with_coupon,
+      count(*) FILTER (WHERE o.price_source = 'campaign')::int AS with_campaign,
+      COALESCE(sum(o.list_cents - o.price_cents) FILTER (WHERE o.price_source = 'campaign'),0)::bigint AS campaign_off,
+      COALESCE(sum(o.price_cents) FILTER (WHERE o.price_source = 'campaign'),0)::bigint AS campaign_gross
     FROM orders o WHERE o.approved_at >= ${S} AND o.approved_at < ${E} ${crs}`, base)).rows[0];
 
   const refunds = (await db.q(`SELECT count(*)::int AS n, COALESCE(sum(${money}),0)::bigint AS value,
@@ -95,7 +98,7 @@ async function summary({ from, to }, courseId, now = new Date(), tipo = null) {
   const base2 = sales.news + sales.renewals + non;
   const churn = base2 > 0 ? Math.min(100, (lost / base2) * 100) : null;
   return {
-    sales: { n: sales.n, gross, news: sales.news, renewals: sales.renewals, withCoupon: sales.with_coupon, avgTicket: sales.n ? Math.round(gross / sales.n) : 0 },
+    sales: { n: sales.n, gross, news: sales.news, renewals: sales.renewals, withCoupon: sales.with_coupon, withCampaign: sales.with_campaign, campaignOff: Number(sales.campaign_off), campaignGross: Number(sales.campaign_gross), avgTicket: sales.n ? Math.round(gross / sales.n) : 0 },
     refunds: { n: refunds.n, value: refundValue, refunded: refunds.refunded, chargedBack: refunds.charged_back },
     net: gross - refundValue, nonRenewals: non, lost, base: base2,
     churn, effectiveness: churn == null ? null : 100 - churn,

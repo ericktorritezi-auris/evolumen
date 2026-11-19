@@ -26,22 +26,25 @@ const fmtLong = (d) => new Date(d).toLocaleDateString('pt-BR', { timeZone: 'Amer
 // Promoção e cupom nunca se somam: vale o menor preço. Renovação usa o preço de renovação, se o curso tiver, e não aceita cupom.
 function pricing(course, coupon, { renewal = false } = {}) {
   if (renewal) {
-    const cents = course.renewal_price_cents != null ? course.renewal_price_cents : C.effectivePrice(course).cents;
+    const cents = course.renewal_price_cents != null ? course.renewal_price_cents : C.effectivePrice(course, new Date(), { campaign: false }).cents;
     return { list: course.price_cents, final: cents, source: 'renewal', coupon: null, off: Math.max(0, course.price_cents - cents) };
   }
   const eff = C.effectivePrice(course);
-  let final = eff.cents; let source = eff.original != null ? 'promo' : 'full'; let used = null;
-  if (coupon) {
+  let final = eff.cents; let source = eff.campaignWins ? 'campaign' : eff.original != null ? 'promo' : 'full'; let used = null;
+  const campaign = eff.campaign || null;
+  // Promoção do site no ar para este produto: cupom (inclusive de afiliado) fica suspenso e não soma.
+  if (coupon && !campaign) {
     const pw = K.priceWith(coupon, course);
     if (pw && pw.cents < eff.cents) { final = pw.cents; source = 'coupon'; used = coupon; }
   }
-  return { list: course.price_cents, final, source, coupon: used, off: course.price_cents - final };
+  return { list: course.price_cents, final, source, coupon: used, off: course.price_cents - final, campaign: source === 'campaign' ? campaign : null, campaignOn: !!campaign };
 }
 
 // Cupom digitado no checkout: confere agora (situação, curso e uso único por pessoa).
 async function checkCoupon(code, course, { userId = null, email = null } = {}) {
   const raw = String(code || '').trim();
   if (!raw) return { coupon: null };
+  if (C.effectivePrice(course).campaign) return { error: 'Este cupom não pode ser usado agora porque o site está com preço promocional. Assim que a promoção terminar, ele volta a valer.', blocked: true };
   const c = await K.byCode(raw);
   if (!c || K.stateOf(c, c.uses) !== 'active') return { error: 'Este cupom não está mais válido.' };
   if (!c.courses.some((x) => String(x.id) === String(course.id))) return { error: 'Este cupom não vale para este produto.' };
@@ -89,10 +92,10 @@ async function createOrder(cfg, req, { course, buyer, method, user, coupon, rene
       : `SELECT * FROM orders WHERE course_id = $1 AND lower(buyer->>'email') = $2 AND method = 'card' AND status = 'pending' AND price_cents = $3 AND coupon_id IS NOT DISTINCT FROM $4::bigint AND checkout_url IS NOT NULL AND created_at > now() - interval '30 minutes' ORDER BY id DESC LIMIT 1`,
     [course.id, buyer.email, price.final, price.coupon ? price.coupon.id : null])).rows[0];
     if (dup) return dup;
-    const o = (await c.query(`INSERT INTO orders (public_id, user_id, course_id, kind, buyer, list_cents, price_cents, price_source, coupon_id, method, provider, terms_doc_id, privacy_doc_id, ip, user_agent, visitor_id, session_id)
-      VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
+    const o = (await c.query(`INSERT INTO orders (public_id, user_id, course_id, kind, buyer, list_cents, price_cents, price_source, coupon_id, method, provider, terms_doc_id, privacy_doc_id, ip, user_agent, visitor_id, session_id, campaign_id, campaign_name)
+      VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
     [publicId, user ? user.id : null, course.id, renewal ? 'renewal' : 'purchase', JSON.stringify(buyer), price.list, price.final, price.source, price.coupon ? price.coupon.id : null, method, cfg.paymentProvider,
-      docs.terms.id, docs.privacy.id, req.ip || null, ua, ...require('./analytics').idsFrom(req)])).rows[0];
+      docs.terms.id, docs.privacy.id, req.ip || null, ua, ...require('./analytics').idsFrom(req), price.campaign ? price.campaign.id : null, price.campaign ? price.campaign.name : null])).rows[0];
     try {
       if (method === 'pix') {
         const r = await gw.createPix(cfg, { order: o, course });

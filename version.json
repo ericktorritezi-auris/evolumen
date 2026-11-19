@@ -1,7 +1,7 @@
 {
-  "version": "2.4.1",
+  "version": "2.5.0",
   "display": "1.3",
   "phase": 6,
-  "released": "2026-11-18",
-  "note": "Regra dos 10 dias dos lembretes separada por tipo (curso e afiliado)."
+  "released": "2026-11-19",
+  "note": "Promoções do site: desconto em % ou R$, produtos todos ou selecionados, início e fim, tag nos produtos, faixa no topo e cupom suspenso durante a promoção."
 }

@@ -120,7 +120,7 @@ function build(cfg, h) {
   });
 
   // ---------- cupons ----------
-  r.get('/admin/cupons', async (req, res) => res.send(views.cuponsList(ctx(req, res), { rows: await K.list() })));
+  r.get('/admin/cupons', async (req, res) => res.send(views.cuponsList(ctx(req, res), { rows: await K.list(), promos: await require('./promotions').list() })));
 
   const formCourses = async () => (await db.q('SELECT id, title, price_cents, status FROM courses ORDER BY sort_order, id')).rows;
   const formAffiliates = async (current = null) => { const l = await AFF.activeList(); if (current && !l.some((a) => String(a.id) === String(current))) { const a = await AFF.byId(current); if (a) l.push({ id: a.id, name: a.name + ' (inativo)', email: a.email }); } return l; };

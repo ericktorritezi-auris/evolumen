@@ -132,6 +132,7 @@ async function publicView(code, course = null) {
     const vis = c.courses.length ? (await db.q("SELECT 1 FROM courses WHERE id = ANY($1::bigint[]) AND status = 'published' AND published_at IS NOT NULL AND published_at <= now() LIMIT 1", [c.courses.map((x) => x.id)])).rowCount : 0;
     if (!vis) return { invalid: true };
   }
+  if (course ? C.effectivePrice(course).campaign : require('./promotions').liveNow().some((p) => p.all_products)) return { code: c.code, label: discountLabel(c), suspended: true };
   const pw = course ? priceWith(c, course) : null;
   const eff = course ? C.effectivePrice(course) : null;
   const promoCheaper = !!(pw && eff && eff.original != null && eff.cents <= pw.cents);
