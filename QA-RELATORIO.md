@@ -1,15 +1,15 @@
 # Relatório de QA
 
-Versão 2.5.0 · Fase 6 · 2026-11-19
+Versão 2.5.1 · Fase 6 · 2026-11-19
 
 | # | Verificação | Resultado | Detalhe |
 |---|---|---|---|
-| 1 | Sintaxe dos arquivos JS | OK | 139 arquivos |
+| 1 | Sintaxe dos arquivos JS | OK | 140 arquivos |
 | 2 | JSON válidos | OK | 4 arquivos |
 | 3 | IDs HTML únicos por tela | OK | 7 telas |
-| 4 | Versão igual em package.json, version.json e README | OK | package 2.5.0 · version.json 2.5.0 · README tem a linha da versão |
+| 4 | Versão igual em package.json, version.json e README | OK | package 2.5.1 · version.json 2.5.1 · README tem a linha da versão |
 | 5 | Migrações numeradas em sequência | OK | 001_base.sql, 002_hardening.sql, 003_courses.sql, 004_level_na.sql, 005_base.sql, 006_assessments.sql, 007_payments.sql, 008_community.sql, 009_notifications.sql, 010_products.sql, 011_downloads_reviews.sql, 012_launch_reset.sql, 013_description_html.sql, 014_affiliates.sql, 015_instagram_bonus.sql, 016_affiliate_panel.sql, 017_cockpit.sql, 018_payout_receipts.sql, 019_partner_leads.sql, 020_release_grace.sql, 021_analytics.sql, 022_analytics_index.sql, 023_activities.sql, 024_reminders.sql, 025_promotions.sql |
 | 6 | Nenhum segredo no código | OK | varredura de chaves e URLs de banco |
-| 7 | Testes automáticos e regressão | OK | 310 passaram, 0 falharam |
+| 7 | Testes automáticos e regressão | OK | 315 passaram, 0 falharam |
 
 **Resultado geral: APROVADO**

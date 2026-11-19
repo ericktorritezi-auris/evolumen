@@ -50,7 +50,8 @@ function priceFor(course, now = new Date()) {
 // Promoções no ar agora (para faixa, tema e home).
 const liveNow = (now = new Date()) => cache.filter((p) => isLive(p, now.getTime()));
 const theme = (now = new Date()) => (liveNow(now).find((p) => p.theme === 'blackfriday') ? 'blackfriday' : 'none');
-const banner = (now = new Date()) => { const l = liveNow(now).sort((a, b) => a.ends - b.ends)[0]; return l ? { promo: l, text: bannerOf(l), theme: l.theme, off: offLabel(l), ends: untilBr(l.ends_at) } : null; };
+const banner = (now = new Date()) => { const live = liveNow(now).sort((a, b) => a.ends - b.ends); const l = live.find((p) => p.theme === 'blackfriday') || live[0]; // Black Friday no ar manda no tema, mesmo que outra promoção termine antes
+   return l ? { promo: l, text: bannerOf(l), theme: l.theme, off: offLabel(l), ends: untilBr(l.ends_at), endsIso: new Date(l.ends_at).toISOString() } : null; };
 
 // ---------- cadastro ----------
 const toDate = (s) => { const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/.exec(String(s || '').trim()); if (!m) return null; const d = new Date(`${m[1]}T${m[2]}:00-03:00`); return Number.isNaN(d.getTime()) ? null : d; };

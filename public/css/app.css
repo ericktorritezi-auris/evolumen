@@ -588,3 +588,20 @@ tr.is-focus td{background:rgba(255,178,87,.12)}
 .promo-lumen__t{margin:4px 0 10px;color:var(--light)}
 .promos{display:grid;gap:8px;margin:16px 0 24px}
 @media (max-width:520px){.promo-lumen__in{flex-direction:column;text-align:center}.promo-lumen__in svg,.promo-lumen__in img{max-width:96px}}
+
+/* 2.5.1: tema Black Friday (mobile first). Só vale com a promoção no ar: o body ganha .theme-bf */
+.theme-bf{--noite:#050510;--profundo:#0b0b18;--panel:#0e0e1c;--ambar:#FFD27A;--aurora:#FFD27A;--line:rgba(255,210,122,.24);--nevoa:#F6F1E6}
+.theme-bf .p-header{background:rgba(0,0,0,.94);border-bottom:1px solid #8a6420}
+.promobar--bf{background:linear-gradient(90deg,#000,#2a1d05,#000);color:#ffd27a;letter-spacing:.04em;text-transform:uppercase;font-weight:800;font-size:12px}
+.bf-hero{margin:16px 0 24px;border:1px solid #8a6420;border-radius:22px;padding:24px 18px;background:radial-gradient(circle at 80% 20%,#4a3208 0,#0a0a14 60%);display:grid;gap:12px;align-items:center;position:relative;overflow:hidden}
+.bf-hero__t{font:800 clamp(52px,16vw,88px)/.95 Quicksand,system-ui,sans-serif;letter-spacing:-.02em;color:#ffd27a;margin:6px 0}
+.bf-hero__off{font-size:clamp(18px,5vw,28px);margin:0 0 14px;font-weight:300}.bf-hero__off b{color:#ffd27a;font-weight:700}
+.bf-hero__lumen{display:flex;justify-content:center}.bf-hero__lumen img{max-width:min(60vw,220px);height:auto;filter:drop-shadow(0 0 22px rgba(255,178,87,.65))}
+.bf-hero .btn{box-shadow:0 0 26px rgba(255,178,87,.4)}
+.bf-count{display:flex;gap:8px;margin:0 0 16px}.bf-count span{background:#000;border:1px solid #8a6420;border-radius:12px;padding:6px 10px;text-align:center;min-width:58px}
+.bf-count b{display:block;color:#ffd27a;font:800 20px Quicksand,system-ui,sans-serif}.bf-count small{display:block;font-size:10px;color:var(--bruma)}
+.ptag--bf{background:#000;color:#ffd27a;border:1px solid #ffd27a;letter-spacing:.04em;text-transform:uppercase}
+.theme-bf .ccard{border-color:#5a4313}
+.bfswitch{background:#000;border:1px solid #8a6420;border-radius:14px;padding:12px 14px}
+@media (min-width:760px){.bf-hero{grid-template-columns:1.3fr 1fr;padding:34px}.promobar--bf{font-size:14px}}
+.bf-rib{position:absolute;top:18px;right:-40px;z-index:2;transform:rotate(38deg);background:#000;color:#ffd27a;font:900 11px Nunito,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;padding:4px 44px;border-top:1px solid #ffd27a;border-bottom:1px solid #ffd27a;pointer-events:none}

@@ -135,7 +135,7 @@ function shellPublic({ cfg, user, title, content, flash: f, description = '', og
   const links = items.map((i) => html`<a href="${i.href}" class="nav__item">${icon(i.icon, 20)}<span>${i.label}</span></a>`);
   const bar = require('./promotions').banner();
   const body = html`
-${bar ? html`<div class="promobar" role="status">${bar.text}</div>` : ''}
+${bar ? html`<div class="promobar${bar.theme === 'blackfriday' ? ' promobar--bf' : ''}" role="status">${bar.text}</div>` : ''}
 <header class="p-header">
   <div class="p-header__in">
     ${brand({ size: 34 })}
@@ -154,7 +154,7 @@ ${bar ? html`<div class="promobar" role="status">${bar.text}</div>` : ''}
 </div>
 <main id="conteudo" class="p-main">${flash(f)}${content}</main>
 ${renderFooter(cfg)}`;
-  return documentShell({ cfg, title, body, robots, bodyClass: 'is-public', description, track: !(user && user.role === 'admin') });
+  return documentShell({ cfg, title, body, robots, bodyClass: bar && bar.theme === 'blackfriday' ? 'is-public theme-bf' : 'is-public', description, track: !(user && user.role === 'admin') });
 }
 
 module.exports = { documentShell, shellApp, shellAuth, shellPublic, flash, lumen };

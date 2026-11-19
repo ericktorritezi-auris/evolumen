@@ -40,6 +40,19 @@ function couponBanner(coupon) {
 
 const starLine = (r) => (r ? html`<span class="rating" title="${r.n} avaliações">★ ${String(r.avg).replace('.', ',')} <small>(${r.n})</small></span>` : '');
 
+// Home no tema Black Friday: no lugar da abertura normal, a abertura da campanha.
+function bfHero() {
+  const b = require('../promotions').banner();
+  if (!b || b.theme !== 'blackfriday') return '';
+  const mins = Math.max(0, Math.floor((new Date(b.endsIso).getTime() - Date.now()) / 60000)); const p2 = (n) => String(n).padStart(2, '0');
+  const cd = { d: p2(Math.floor(mins / 1440)), h: p2(Math.floor((mins % 1440) / 60)), m: p2(mins % 60) };
+  return html`<section class="bf-hero" aria-label="Black Friday"><div class="bf-hero__text"><span class="eyebrow">Só até ${b.ends}</span>
+    <h1 class="bf-hero__t">BLACK<br>FRIDAY</h1><p class="bf-hero__off"><b>${b.off.replace(' off', '')} de desconto</b> em nossos produtos</p>
+    <div class="bf-count" data-countdown="${b.endsIso}" aria-label="Tempo que falta"><span><b data-cd="d">${cd.d}</b><small>dias</small></span><span><b data-cd="h">${cd.h}</b><small>horas</small></span><span><b data-cd="m">${cd.m}</b><small>min</small></span></div>
+    <a class="btn btn--primary btn--lg" href="#cursos">Aproveitar agora</a></div>
+    <div class="bf-hero__lumen"><img class="lumen" src="/static/img/lumen-blackfriday.svg" width="200" alt=""></div></section>`;
+}
+
 // Home: enquanto há promoção no ar, a Lumen avisa.
 function promoSection() {
   const b = require('../promotions').banner();
@@ -50,7 +63,7 @@ function promoSection() {
 function courseCard(c) {
   return html`<article class="ccard">
     <a class="ccard__cover" href="/cursos/${c.slug}" tabindex="-1" aria-hidden="true">${coverBox(c)}</a>
-    ${C.effectivePrice(c).campaignWins ? html`<span class="ptag ptag--cover${C.effectivePrice(c).campaign.theme === 'blackfriday' ? ' ptag--bf' : ''}">${require('../promotions').tagOf(C.effectivePrice(c).campaign)}</span>` : ''}
+    ${C.effectivePrice(c).campaignWins ? (C.effectivePrice(c).campaign.theme === 'blackfriday' ? html`<span class="bf-rib">Black Friday</span>` : html`<span class="ptag ptag--cover">${require('../promotions').tagOf(C.effectivePrice(c).campaign)}</span>`) : ''}
     <div class="ccard__body">
       <div class="ccard__tags">${c.featured ? html`<span class="pill pill--star">Destaque</span>` : ''}${c.product_type === 'download' ? html`<span class="pill pill--prod">${c.category || 'Produto digital'}</span>` : (c.category ? html`<span class="pill">${c.category}</span>` : '')}</div>
       <h3 class="ccard__title"><a href="/cursos/${c.slug}">${c.title}</a></h3>
@@ -65,7 +78,7 @@ function courseCard(c) {
 function landing({ cfg, user, courses, coupon }) {
   const content = html`
 ${couponBanner(coupon)}
-<section class="hero">
+${bfHero() || html`<section class="hero">
   <div class="hero__text">
     <span class="eyebrow">Saúde emocional · cursos e produtos digitais</span>
     <h1 class="t-hero">Evolua com <b class="accent">clareza.</b></h1>
@@ -73,8 +86,8 @@ ${couponBanner(coupon)}
     <div class="row"><a class="btn btn--primary btn--lg" href="#cursos">Ver os produtos</a><a class="btn btn--ghost btn--lg" href="${user ? '/meus-cursos' : '/entrar'}">Área de membros</a></div>
   </div>
   <div class="hero__lumen">${lumen('ola', 170)}<div class="bubble">Oi! Eu sou a Lumen. Vou te guiar por aqui.</div></div>
-</section>
-${promoSection()}
+</section>`}
+${bfHero() ? '' : promoSection()}
 
 <section class="sec" id="sobre">
   <div class="sec__in">
