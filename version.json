@@ -1,7 +1,7 @@
 {
-  "version": "2.5.1",
+  "version": "2.5.2",
   "display": "1.3",
   "phase": 6,
   "released": "2026-11-19",
-  "note": "Tema Black Friday: com a promoção no ar o site muda (cabeçalho, abertura com a Lumen, contagem regressiva e faixa nos produtos) e volta ao normal ao terminar."
+  "note": "Cupom de afiliado durante a promoção: o desconto não vale, mas a venda é registrada para quem indicou (comissão normal) o cupom não é gasto e há aviso por e-mail aos afiliados."
 }

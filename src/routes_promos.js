@@ -22,9 +22,23 @@ function build(cfg, h) {
     const out = await P.saveChecked(values, req.user.id);
     if (out.clash) return res.status(422).send(views.form(ctx(req, res), { courses: await courses(), values: { ...req.body, courses: [].concat(req.body.courses || []).map(String) }, errors: { starts_at: `Já existe a promoção "${out.clash.name}" ativa nesse período para esses produtos. Ajuste as datas ou os produtos, ou inative a outra.` } }));
     const id = out.id;
+    let note = 'Promoção criada. Ela começa e termina sozinha nas datas informadas.';
+    if (req.body.notify_affiliates === '1') note += await notify(req, id);
     await audit(req, 'promotion_created', { entity: 'promotion', entityId: id, meta: { name: values.name } });
-    flashBack(req, res, 'success', 'Promoção criada. Ela começa e termina sozinha nas datas informadas.', `/admin/promocoes/${id}`);
+    flashBack(req, res, 'success', note, `/admin/promocoes/${id}`);
   });
+
+  // O aviso aos afiliados nunca derruba a criação da promoção: se algo falhar, a promoção fica salva e o botão continua disponível.
+  async function notify(req, id) {
+    try {
+      const n = await P.notifyAffiliates(cfg, id);
+      if (n.already) return ' O e-mail aos afiliados já tinha sido enviado.';
+      h.background(n.done);
+      await audit(req, 'promotion_affiliates_notified', { entity: 'promotion', entityId: id, meta: { queued: n.queued, skipped: n.skipped } });
+      if (!n.queued) return ' Nenhum afiliado a avisar agora (ativos com cupom de comissão em vigor e que aceitam e-mails).';
+      return ` E-mail sendo enviado a ${n.queued} ${n.queued === 1 ? 'afiliado' : 'afiliados'}${n.skipped ? ` (${n.skipped} ficou de fora: pediu para não receber e-mails)` : ''}.`;
+    } catch (e) { return ' Não foi possível enviar o e-mail aos afiliados agora. Use o botão na tela da promoção para tentar de novo.'; }
+  }
 
   const load = async (req, next) => { const p = await P.byId(req.params.id); if (!p) { next(); return null; } return p; };
 
@@ -42,6 +56,13 @@ function build(cfg, h) {
     if (out.clash) return res.status(422).send(views.form(ctx(req, res), { courses: await courses(), values: { ...req.body, courses: [].concat(req.body.courses || []).map(String) }, errors: { starts_at: `Já existe a promoção "${out.clash.name}" ativa nesse período para esses produtos. Ajuste as datas ou os produtos, ou inative a outra.` }, p }));
     await audit(req, 'promotion_updated', { entity: 'promotion', entityId: p.id, meta: { name: values.name } });
     flashBack(req, res, 'success', 'Promoção atualizada.', `/admin/promocoes/${p.id}`);
+  });
+
+  r.post('/admin/promocoes/:id/avisar-afiliados', async (req, res, next) => {
+    const p = await load(req, next); if (!p) return;
+    if (p.affiliates_notified_at) return flashBack(req, res, 'info', 'O e-mail aos afiliados desta promoção já foi enviado.', `/admin/promocoes/${p.id}`);
+    if (P.stateOf(p) === 'ended' || p.status !== 'active') return flashBack(req, res, 'info', 'A promoção já terminou ou está inativa: não há o que avisar.', `/admin/promocoes/${p.id}`);
+    flashBack(req, res, 'success', (await notify(req, p.id)).trim(), `/admin/promocoes/${p.id}`);
   });
 
   r.post('/admin/promocoes/:id/inativar', async (req, res, next) => {

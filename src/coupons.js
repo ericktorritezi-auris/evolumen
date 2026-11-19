@@ -132,7 +132,11 @@ async function publicView(code, course = null) {
     const vis = c.courses.length ? (await db.q("SELECT 1 FROM courses WHERE id = ANY($1::bigint[]) AND status = 'published' AND published_at IS NOT NULL AND published_at <= now() LIMIT 1", [c.courses.map((x) => x.id)])).rowCount : 0;
     if (!vis) return { invalid: true };
   }
-  if (course ? C.effectivePrice(course).campaign : require('./promotions').liveNow().some((p) => p.all_products)) return { code: c.code, label: discountLabel(c), suspended: true };
+  if (course ? C.effectivePrice(course).campaign : require('./promotions').liveNow().some((p) => p.all_products)) {
+    // Cupom de afiliado em promoção: o desconto não vale, mas a venda é registrada para quem indicou.
+    const af = c.affiliate_id && c.commission_pct != null ? (await db.q("SELECT name FROM affiliates WHERE id = $1 AND status = 'active'", [c.affiliate_id])).rows[0] : null;
+    return { code: c.code, label: discountLabel(c), suspended: true, attribution: af ? { name: String(af.name || '').trim().split(/\s+/)[0] || '' } : null };
+  }
   const pw = course ? priceWith(c, course) : null;
   const eff = course ? C.effectivePrice(course) : null;
   const promoCheaper = !!(pw && eff && eff.original != null && eff.cents <= pw.cents);

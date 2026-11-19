@@ -95,6 +95,36 @@ async function conflict({ starts, ends, all, ids, id }) {
 const stateOf = (p, now = new Date()) => (p.status !== 'active' ? 'inactive' : now < new Date(p.starts_at) ? 'scheduled' : now > new Date(p.ends_at) ? 'ended' : 'live');
 const STATE_LABEL = { live: 'Ativa', scheduled: 'Agendada', ended: 'Encerrada', inactive: 'Inativa' };
 
+// E-mail padrão aos afiliados ativos que têm cupom de comissão em vigor (quem pediu para não receber e-mails fica de fora).
+// Reserva o envio antes (uma vez só por promoção, mesmo com dois cliques) e devolve { queued, skipped, done }: o envio roda por trás.
+async function notifyAffiliates(cfg, promoId) {
+  const promo = await byId(promoId); if (!promo) return { queued: 0, skipped: 0, done: Promise.resolve(), none: true };
+  const rows = (await db.q(`SELECT DISTINCT ON (lower(a.email)) a.name, a.email, EXISTS (SELECT 1 FROM email_optouts o WHERE o.email = lower(a.email)) AS optout
+    FROM affiliates a WHERE a.status = 'active' AND a.email IS NOT NULL AND EXISTS (SELECT 1 FROM coupons k WHERE k.affiliate_id = a.id AND k.commission_pct IS NOT NULL AND k.status <> 'inactive'
+      AND (k.starts_on IS NULL OR k.starts_on <= current_date) AND (k.ends_on IS NULL OR k.ends_on >= current_date)
+      AND (k.max_uses IS NULL OR k.max_uses > (SELECT count(*) FROM coupon_redemptions r WHERE r.coupon_id = k.id)))
+    ORDER BY lower(a.email)`)).rows;
+  const to = rows.filter((r) => !r.optout); const skipped = rows.length - to.length;
+  const claim = await db.q('UPDATE promotions SET affiliates_notified_at = now(), affiliates_notified_count = $2 WHERE id = $1 AND affiliates_notified_at IS NULL RETURNING id', [promoId, to.length]);
+  if (!claim.rowCount) return { queued: 0, skipped: 0, done: Promise.resolve(), already: true };
+  const mailer = require('./mailer'); const emails = require('./emails');
+  const period = `de ${dayBr(promo.starts_at)} às ${hourBr(promo.starts_at)} até ${untilBr(promo.ends_at)}`;
+  const done = (async () => {
+    let sent = 0;
+    for (const r of to) {
+      try {
+        const res = await mailer.send(cfg, { to: r.email, ...emails.promotionForAffiliates(cfg, { name: r.name, promoName: promo.name, off: offLabel(promo).replace(' off', ' de desconto'), period }) });
+        if (res && res.ok) sent++;
+      } catch (e) { /* um e-mail com problema não derruba os outros */ }
+    }
+    // Se nada saiu (ex.: e-mail fora do ar), libera o botão para tentar de novo.
+    if (to.length && !sent) await db.q('UPDATE promotions SET affiliates_notified_at = NULL, affiliates_notified_count = NULL WHERE id = $1', [promoId]);
+    else await db.q('UPDATE promotions SET affiliates_notified_count = $2 WHERE id = $1', [promoId, sent]);
+    return { sent };
+  })().catch(() => ({ sent: 0 }));
+  return { queued: to.length, skipped, done };
+}
+
 const withCourses = `SELECT p.*, COALESCE((SELECT json_agg(json_build_object('id', x.id, 'title', x.title) ORDER BY x.title) FROM promotion_courses pc JOIN courses x ON x.id = pc.course_id WHERE pc.promotion_id = p.id), '[]'::json) AS courses,
   (SELECT count(*)::int FROM orders o WHERE o.campaign_id = p.id AND o.status IN ('approved','refunded','charged_back')) AS orders FROM promotions p`;
 const list = async () => (await db.q(`${withCourses} ORDER BY p.starts_at DESC, p.id DESC`)).rows;
@@ -122,4 +152,4 @@ async function saveChecked(v, userId, id = null) {
 }
 async function deactivate(id) { await db.q("UPDATE promotions SET status = 'inactive' WHERE id = $1", [id]); invalidate(); await refresh(true); }
 
-module.exports = { saveChecked, refresh, invalidate, priceFor, liveNow, theme, banner, tagOf, offLabel, bannerOf, parse, conflict, stateOf, STATE_LABEL, list, byId, save, deactivate, localInput, covers };
+module.exports = { notifyAffiliates, saveChecked, refresh, invalidate, priceFor, liveNow, theme, banner, tagOf, offLabel, bannerOf, parse, conflict, stateOf, STATE_LABEL, list, byId, save, deactivate, localInput, covers };

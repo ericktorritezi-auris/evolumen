@@ -78,14 +78,14 @@ test('pedido guarda campanha, preço e origem; Mercado Pago/pagamento usa o valo
   const oid = (await q('SELECT id FROM orders WHERE public_id=$1', [pub])).rows[0].id; const adm = (await admin.get(`/admin/vendas/${oid}`)).text; assert.match(adm, /promoção do site: Janeiro Branco/);
 });
 
-test('cupom suspenso durante a promoção (inclusive afiliado), valendo normal no produto fora dela', async () => {
+test('cupom da plataforma suspenso durante a promoção, valendo normal no produto fora dela', async () => {
   const cp = (await q("INSERT INTO coupons (code, kind, percent, max_uses, ends_on) VALUES ('EVO-PROMO1','percent',30,50, current_date + 30) RETURNING id")).rows[0].id;
   await q('INSERT INTO coupon_courses (coupon_id, course_id) VALUES ($1,$2),($1,$3)', [cp, A, B]);
   const af = (await q("INSERT INTO affiliates (name, email, status) VALUES ('Afi Promo','afi@promo.com','active') RETURNING id")).rows[0].id;
   const ac = (await q("INSERT INTO coupons (code, kind, percent, affiliate_id, commission_pct, max_uses) VALUES ('EVO-AFI20','percent',20,$1,20,50) RETURNING id", [af])).rows[0].id;
   await q('INSERT INTO coupon_courses (coupon_id, course_id) VALUES ($1,$2),($1,$3)', [ac, A, B]);
-  // produto A está em promoção: cupom comum e de afiliado são recusados com aviso
-  for (const code of ['EVO-PROMO1', 'EVO-AFI20']) {
+  // produto A está em promoção: cupom da plataforma é recusado com aviso (o de afiliado só registra a venda: veja v252)
+  for (const code of ['EVO-PROMO1']) {
     const page = (await new Browser(t.base).get(`/checkout/curso-a?cupom=${code}`)).text;
     assert.match(page, /não pode ser usado agora porque o site está com preço promocional/); assert.match(page, /volta a valer/);
     const post = await buy('curso-a', { cupom: code }); assert.equal(post.r.status, 422); assert.match(post.r.text, /preço promocional/);

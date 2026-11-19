@@ -54,7 +54,7 @@ function venda(ctx, { o, course, refunds, canRefund }) {
     ['Criado em', fmtDateTime(o.created_at)],
     ['Forma', `${METHOD[o.method]}${o.installments > 1 ? ` em ${o.installments}x` : ''}`],
     ['Preço de tabela', brl(o.list_cents)],
-    ['Preço cobrado', `${brl(o.price_cents)}${o.price_source === 'promo' ? ' (promoção)' : o.price_source === 'campaign' ? ` (promoção do site${o.campaign_name ? ': ' + o.campaign_name : ''})` : o.price_source === 'coupon' ? ' (cupom)' : o.price_source === 'renewal' ? ' (renovação)' : ''}`],
+    ['Preço cobrado', `${brl(o.price_cents)}${o.price_source === 'promo' ? ' (promoção)' : o.price_source === 'campaign' ? ` (promoção do site${o.campaign_name ? ': ' + o.campaign_name : ''}${o.coupon_id ? ' · cupom de afiliado registrado, sem desconto' : ''})` : o.price_source === 'coupon' ? ' (cupom)' : o.price_source === 'renewal' ? ' (renovação)' : ''}`],
     o.paid_cents ? ['Valor pago pelo aluno', brl(o.paid_cents)] : null,
     o.approved_at ? ['Aprovado em', fmtDateTime(o.approved_at)] : null,
     o.refund_until ? ['Reembolso até', fmtDate(o.refund_until)] : null,

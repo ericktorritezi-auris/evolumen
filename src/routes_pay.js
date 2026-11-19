@@ -49,13 +49,14 @@ function build(cfg, h) {
     const course = await loadCourse(req, res, next); if (!course) return;
     const ctx = await context(req, res, course); if (!ctx) return;
     const code = String(req.query.cupom || '').trim().toUpperCase().slice(0, 30);
-    let coupon = null; let couponErr = ''; let couponMsg = '';
+    let coupon = null; let couponErr = ''; let couponMsg = ''; let attribution = null;
     if (code && !ctx.renewal) {
       const c = await S.checkCoupon(code, course, { userId: req.user && req.user.id });
-      if (c.error) couponErr = c.error; else coupon = c.coupon;
+      if (c.error) couponErr = c.error; else { coupon = c.coupon; attribution = c.attribution || null; }
     }
     const price = S.pricing(course, coupon, { renewal: ctx.renewal });
-    if (coupon) couponMsg = price.source === 'coupon' ? `Cupom ${coupon.code} aplicado.` : 'A promoção atual já é igual ou melhor que o cupom, então vale a promoção.';
+    if (coupon && attribution) couponMsg = S.attributionNote(attribution.name);
+    else if (coupon) couponMsg = price.source === 'coupon' ? `Cupom ${coupon.code} aplicado.` : 'A promoção atual já é igual ou melhor que o cupom, então vale a promoção.';
     res.send(views.checkoutPage({ ...h.appCtx(req, res), course, price, values: initialValues(req.user, {}), renewal: ctx.renewal, couponCode: coupon ? coupon.code : '', couponMsg, couponErr, docs: ctx.docs }));
   });
 
@@ -83,16 +84,16 @@ function build(cfg, h) {
       if (dup.rowCount) errors.cpf = 'Este CPF já está em outra conta. Entre com ela para continuar.';
     }
     // O cupom é conferido de novo agora, antes de gerar a cobrança.
-    let coupon = null; let couponErr = '';
+    let coupon = null; let couponErr = ''; let attribution = null;
     const code = String(req.body.cupom || '').trim().toUpperCase().slice(0, 30);
     if (code && !ctx.renewal) {
       const c = await S.checkCoupon(code, course, { userId: user && user.id, email });
-      if (c.error) couponErr = c.error; else coupon = c.coupon;
+      if (c.error) couponErr = c.error; else { coupon = c.coupon; attribution = c.attribution || null; }
     }
     const show = async (status, extra = {}) => {
       const price = S.pricing(course, coupon, { renewal: ctx.renewal });
       return res.status(status).send(views.checkoutPage({ ...h.appCtx(req, res), course, price, values: { ...req.body, email, ...values, accept: req.body.accept === '1' }, errors, renewal: ctx.renewal,
-        couponCode: coupon ? coupon.code : '', couponErr, couponMsg: coupon ? `Cupom ${coupon.code} aplicado.` : '', docs: ctx.docs, ...extra }));
+        couponCode: coupon ? coupon.code : '', couponErr, couponMsg: coupon ? (attribution ? S.attributionNote(attribution.name) : `Cupom ${coupon.code} aplicado.`) : '', docs: ctx.docs, ...extra }));
     };
     if (Object.keys(errors).length || couponErr) return show(422);
     const buyer = { name: values.name, email, phone: values.phone, cpf: values.cpf, cep: values.cep, street: values.street, street_number: values.street_number, complement: values.complement, district: values.district, city: values.city, state: values.state };
