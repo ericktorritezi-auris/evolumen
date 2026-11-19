@@ -201,6 +201,23 @@ function activityResult(cfg, { name, course, lesson, result, grade, summary, url
 }
 
 // Lembretes enviados pelo administrador (2.4.0). O texto vem do administrador: vai escapado, com parágrafos e quebras de linha.
+// Aviso padrão aos afiliados quando uma promoção do site é criada: o desconto do cupom não vale, mas a venda continua sendo deles.
+function promotionForAffiliates(cfg, { name, promoName, off, period }) {
+  const first = esc(String(name || '').trim().split(/\s+/)[0] || 'tudo bem');
+  const url = `${cfg.baseUrl}/entrar`;
+  const p = (t) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6">${t}</p>`;
+  return {
+    subject: `Promoção ${promoName}: o seu cupom continua valendo para você`, template: 'promocao_afiliados',
+    html: layout({ cfg, title: 'Nova promoção no site', intro: `Olá, ${first}!`,
+      bodyHtml: p(`Acabamos de criar a promoção <b>${esc(promoName)}</b> (${esc(off)}, ${esc(period)}).`)
+        + p('Enquanto ela estiver no ar, o <b>desconto do seu cupom não é aplicado</b>, porque o site já está com preço promocional.')
+        + p('Mas você continua sendo afiliado: <b>avise as pessoas que você indicar para usar o seu cupom mesmo assim</b>, porque a venda é registrada para você, com a comissão de sempre (o mesmo percentual, calculado sobre o valor pago).')
+        + p('Quando a promoção terminar, o desconto do seu cupom volta ao normal.'),
+      cta: { url, label: 'Abrir o painel do afiliado' } }),
+    text: `Olá, ${String(name || '').trim().split(/\s+/)[0] || ''}! Acabamos de criar a promoção ${promoName} (${off}, ${period}). Enquanto ela estiver no ar, o desconto do seu cupom não é aplicado, porque o site já está com preço promocional. Mas você continua sendo afiliado: avise as pessoas que você indicar para usar o seu cupom mesmo assim, porque a venda é registrada para você, com a comissão de sempre (mesmo percentual, sobre o valor pago). Quando a promoção terminar, o desconto do cupom volta ao normal. Painel: ${url}`,
+  };
+}
+
 function reminder(cfg, { kind, name, subject, message, cta, unsubUrl, why }) {
   const paras = String(message).split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6">${esc(p).replace(/\n/g, '<br>')}</p>`).join('');
   const title = kind === 'afiliado' ? 'Como posso te ajudar?' : 'Sentimos a sua falta por aqui';
@@ -324,4 +341,4 @@ function dataRequestDone(cfg, { name, kind, ok, note }) {
   };
 }
 
-module.exports = { reminder, activityResult, affiliateInvite, affiliateLinked, payoutRecorded, courseNews, productUpdated, accessExpiring, forumQuestion, forumAnswer, dataRequestDone, purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, attemptsGranted, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };
+module.exports = { promotionForAffiliates, reminder, activityResult, affiliateInvite, affiliateLinked, payoutRecorded, courseNews, productUpdated, accessExpiring, forumQuestion, forumAnswer, dataRequestDone, purchaseApproved, pixExpired, refundDone, refundRejected, refundRequested, attemptsGranted, accessGranted, courseGranted, couponInvite, resetPassword, passwordChanged, emailChangeCode, emailChanged, adminEmailRequest };

@@ -39,6 +39,7 @@ function fields({ courses, v, errors = {} }) {
     <div class="span2">${field({ id: 'tag_text', label: 'Texto da tag no produto (opcional)', value: v.tag_text || '', maxlength: 60, placeholder: 'Ex.: Janeiro Branco · R$ 50 off', note: 'Se ficar vazio, o sistema usa "Nome · desconto".' })}</div>
     <div class="span2">${field({ id: 'banner_text', label: 'Aviso no topo do site (opcional)', value: v.banner_text || '', maxlength: 160, note: 'Se ficar vazio: "Estamos com preço promocional! …".' })}</div>
     <div class="span2 bfswitch"><label class="check"><input type="checkbox" name="theme" value="blackfriday"${v.theme === 'blackfriday' ? raw(' checked') : ''}><span><b>Tema Black Friday</b><br><small class="muted">Enquanto a promoção estiver no ar, o site inteiro muda: cabeçalho e cores escuros com dourado, página inicial com a Lumen de óculos escuros, contagem regressiva e faixa Black Friday nos produtos. Ao terminar, o site volta ao normal.</small></span></label></div>
+    ${v.__new ? html`<div class="span2 bfswitch"><label class="check"><input type="hidden" name="notify_form" value="1"><input type="checkbox" name="notify_affiliates" value="1"${v.notify_form !== '1' || v.notify_affiliates === '1' ? raw(' checked') : ''}><span><b>Avisar os afiliados por e-mail</b><br><small class="muted">Envia agora, ao salvar, um e-mail padrão aos afiliados ativos: durante a promoção o desconto do cupom não vale, mas a venda continua registrada para eles. Desmarque para não enviar.</small></span></label></div>` : ''}
     <fieldset class="span2 fieldset"><legend>Produtos da promoção</legend>
       <label class="check"><input type="radio" name="scope" value="all"${sel ? '' : raw(' checked')}><span>Todos os produtos (cursos e downloads)</span></label>
       <label class="check"><input type="radio" name="scope" value="selected"${sel ? raw(' checked') : ''}><span>Só os produtos escolhidos abaixo</span></label></fieldset>
@@ -54,8 +55,10 @@ function form(ctx, { courses, values, errors = {}, p = null }) {
   ${p ? html`<p>${badge(p)} <span class="muted small">${p.orders} ${p.orders === 1 ? 'venda' : 'vendas'} nesta promoção</span></p>` : ''}
   ${Object.keys(errors).length ? html`<div class="alert alert--error" role="alert">Confira os campos destacados.</div>` : ''}
   <form method="post" action="${action}" class="form" novalidate>${csrfInput(ctx.csrf)}
-    <section class="card"><div class="form form--grid">${fields({ courses, v: values, errors })}</div></section>
+    <section class="card"><div class="form form--grid">${fields({ courses, v: { ...values, __new: !p }, errors })}</div></section>
     <div class="row"><button class="btn btn--primary btn--lg" type="submit">${p ? 'Salvar alterações' : 'Criar promoção'}</button></div></form>
+  ${p ? (p.affiliates_notified_at ? html`<p class="muted small">E-mail aos afiliados enviado em ${fmt(p.affiliates_notified_at)} para ${p.affiliates_notified_count || 0} ${p.affiliates_notified_count === 1 ? 'afiliado' : 'afiliados'}.</p>`
+    : p.status === 'active' && P.stateOf(p) !== 'ended' ? html`<form method="post" action="/admin/promocoes/${p.id}/avisar-afiliados" class="row">${csrfInput(ctx.csrf)}<button class="btn btn--outline" type="submit">Enviar e-mail aos afiliados</button><span class="muted small">Ainda não foi enviado. É o e-mail padrão sobre o cupom durante a promoção.</span></form>` : '') : ''}
   ${p && p.status === 'active' ? html`<form method="post" action="/admin/promocoes/${p.id}/inativar" class="row">${csrfInput(ctx.csrf)}<button class="btn btn--outline" type="submit">Inativar promoção</button><span class="muted small">Encerra agora. O histórico e as vendas ficam guardados.</span></form>` : ''}`;
   return shell(ctx, p ? p.name : 'Nova promoção', content);
 }

@@ -32,20 +32,33 @@ function pricing(course, coupon, { renewal = false } = {}) {
   const eff = C.effectivePrice(course);
   let final = eff.cents; let source = eff.campaignWins ? 'campaign' : eff.original != null ? 'promo' : 'full'; let used = null;
   const campaign = eff.campaign || null;
-  // Promoção do site no ar para este produto: cupom (inclusive de afiliado) fica suspenso e não soma.
+  // Promoção do site no ar para este produto: o cupom não dá desconto e não soma. Cupom de afiliado continua no pedido (attributed) só para a comissão.
   if (coupon && !campaign) {
     const pw = K.priceWith(coupon, course);
     if (pw && pw.cents < eff.cents) { final = pw.cents; source = 'coupon'; used = coupon; }
   }
-  return { list: course.price_cents, final, source, coupon: used, off: course.price_cents - final, campaign: source === 'campaign' ? campaign : null, campaignOn: !!campaign };
+  return { list: course.price_cents, final, source, coupon: used, off: course.price_cents - final, campaign: source === 'campaign' ? campaign : null, campaignOn: !!campaign, attributed: coupon && campaign ? coupon : null };
 }
 
 // Cupom digitado no checkout: confere agora (situação, curso e uso único por pessoa).
+const BLOCKED_MSG = 'Este cupom não pode ser usado agora porque o site está com preço promocional. Assim que a promoção terminar, ele volta a valer.';
+const firstName = (n) => String(n || '').trim().split(/\s+/)[0] || '';
+const attributionNote = (name) => `O desconto deste cupom não será aplicado porque existe uma promoção em vigor, mas a sua compra será registrada para quem o indicou${name ? `: ${name}` : ''}.`;
+const couponIdOf = (price) => (price.coupon ? price.coupon.id : price.attributed ? price.attributed.id : null);
+
 async function checkCoupon(code, course, { userId = null, email = null } = {}) {
   const raw = String(code || '').trim();
   if (!raw) return { coupon: null };
-  if (C.effectivePrice(course).campaign) return { error: 'Este cupom não pode ser usado agora porque o site está com preço promocional. Assim que a promoção terminar, ele volta a valer.', blocked: true };
+  const inPromo = !!C.effectivePrice(course).campaign;
   const c = await K.byCode(raw);
+  if (inPromo) {
+    // Promoção do site: o desconto do cupom não vale. Cupom de afiliado válido é mantido só para registrar a venda (comissão), sem gastar o cupom.
+    const aff = c && c.affiliate_id && c.commission_pct != null ? (await db.q("SELECT id, name FROM affiliates WHERE id = $1 AND status = 'active'", [c.affiliate_id])).rows[0] : null;
+    if (!aff) return { error: BLOCKED_MSG, blocked: true };
+    if (K.stateOf(c, c.uses) !== 'active') return { error: 'Este cupom não está mais válido.' };
+    if (!c.courses.some((x) => String(x.id) === String(course.id))) return { error: 'Este cupom não vale para este produto.' };
+    return { coupon: c, attribution: { name: firstName(aff.name) } };
+  }
   if (!c || K.stateOf(c, c.uses) !== 'active') return { error: 'Este cupom não está mais válido.' };
   if (!c.courses.some((x) => String(x.id) === String(course.id))) return { error: 'Este cupom não vale para este produto.' };
   let uid = userId;
@@ -53,7 +66,7 @@ async function checkCoupon(code, course, { userId = null, email = null } = {}) {
   if (uid && (await db.q('SELECT 1 FROM coupon_redemptions WHERE coupon_id = $1 AND user_id = $2', [c.id, uid])).rowCount) return { error: 'Você já usou este cupom.' };
   // Reserva: compras em andamento (pagamento ainda pendente) também seguram o cupom, para não valer em dois pedidos ao mesmo tempo.
   const mail = String(email || '').toLowerCase();
-  const pend = (await db.q(`SELECT course_id, user_id, lower(buyer->>'email') AS email FROM orders WHERE coupon_id = $1 AND status = 'pending' AND created_at > now() - interval '35 minutes'`, [c.id])).rows;
+  const pend = (await db.q(`SELECT course_id, user_id, lower(buyer->>'email') AS email FROM orders WHERE coupon_id = $1 AND price_source = 'coupon' AND status = 'pending' AND created_at > now() - interval '35 minutes'`, [c.id])).rows;
   const mine = (r) => (uid && String(r.user_id) === String(uid)) || (mail && r.email === mail);
   if (pend.some((r) => mine(r) && String(r.course_id) !== String(course.id))) return { error: 'Você já está usando este cupom em outra compra que ainda não foi paga.' };
   if (c.max_uses && c.uses + new Set(pend.filter((r) => !mine(r)).map((r) => r.email)).size >= c.max_uses) return { error: 'Este cupom está reservado em compras em andamento. Tente de novo em alguns minutos.' };
@@ -90,11 +103,11 @@ async function createOrder(cfg, req, { course, buyer, method, user, coupon, rene
     const dup = (await c.query(method === 'pix'
       ? `SELECT * FROM orders WHERE course_id = $1 AND lower(buyer->>'email') = $2 AND method = 'pix' AND status = 'pending' AND price_cents = $3 AND coupon_id IS NOT DISTINCT FROM $4::bigint AND pix_expires_at > now() + interval '2 minutes' ORDER BY id DESC LIMIT 1`
       : `SELECT * FROM orders WHERE course_id = $1 AND lower(buyer->>'email') = $2 AND method = 'card' AND status = 'pending' AND price_cents = $3 AND coupon_id IS NOT DISTINCT FROM $4::bigint AND checkout_url IS NOT NULL AND created_at > now() - interval '30 minutes' ORDER BY id DESC LIMIT 1`,
-    [course.id, buyer.email, price.final, price.coupon ? price.coupon.id : null])).rows[0];
+    [course.id, buyer.email, price.final, couponIdOf(price)])).rows[0];
     if (dup) return dup;
     const o = (await c.query(`INSERT INTO orders (public_id, user_id, course_id, kind, buyer, list_cents, price_cents, price_source, coupon_id, method, provider, terms_doc_id, privacy_doc_id, ip, user_agent, visitor_id, session_id, campaign_id, campaign_name)
       VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
-    [publicId, user ? user.id : null, course.id, renewal ? 'renewal' : 'purchase', JSON.stringify(buyer), price.list, price.final, price.source, price.coupon ? price.coupon.id : null, method, cfg.paymentProvider,
+    [publicId, user ? user.id : null, course.id, renewal ? 'renewal' : 'purchase', JSON.stringify(buyer), price.list, price.final, price.source, couponIdOf(price), method, cfg.paymentProvider,
       docs.terms.id, docs.privacy.id, req.ip || null, ua, ...require('./analytics').idsFrom(req), price.campaign ? price.campaign.id : null, price.campaign ? price.campaign.name : null])).rows[0];
     try {
       if (method === 'pix') {
@@ -236,7 +249,7 @@ async function finalize(cfg, c, o, course, pay) {
   else if (live && !ex.expires_at) { /* vitalício: nada muda */ }
   else await c.query("UPDATE enrollments SET status = 'active', cancelled_at = NULL, starts_at = LEAST(starts_at, now()), expires_at = $2, origin = CASE WHEN status = 'cancelled' THEN 'purchase' ELSE origin END WHERE id = $1", [ex.id, newExp]);
   let couponFlag = null;
-  if (o.coupon_id) {
+  if (o.coupon_id && o.price_source === 'coupon') { // cupom de afiliado em promoção só registra a comissão: não conta como uso
     const ins = await c.query('INSERT INTO coupon_redemptions (coupon_id, user_id, course_id) VALUES ($1,$2,$3) ON CONFLICT (coupon_id, user_id) DO NOTHING', [o.coupon_id, user.id, course.id]);
     const cp = (await c.query('SELECT max_uses, (SELECT count(*)::int FROM coupon_redemptions WHERE coupon_id = $1) AS uses FROM coupons WHERE id = $1', [o.coupon_id])).rows[0];
     // A venda já foi paga e é honrada, mas fica registrado para você ver se o cupom foi usado além do combinado.
@@ -346,4 +359,4 @@ async function sweepExpired(cfg, bg) {
   return n;
 }
 
-module.exports = { pricing, checkCoupon, buyState, publishedDocs, createOrder, processPayment, applyPayment, canRequestRefund, requestRefund, approveRefund, rejectRefund, sweepExpired, newPublicId };
+module.exports = { attributionNote, BLOCKED_MSG, pricing, checkCoupon, buyState, publishedDocs, createOrder, processPayment, applyPayment, canRequestRefund, requestRefund, approveRefund, rejectRefund, sweepExpired, newPublicId };

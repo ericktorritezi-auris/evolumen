@@ -31,6 +31,7 @@ function coverBox(c, cls = '') {
 function couponBanner(coupon) {
   if (!coupon) return '';
   if (coupon.invalid) return html`<div class="alert alert--error" role="alert">Este cupom não está disponível. Ele pode ter vencido, esgotado ou não valer para este produto.</div>`;
+  if (coupon.suspended && coupon.attribution) return html`<div class="alert alert--info" role="status">Cupom <b>${coupon.code}</b> guardado, mas o desconto não será aplicado porque existe uma promoção em vigor. A sua compra será registrada para quem o indicou${coupon.attribution.name ? html`: <b>${coupon.attribution.name}</b>` : ''}.</div>`;
   if (coupon.suspended) return html`<div class="alert alert--info" role="status">Cupom <b>${coupon.code}</b> guardado, mas ele não pode ser usado agora porque o site está com preço promocional. Assim que a promoção terminar, ele volta a valer.</div>`;
   return html`<div class="alert alert--success" role="status">Cupom <b>${coupon.code}</b> guardado: ${coupon.label} de desconto.
     ${coupon.price ? html`Neste produto, de <s>${C.brl(coupon.price.original)}</s> por <b>${C.brl(coupon.price.cents)}</b>.` : ''}
