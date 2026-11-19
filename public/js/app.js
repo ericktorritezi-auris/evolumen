@@ -342,5 +342,17 @@
     var on = b.getAttribute('data-check-all') === '1';
     Array.prototype.forEach.call(document.querySelectorAll('[data-nudge-sel]'), function (c) { if (!c.disabled) c.checked = on; });
   });
+  (function () {
+    var boxes = document.querySelectorAll('[data-countdown]'); if (!boxes.length) return;
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    function tick() {
+      Array.prototype.forEach.call(boxes, function (box) {
+        var left = Math.max(0, new Date(box.getAttribute('data-countdown')).getTime() - Date.now()); var m = Math.floor(left / 60000);
+        var v = { d: Math.floor(m / 1440), h: Math.floor((m % 1440) / 60), m: m % 60 };
+        Object.keys(v).forEach(function (k) { var el = box.querySelector('[data-cd="' + k + '"]'); if (el) el.textContent = pad(v[k]); });
+      });
+    }
+    tick(); setInterval(tick, 20000);
+  })();
   if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function () {}); });
 })();
