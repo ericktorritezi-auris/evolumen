@@ -29,7 +29,7 @@ const NAV = {
     { href: '/admin/cursos', icon: 'book', label: 'Cursos e produtos', fase: 2 },
     { href: '/admin/alunos', icon: 'users', label: 'Alunos', fase: 2 },
     { href: '/admin/cortesias', icon: 'star', label: 'Cortesias', fase: 2 },
-    { href: '/admin/cupons', icon: 'card', label: 'Cupons', fase: 2 },
+    { href: '/admin/cupons', icon: 'card', label: 'Cupons e promoções', fase: 2 },
     { href: '/admin/afiliados', icon: 'users', label: 'Afiliados', fase: 6 },
     { href: '/admin/lead-parceiros', icon: 'chart', label: 'Lead Parceiros', fase: 6 },
     { href: '/admin/financeiro', icon: 'chart', label: 'Cockpit financeiro', fase: 4 },

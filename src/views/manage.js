@@ -111,9 +111,11 @@ function log(ctx, { rows, total, page, pages, f, actions, size }) {
 // ---------- cupons ----------
 const stateBadge = (c) => { const s = K.stateOf(c, c.uses); return html`<span class="pill${s === 'active' ? ' pill--ok' : s === 'scheduled' ? '' : ' pill--draft'}">${K.STATE_LABEL[s]}</span>`; };
 
-function cuponsList(ctx, { rows }) {
-  const content = html`${titleRow('Cupons', 'Descontos para divulgar. O cupom vale no pagamento e substitui o preço promocional. Cupons nunca são excluídos: só inativados.')}
-  <div class="row row--top"><a class="btn btn--primary" href="/admin/cupons/novo">Novo cupom</a></div>
+function cuponsList(ctx, { rows, promos = [] }) {
+  const content = html`${titleRow('Cupons e promoções', 'Cupons são descontos para divulgar e valem no pagamento. Promoções são campanhas gerais do site, com início e fim. Com promoção do site no ar, o cupom não vale. Nada é excluído: só inativado.')}
+  <div class="row row--top"><a class="btn btn--primary" href="/admin/cupons/novo">Novo cupom</a><a class="btn btn--primary" href="/admin/promocoes/nova">Nova promoção</a></div>
+  ${require('./promos').listBlock(promos)}
+  <h2 class="t-card">Cupons</h2>
   ${rows.length ? html`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Cupom</th><th>Desconto</th><th>Cursos</th><th>Validade e usos</th><th>Situação</th><th></th></tr></thead><tbody>
     ${rows.map((c) => html`<tr><td data-l="Cupom"><b class="code">${c.code}</b>${c.note ? html`<br><span class="muted small">${c.note}</span>` : ''}${c.affiliate_id ? html`<br><span class="muted small">Afiliado: ${c.affiliate_name} · ${AFF.pctLabel(c.commission_pct)} de comissão</span>` : ''}</td>
       <td data-l="Desconto">${K.discountLabel(c)}</td>
@@ -122,7 +124,7 @@ function cuponsList(ctx, { rows }) {
       <td data-l="Situação">${stateBadge(c)}</td>
       <td class="tbl__act"><a class="btn btn--outline btn--sm" href="/admin/cupons/${c.id}">Abrir</a></td></tr>`)}</tbody></table></div>`
     : html`<section class="card empty">${lumen('pensa', 96)}<div><h2 class="t-card">Nenhum cupom ainda</h2><p class="muted">Crie o primeiro cupom: ele gera sozinho o código, o QR Code e a imagem para divulgar.</p></div></section>`}`;
-  return shell(ctx, '/admin/cupons', 'Cupons', content);
+  return shell(ctx, '/admin/cupons', 'Cupons e promoções', content);
 }
 
 const list2 = (v) => [].concat(v || []).map(String);

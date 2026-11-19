@@ -9,10 +9,16 @@ const { sanitizeHtml } = require('../legal');
 const dur = (min) => (!min ? '' : min >= 60 ? `${Math.floor(min / 60)} h${min % 60 ? ' ' + (min % 60) + ' min' : ''}` : `${min} min`);
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
-function priceBlock(c) {
+// Tag da promoção do site: só aparece quando é ela que está dando o preço atual do produto.
+function promoTag(c, cls = '') {
+  const p = C.effectivePrice(c);
+  return p.campaignWins ? html`<span class="ptag${cls}${p.campaign.theme === 'blackfriday' ? ' ptag--bf' : ''}">${require('../promotions').tagOf(p.campaign)}</span>` : '';
+}
+
+function priceBlock(c, { tag = true } = {}) {
   const p = C.effectivePrice(c);
   if (p.cents === 0) return html`<span class="price">Gratuito</span>`;
-  return html`${p.original ? html`<s class="price__old">${C.brl(p.original)}</s>` : ''}<span class="price">${C.brl(p.cents)}</span>`;
+  return html`${tag ? promoTag(c) : ''}${p.original ? html`<s class="price__old">${C.brl(p.original)}</s>` : ''}<span class="price">${C.brl(p.cents)}</span>`;
 }
 
 function coverBox(c, cls = '') {
@@ -25,6 +31,7 @@ function coverBox(c, cls = '') {
 function couponBanner(coupon) {
   if (!coupon) return '';
   if (coupon.invalid) return html`<div class="alert alert--error" role="alert">Este cupom não está disponível. Ele pode ter vencido, esgotado ou não valer para este produto.</div>`;
+  if (coupon.suspended) return html`<div class="alert alert--info" role="status">Cupom <b>${coupon.code}</b> guardado, mas ele não pode ser usado agora porque o site está com preço promocional. Assim que a promoção terminar, ele volta a valer.</div>`;
   return html`<div class="alert alert--success" role="status">Cupom <b>${coupon.code}</b> guardado: ${coupon.label} de desconto.
     ${coupon.price ? html`Neste produto, de <s>${C.brl(coupon.price.original)}</s> por <b>${C.brl(coupon.price.cents)}</b>.` : ''}
     Ele vale no pagamento e substitui o preço promocional, se houver.
@@ -33,16 +40,24 @@ function couponBanner(coupon) {
 
 const starLine = (r) => (r ? html`<span class="rating" title="${r.n} avaliações">★ ${String(r.avg).replace('.', ',')} <small>(${r.n})</small></span>` : '');
 
+// Home: enquanto há promoção no ar, a Lumen avisa.
+function promoSection() {
+  const b = require('../promotions').banner();
+  if (!b) return '';
+  return html`<section class="promo-lumen" aria-label="Promoção"><div class="promo-lumen__in">${lumen('celebra', 110)}<div><span class="eyebrow">${b.promo.name}</span><p class="promo-lumen__t">Estamos com <b>preço promocional</b>: ${b.off.replace(' off', '')} de desconto até ${b.ends}.</p><a class="btn btn--primary btn--sm" href="#cursos">Ver produtos em promoção</a></div></div></section>`;
+}
+
 function courseCard(c) {
   return html`<article class="ccard">
     <a class="ccard__cover" href="/cursos/${c.slug}" tabindex="-1" aria-hidden="true">${coverBox(c)}</a>
+    ${C.effectivePrice(c).campaignWins ? html`<span class="ptag ptag--cover${C.effectivePrice(c).campaign.theme === 'blackfriday' ? ' ptag--bf' : ''}">${require('../promotions').tagOf(C.effectivePrice(c).campaign)}</span>` : ''}
     <div class="ccard__body">
       <div class="ccard__tags">${c.featured ? html`<span class="pill pill--star">Destaque</span>` : ''}${c.product_type === 'download' ? html`<span class="pill pill--prod">${c.category || 'Produto digital'}</span>` : (c.category ? html`<span class="pill">${c.category}</span>` : '')}</div>
       <h3 class="ccard__title"><a href="/cursos/${c.slug}">${c.title}</a></h3>
       ${starLine(c.rating)}
       ${c.summary ? html`<p class="muted">${c.summary}</p>` : ''}
       <ul class="chips">${c.product_type === 'download' ? html`<li>${plural(c.n_files, 'arquivo', 'arquivos')}</li>` : ''}${c.workload_hours ? html`<li>${c.workload_hours} h</li>` : ''}${c.videos ? html`<li>${plural(c.videos, 'vídeo', 'vídeos')}</li>` : ''}${c.level !== 'nao_se_aplica' ? html`<li>${C.LEVELS[c.level]}</li>` : ''}</ul>
-      <div class="ccard__foot">${priceBlock(c)}<a class="btn btn--outline btn--sm" href="/cursos/${c.slug}">${c.product_type === 'download' ? 'Ver produto →' : 'Ver curso →'}</a></div>
+      <div class="ccard__foot">${priceBlock(c, { tag: false })}<a class="btn btn--outline btn--sm" href="/cursos/${c.slug}">${c.product_type === 'download' ? 'Ver produto →' : 'Ver curso →'}</a></div>
     </div>
   </article>`;
 }
@@ -59,6 +74,7 @@ ${couponBanner(coupon)}
   </div>
   <div class="hero__lumen">${lumen('ola', 170)}<div class="bubble">Oi! Eu sou a Lumen. Vou te guiar por aqui.</div></div>
 </section>
+${promoSection()}
 
 <section class="sec" id="sobre">
   <div class="sec__in">

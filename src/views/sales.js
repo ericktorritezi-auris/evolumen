@@ -54,7 +54,7 @@ function venda(ctx, { o, course, refunds, canRefund }) {
     ['Criado em', fmtDateTime(o.created_at)],
     ['Forma', `${METHOD[o.method]}${o.installments > 1 ? ` em ${o.installments}x` : ''}`],
     ['Preço de tabela', brl(o.list_cents)],
-    ['Preço cobrado', `${brl(o.price_cents)}${o.price_source === 'promo' ? ' (promoção)' : o.price_source === 'coupon' ? ' (cupom)' : o.price_source === 'renewal' ? ' (renovação)' : ''}`],
+    ['Preço cobrado', `${brl(o.price_cents)}${o.price_source === 'promo' ? ' (promoção)' : o.price_source === 'campaign' ? ` (promoção do site${o.campaign_name ? ': ' + o.campaign_name : ''})` : o.price_source === 'coupon' ? ' (cupom)' : o.price_source === 'renewal' ? ' (renovação)' : ''}`],
     o.paid_cents ? ['Valor pago pelo aluno', brl(o.paid_cents)] : null,
     o.approved_at ? ['Aprovado em', fmtDateTime(o.approved_at)] : null,
     o.refund_until ? ['Reembolso até', fmtDate(o.refund_until)] : null,
@@ -162,6 +162,7 @@ function financeiro(ctx, { per, curso, tipo = '', courses, data: d }) {
     <div class="stat"><span class="muted">Receita líquida</span><b class="t-card">${brl(d.net)}</b><span class="muted small">bruta − devolvido</span></div>
     <div class="stat"><span class="muted">Ticket médio</span><b class="t-card">${brl(d.sales.avgTicket)}</b><span class="muted small">${d.sales.withCoupon} com cupom</span></div>
     <div class="stat"><span class="muted">Novas e renovações</span><b class="t-card">${d.sales.news} · ${d.sales.renewals}</b><span class="muted small">novas · renovações</span></div>
+    <div class="stat"><span class="muted">Vendas em promoção</span><b class="t-card">${d.sales.withCampaign}</b><span class="muted small">${brl(d.sales.campaignGross)} · desconto de ${brl(d.sales.campaignOff)}</span></div>
     <div class="stat"><span class="muted">Conclusões</span><b class="t-card">${d.certificates}</b><span class="muted small">certificados emitidos</span></div>
     <div class="stat"><span class="muted">Churn</span><b class="t-card ${d.churn != null && d.churn > 20 ? 'down' : ''}">${pct(d.churn)}</b><span class="muted small">${d.lost} de ${d.base} (${d.refunds.n} devolv. + ${d.nonRenewals} não renov.)</span></div>
     <div class="stat"><span class="muted">Efetividade</span><b class="t-card ${d.effectiveness != null && d.effectiveness >= 80 ? 'up' : ''}">${pct(d.effectiveness)}</b><span class="muted small">100% − churn</span></div></div>

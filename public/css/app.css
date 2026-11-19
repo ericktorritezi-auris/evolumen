@@ -575,3 +575,16 @@ tr.is-focus td{background:rgba(255,178,87,.12)}
 .tabs .tabs__ico:hover,.tabs .tabs__ico:focus-visible{border-color:var(--ambar);color:var(--ambar);background:rgba(255,178,87,.12)}
 .tabs__ico:after{content:attr(data-tip);position:absolute;top:48px;right:0;z-index:20;white-space:nowrap;background:#000;color:var(--nevoa);font-size:13px;font-weight:600;padding:6px 10px;border-radius:8px;border:1px solid var(--line);opacity:0;pointer-events:none;transition:opacity .12s}
 .tabs__ico:hover:after,.tabs__ico:focus-visible:after{opacity:1}
+
+/* 2.5.0: promoções do site (mobile first) */
+.promobar{background:linear-gradient(90deg,#3a2a0a,#5a3d0e);color:#ffe2b0;text-align:center;padding:9px 14px;font-weight:700;font-size:13px;line-height:1.35;border-bottom:1px solid #8a6420}
+.promobar a{color:inherit}
+.ccard{position:relative}
+.ptag{display:inline-block;background:var(--ambar);color:#1b1300;font-weight:800;font-size:12px;line-height:1.2;border-radius:999px;padding:4px 10px;margin:0 8px 6px 0;max-width:100%}
+.ptag--cover{position:absolute;top:10px;left:10px;max-width:calc(100% - 20px);z-index:2;margin:0;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+.promo-lumen{padding:0 16px;margin:0 auto 8px;max-width:1100px}
+.promo-lumen__in{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid rgba(255,178,87,.45);border-radius:var(--r);padding:14px}
+.promo-lumen__in svg,.promo-lumen__in img{flex:0 0 auto;max-width:84px;height:auto}
+.promo-lumen__t{margin:4px 0 10px;color:var(--light)}
+.promos{display:grid;gap:8px;margin:16px 0 24px}
+@media (max-width:520px){.promo-lumen__in{flex-direction:column;text-align:center}.promo-lumen__in svg,.promo-lumen__in img{max-width:96px}}

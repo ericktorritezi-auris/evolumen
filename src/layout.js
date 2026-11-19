@@ -133,7 +133,9 @@ function shellPublic({ cfg, user, title, content, flash: f, description = '', og
   const items = menuFor('publico', '/', cfg.version.phase);
   const cta = user ? { href: user.role === 'admin' ? '/admin' : '/meus-cursos', label: user.role === 'admin' ? 'Painel' : 'Meus produtos' } : { href: '/entrar', label: 'Área de membros' };
   const links = items.map((i) => html`<a href="${i.href}" class="nav__item">${icon(i.icon, 20)}<span>${i.label}</span></a>`);
+  const bar = require('./promotions').banner();
   const body = html`
+${bar ? html`<div class="promobar" role="status">${bar.text}</div>` : ''}
 <header class="p-header">
   <div class="p-header__in">
     ${brand({ size: 34 })}

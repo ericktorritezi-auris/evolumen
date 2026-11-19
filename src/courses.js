@@ -125,9 +125,17 @@ function parseCourse(b, type = 'course') {
 }
 
 // Preço em vigor (promoção só vale se ainda não venceu).
-function effectivePrice(c, now = new Date()) {
+// Preço vigente: promoção própria do produto e promoção geral do site nunca se somam, vale o menor preço.
+// `campaign` é a promoção do site que alcança o produto (mesmo quando a do produto é mais barata): enquanto ela existir, cupom não vale.
+// Com { campaign: false } só vale a promoção do próprio produto (usado na renovação).
+function effectivePrice(c, now = new Date(), { campaign = true } = {}) {
   const promoOn = c.promo_price_cents != null && (!c.promo_until || new Date(String(c.promo_until).slice(0, 10) + 'T23:59:59-03:00') >= now);
-  return { cents: promoOn ? c.promo_price_cents : c.price_cents, original: promoOn ? c.price_cents : null };
+  const own = { cents: promoOn ? c.promo_price_cents : c.price_cents, original: promoOn ? c.price_cents : null };
+  if (!campaign) return own;
+  const cp = require('./promotions').priceFor(c, now);
+  if (!cp) return own;
+  if (cp.cents < own.cents) return { cents: cp.cents, original: c.price_cents, campaign: cp.promo, campaignWins: true };
+  return { ...own, campaign: cp.promo, campaignWins: false };
 }
 const accessLabel = (c) => (c.access_type === 'lifetime' ? 'Vitalício' : c.access_months % 12 === 0 ? `${c.access_months / 12} ${c.access_months === 12 ? 'ano' : 'anos'}` : `${c.access_months} meses`);
 
